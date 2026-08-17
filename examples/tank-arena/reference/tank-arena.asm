@@ -200,10 +200,17 @@ MainLoop
     cpy #8
     bne .hudDigit
 
+    ; Same hazard as the openField -> bottomWall transition: this loop falls
+    ; through at cycle 22 with no horizontal blank left, so clearing GRP here
+    ; would land at pixel 13 (GRP0) and pixel 22 (GRP1) -- blanking both
+    ; players BEFORE the beam reaches the digit columns at x=60 and x=92.
+    ; Measured symptom without this WSYNC: row 7 of both digits missing.
+    sta WSYNC
+
     lda #0
     sta GRP0
     sta GRP1
-    ldx #2                  ; 2 blank lines below
+    ldx #1                  ; 1 blank line below; the WSYNC above supplies the other
 .hudBottom
     sta WSYNC
     dex
@@ -228,17 +235,31 @@ MainLoop
     ldx #1
     jsr PosObjectX
 
+    ; -- top wall: 8 solid lines --
+    ; Write order matters, and it is ordered by DEADLINE, not by readability.
+    ; PosObjectX returns ~9 cycles into a line (HMOVE + rts), leaving only ~13
+    ; cycles of horizontal blank. The playfield writes must fit inside it: PF0
+    ; is read at pixel 0, so it has the earliest deadline; the colour registers
+    ; are not read at all on this line, since no player is drawn over the wall.
+    ;
+    ; Putting the colour writes first, as reads more naturally, pushed PF0 to
+    ; pixel 4 and PF1 to pixel 19 -- a black notch across the left of the first
+    ; wall line.
+    ;
+    ; sta PF2 completes at cycle 22 = colour clock 66, with blank ending at 68.
+    ; Two colour clocks of margin: valid, but exactly the "tight but valid" case
+    ; SPEC.md 5 proposes warning about below 8 cycles of headroom.
+    lda #$F0
+    sta PF0                 ; deadline: pixel 0
+    lda #$FF
+    sta PF1                 ; deadline: pixel 16
+    sta PF2                 ; deadline: pixel 48
+
     lda #$46
-    sta COLUP0              ; back to tank colours
+    sta COLUP0              ; back to tank colours; no deadline on this line
     lda #$86
     sta COLUP1
 
-    ; -- top wall: 8 solid lines --
-    lda #$F0
-    sta PF0
-    lda #$FF
-    sta PF1
-    sta PF2
     ldx #8
 .topWall
     sta WSYNC
