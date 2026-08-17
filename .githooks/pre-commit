@@ -1,0 +1,66 @@
+#!/bin/sh
+# Player1DSL pre-commit checks.
+#
+# Scope: fast, deterministic, certain. Everything here is decidable by a regex or
+# a file-size test and must run in well under a second. Judgment-level review
+# (cross-document consistency, hardware claims, cycle budgets) is NOT here — a
+# git hook cannot invoke an agent skill. See .agents/skills/reviewing-player1dsl-changes/.
+#
+# Slow checks (ROM builds, emulator goldens, full test suite) belong in CI, not here.
+#
+# Install:  git config core.hooksPath .githooks
+# Bypass:   git commit --no-verify   (for deliberate exceptions)
+
+set -eu
+
+fail=0
+note() { printf '%s\n' "$1" >&2; }
+
+# Staged files, added/copied/modified only (skip deletions and renames-away).
+staged=$(git diff --cached --name-only --diff-filter=ACM)
+# Not `[ -z "$staged" ] && exit 0` — a bare && list is a complete statement whose
+# non-zero status can trip `set -e` on a clean commit, shell depending.
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+# --- 1. Build artifacts must not be committed --------------------------------
+# AGENTS.md: "Do not commit generated ROMs, coverage output, dependency
+# directories, secrets, or local emulator configuration."
+# tests/goldens/ and tests/fixtures/ are the deliberate exceptions.
+for f in $staged; do
+  case "$f" in
+    tests/goldens/*|tests/fixtures/*) continue ;;
+  esac
+  case "$f" in
+    *.bin|*.a26|*.rom|*.sym|*.lst|*.map|*.trace|*.tia-trace.json)
+      note "BLOCKED  generated artifact outside tests/goldens|tests/fixtures: $f"
+      fail=1
+      ;;
+  esac
+done
+
+# Line endings are deliberately NOT checked here. With `.gitattributes` in place,
+# text is normalized to LF before it reaches the index, so such a check does not
+# fire — it would only create false confidence. Line endings are .gitattributes'
+# job; if they ever regress, fix it there rather than adding a check here.
+
+# --- 2. Oversized files ------------------------------------------------------
+# Frame-capture goldens bloat history fast. Prefer committing a hash manifest
+# and regenerating the PNG locally. 1 MiB is a deliberately generous ceiling.
+limit=1048576
+for f in $staged; do
+  size=$(git cat-file -s "$(git rev-parse ":$f")" 2>/dev/null || echo 0)
+  if [ "$size" -gt "$limit" ]; then
+    note "BLOCKED  $f is $((size / 1024)) KiB (limit $((limit / 1024)) KiB)"
+    fail=1
+  fi
+done
+
+if [ "$fail" -ne 0 ]; then
+  note ""
+  note "pre-commit failed. Override with --no-verify only if you mean it."
+  exit 1
+fi
+
+exit 0

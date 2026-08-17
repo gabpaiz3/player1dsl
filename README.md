@@ -41,6 +41,14 @@ A browser-based beginner editor follows once the textual compiler and examples a
 
 No build tooling has been installed yet. Before changing architecture or adding dependencies, review [docs/SPEC.md](docs/SPEC.md) and [AGENTS.md](AGENTS.md).
 
+After cloning, enable the repository's git hooks:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+This is per-clone: `core.hooksPath` is stored in `.git/config`, which is not tracked.
+
 ## License
 
 License selection is pending. Do not add third-party ROMs, commercial game assets, or recovered source to this repository without explicit permission.

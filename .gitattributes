@@ -1,0 +1,32 @@
+# Normalize everything to LF in the repository AND in the working tree.
+#
+# `eol=lf` is deliberate and overrides a contributor's core.autocrlf setting.
+# Without it, Windows checkouts get CRLF working-tree files, and byte-exact
+# goldens (.lst, .sym, reports, hashes) fail locally while passing in Linux CI.
+* text=auto eol=lf
+
+# Player1DSL source and generated text artifacts
+*.p1      text eol=lf
+*.asm     text eol=lf
+*.s       text eol=lf
+*.lst     text eol=lf
+*.sym     text eol=lf
+*.map     text eol=lf
+
+# Text goldens: diff cleanly, never normalize away trailing whitespace that
+# a fixed-width listing or report may depend on.
+*.trace   text eol=lf
+*.json    text eol=lf
+
+# ROM images and binary fixtures: never touched, never diffed as text.
+*.bin     binary
+*.a26     binary
+*.rom     binary
+
+# Media and captures
+*.png     binary
+*.gif     binary
+*.wav     binary
+
+# Keep shell hooks LF even on Windows; Git Bash executes them via sh.
+.githooks/* text eol=lf
