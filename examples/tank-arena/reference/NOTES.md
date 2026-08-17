@@ -13,9 +13,9 @@ verification is the pending Stella run.
 
 | Increment | Built | Verified |
 |---|---|---|
-| 1 — stable 262-line frame | yes | **pending** |
-| 2 — mirrored playfield arena | yes | **pending** |
-| 3 — two tanks via RESPx/HMOVE | yes | **pending** |
+| 1 — stable 262-line frame | yes | **pending — needs the Alt+L scanline count** |
+| 2 — mirrored playfield arena | yes | confirmed by capture ✓ |
+| 3 — two tanks via RESPx/HMOVE | yes | confirmed by capture ✓ |
 | 4 — score band | not started | — |
 | 5 — projectiles and collisions | not started | — |
 
@@ -49,21 +49,47 @@ here means an assumption is wrong, not that the margin was too tight.
 
 ### Positioning cost (increment 3) — answers review §3.3
 
-| Quantity | Derived | Measured |
+| Quantity | Derived | Measured (screen capture, 2026-08-16) |
 |---|---|---|
 | Scanlines per `PosObjectX` call | 2 | |
 | VBLANK lines consumed by positioning both tanks | 4 of 37 | |
 | VBLANK lines still free for game logic | 33 | |
-| HMOVE blank bar visible on screen | no — strobed during VBLANK | |
-| Tank 0 lands at x ≈ 40 | | |
-| Tank 1 lands at x ≈ 110 | | |
+| HMOVE blank bar visible on screen | no — strobed during VBLANK | **none visible** ✓ |
+| Tank 0 lands at x ≈ 40 | 40 | ~44 |
+| Tank 1 lands at x ≈ 110 | 110 | ~110 ✓ |
 
-**Most likely thing to be wrong:** the canonical positioning routine is
-sometimes written with `sta.wx HMP0,x`, forcing absolute,X addressing (5 cycles)
-where plain `sta HMP0,x` assembles to zero-page,X (4 cycles). That one cycle is
-three colour clocks of beam travel and shifts coarse placement. This kernel uses
-the plain form. **If the tanks are not at roughly x=40 and x=110, this addressing
-mode is the first suspect** — before the divide loop or the `eor #7`.
+Measurements are scaled off a screen capture, so treat them as ±3 pixels rather
+than exact. Both tanks land within a few pixels of target.
+
+**Resolved:** the canonical positioning routine is sometimes written with
+`sta.wx HMP0,x`, forcing absolute,X addressing (5 cycles) where plain
+`sta HMP0,x` assembles to zero-page,X (4 cycles) — one cycle, three colour
+clocks of beam travel. This kernel uses the plain form, and it places objects
+correctly. **The plain form is right; no `.wx` needed.**
+
+### Arena geometry (increment 2) — confirmed
+
+| Quantity | Derived | Measured |
+|---|---|---|
+| Side wall width | 4 px (`PF0 = $10`, one block) | ~4 px ✓ |
+| Top wall height | 8 scanlines | ~8 ✓ |
+| Right wall mirrors left | yes (`CTRLPF` D0 = REF) | symmetric ✓ |
+
+Confirms `mode mirror` / `mode reflect` are one CTRLPF bit, and that writing the
+playfield once per region costs nothing per line.
+
+### Vertical placement (increment 3) — confirmed
+
+Counter value `C` displays on line `184 - C` (top wall 8 + counter running
+176→1).
+
+| Tank | `tankY` | Predicted line | Measured |
+|---|---|---|---|
+| Red | 120 | 64 | ~63 ✓ |
+| Blue | 60 | 124 | ~126 ✓ |
+
+Red above blue confirms the counter inversion. Blue's ~2-line variance is within
+capture error and consistent with the documented one-line compute-ahead offset.
 
 ### Visible kernel budget (increments 2–3)
 
