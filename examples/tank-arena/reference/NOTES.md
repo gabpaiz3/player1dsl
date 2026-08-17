@@ -127,25 +127,57 @@ for tight-but-valid code. If that survives measurement it is a useful early data
 point: a two-player kernel with a static playfield already sits near the limit,
 which constrains what increment 4's score band can afford.
 
-## Open defect: white sliver at bottom right
+## Resolved: white sliver at bottom right — band transitions need a WSYNC
 
-Observed in the first capture and confirmed by eye: an extra short white segment
-at the bottom right of the display, beyond the expected full-width bottom wall.
+**Symptom.** A ~16-pixel white block at the far right, on one line at the bottom
+of the open field. Survived the `#44` timer correction, proving it independent
+of frame timing.
 
-Not yet diagnosed. Deliberately *not* fixed in the same build as the `#44` timer
-correction — both affect the bottom of the frame, and a 261-line frame plausibly
-produces a stray partial line at the bottom edge. Changing both at once would
-make it impossible to tell which change was responsible.
+**Root cause.** The `openField` loop falls through roughly 55 cycles into a
+scanline. A loop exit leaves no horizontal blank, so the bottom-wall transition
+writes landed in the *visible* part of that line:
 
-Order: confirm 262 first, then re-check whether the sliver survives.
+| Write | Cycle | Colour clock | Visible pixel |
+|---|---|---|---|
+| `sta PF0` | 68 | 204 | **136** |
+| `sta PF1` | 73 | 219 | 151 |
+| `sta PF2` | 76 | 228 | line end |
 
-Leading hypotheses if it does survive:
+Under `CTRLPF` REF the mirrored right half is laid out PF2 (80–111), PF1
+(112–143), **PF0 (144–159)**. So `PF0 = $F0` arriving at pixel 136 turned pixels
+144–159 white for exactly one line.
 
-1. Playfield registers written mid-line at a band transition, so only the later
-   (right-hand) part of the mirrored playfield takes the new value on that line.
-   The robust fix is a `WSYNC` before each region's PF setup so writes always
-   land in horizontal blank.
-2. A partial final scanline at the frame boundary.
+The `topWall → openField` transition was correct only by accident: it runs
+immediately after a `WSYNC`, so its writes already landed in blank.
+
+**Fix.** `sta WSYNC` before the transition writes.
+
+**This is the finding that generalises.** Every band boundary the compiler emits
+has this hazard, and it is invisible in the source — the writes look identical to
+the ones that work. A band transition must be scheduled into horizontal blank,
+which means the planner has to know where in the line the preceding region's
+code leaves the beam. SPEC.md §4.4's band model has no concept of this; it treats
+a band boundary as a line number. That is a stronger version of review §3.4:
+band transitions do not merely cost scanlines, they impose a *phase* constraint.
+
+### Line-count cost, resolved empirically
+
+Fixing the sliver perturbed the frame, and the measurements settled it faster
+than the cycle arithmetic did:
+
+| Version | `openField` count | Extra `WSYNC` | Total scanlines | Sliver |
+|---|---|---|---|---|
+| A | 176 | no | 262 | present |
+| B | 175 | yes | 261 | gone |
+| C | 176 | yes | *expected 262* | *expected gone* |
+
+A→B netted −1 across two changes, so the added `WSYNC` contributed **zero** lines
+and the removed iteration contributed **−1**. The `WSYNC` costs nothing because in
+version A the transition code already overran the line boundary naturally; the
+`WSYNC` only replaces that overrun with a controlled one.
+
+Version C is the current build. Third correction where measurement beat
+derivation — the running argument for review §1.1.
 
 ## Known deviations the compiler must reproduce
 

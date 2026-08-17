@@ -195,6 +195,18 @@ MainLoop
     dex
     bne .openField          ; worst case ~73 of the 76 cycles in a line
 
+    ; A loop exit leaves no horizontal blank: the last iteration falls through
+    ; at roughly cycle 55, so the region-transition writes below would land in
+    ; the VISIBLE part of that line. Measured symptom without this WSYNC:
+    ; `sta PF0` completed at cycle 68 = colour clock 204 = pixel 136, and under
+    ; REF the mirrored right half runs PF2, PF1, then PF0 at pixels 144-159 --
+    ; so pixels 144-159 turned white for one line, a ~16-pixel sliver at the
+    ; bottom right. WSYNC first so every write lands in blank.
+    ;
+    ; The topWall -> openField transition above needs no such WSYNC because it
+    ; already runs immediately after one.
+    sta WSYNC
+
     lda #0
     sta GRP0
     sta GRP1                ; no sprite bleed into the bottom wall
