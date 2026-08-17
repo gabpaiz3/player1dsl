@@ -85,11 +85,19 @@ MainLoop
     sta VSYNC
 
 ; --- VBLANK: 37 lines ------------------------------------------------------
-; 37 lines * 76 cycles = 2812 cycles. TIM64T ticks every 64 cycles, so #43
-; gives 43*64 = 2752 -- expiring roughly 16 cycles into line 37, which the
-; trailing WSYNC then completes. The ~60 cycles of margin absorb the handful
-; of prologue cycles before the timer is armed.
-    lda #43
+; MEASURED, not derived. The arithmetic says #43: 37 lines * 76 = 2812 cycles,
+; and 43*64 = 2752 lands 16 cycles into line 37 for the trailing WSYNC to
+; finish. Stella measured 261 scanlines with that value -- one short.
+;
+; The cause is the write to TIM64T itself: the internal prescaler may already
+; be partway through a 64-cycle interval, so up to 63 cycles are lost. Sixteen
+; cycles of margin does not survive that, and expiry falls back into line 36.
+; Overscan's 36 cycles of margin does survive it, which is why VBLANK is the
+; constant that moved.
+;
+; #44 gives 2816 cycles, landing early in line 38 nominally and comfortably
+; inside line 37 after the prescaler loss.
+    lda #44
     sta TIM64T
 
     ; -- position both tanks horizontally --

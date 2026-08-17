@@ -36,16 +36,39 @@ Press **Alt+L** in Stella for the frame-stats overlay.
 
 ### Frame timing (increment 1) — answers review §3.2
 
-| Quantity | Derived | Measured |
+| Quantity | Derived | Measured (Stella 7.0c) |
 |---|---|---|
-| VBLANK timer constant (`TIM64T`) | `#43` → 2752 cyc | |
-| Overscan timer constant (`TIM64T`) | `#35` → 2240 cyc | |
-| Total scanlines per frame | 262 | |
-| Scanline count stable frame to frame | yes | |
+| VBLANK timer constant (`TIM64T`) | `#43` → 2752 cyc | **`#43` gave 261 — corrected to `#44`** |
+| Overscan timer constant (`TIM64T`) | `#35` → 2240 cyc | unchanged |
+| Total scanlines per frame | 262 | **261** with `#43`; re-measure pending with `#44` |
+| Scanline count stable frame to frame | yes | **yes — steady 261, no jitter** ✓ |
+| Display format auto-detected | NTSC | `NTSC*` ✓ |
+| Bankswitch type / size | 4K unbanked | `4K* (4K)` ✓ |
 
-If Stella reports 261 or 263, adjust the constant by one and re-measure. The
-derivation leaves roughly half a scanline of margin at both ends, so an error
-here means an assumption is wrong, not that the margin was too tight.
+**The derivation was wrong, and this is why increment 1 exists.** The arithmetic
+predicted 262 from `#43`; the machine produced 261.
+
+Cause: writing `TIM64T` does not start a clean 64-cycle interval. The internal
+prescaler may already be partway through one, so up to 63 cycles are lost. The
+nominal expiry points sit this far into their target line:
+
+| Section | Constant | Cycles | Margin into target line |
+|---|---|---|---|
+| VBLANK | `#43` | 2752 | **16 cycles** — does not survive prescaler loss |
+| Overscan | `#35` | 2240 | 36 cycles — survives |
+
+So VBLANK fell back into line 36 and overscan held at 30. `#44` (2816 cycles)
+restores the margin.
+
+That the count was *steady* at 261 rather than fluctuating is the important
+detail: the prescaler offset is deterministic for a fixed code path, so this is
+a constant to correct, not jitter to chase.
+
+**Implication for the compiler.** A cycle model that computes timer constants
+from arithmetic alone will be off by a scanline in exactly this way. The planner
+must either model the prescaler write penalty or — better, per review §1.1 —
+have its constants verified against a real machine model. This is the first
+concrete instance of the honesty problem the review is about.
 
 ### Positioning cost (increment 3) — answers review §3.3
 
@@ -103,6 +126,26 @@ capture error and consistent with the documented one-line compute-ahead offset.
 for tight-but-valid code. If that survives measurement it is a useful early data
 point: a two-player kernel with a static playfield already sits near the limit,
 which constrains what increment 4's score band can afford.
+
+## Open defect: white sliver at bottom right
+
+Observed in the first capture and confirmed by eye: an extra short white segment
+at the bottom right of the display, beyond the expected full-width bottom wall.
+
+Not yet diagnosed. Deliberately *not* fixed in the same build as the `#44` timer
+correction — both affect the bottom of the frame, and a 261-line frame plausibly
+produces a stray partial line at the bottom edge. Changing both at once would
+make it impossible to tell which change was responsible.
+
+Order: confirm 262 first, then re-check whether the sliver survives.
+
+Leading hypotheses if it does survive:
+
+1. Playfield registers written mid-line at a band transition, so only the later
+   (right-hand) part of the mirrored playfield takes the new value on that line.
+   The robust fix is a `WSYNC` before each region's PF setup so writes always
+   land in horizontal blank.
+2. A partial final scanline at the frame boundary.
 
 ## Known deviations the compiler must reproduce
 
