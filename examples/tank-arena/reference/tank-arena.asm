@@ -12,6 +12,12 @@
     processor 6502
     include "vcs.h"
 
+; --- Layout constants ------------------------------------------------------
+HUD_DIGIT0_X    = 60        ; score band digit columns, symmetric about centre
+HUD_DIGIT1_X    = 92
+HUD_LINES       = 12        ; score band height (SPEC.md 4.4 band model)
+FIELD_LINES     = 160       ; open field between the arena walls
+
 ; --- RAM map ($80-$FF, shared with the stack growing down from $FF) ---------
     seg.u variables
     org $80
@@ -22,7 +28,11 @@ tank1Y      ds 1            ; $83
 gfx0        ds 1            ; $84 next line's GRP0 byte, computed one line ahead
 gfx1        ds 1            ; $85 next line's GRP1 byte
 lineTmp     ds 1            ; $86 current visible-loop counter, shared by both players
-                            ; 7 bytes used; stack has the rest growing down from $FF
+score0      ds 1            ; $87 BCD, one digit (0-9)
+score1      ds 1            ; $88
+digit0Ptr   ds 2            ; $89 pointer into DigitFont for score0's glyph
+digit1Ptr   ds 2            ; $8B
+                            ; 13 bytes used; stack grows down from $FF
 
 ; --- Code ------------------------------------------------------------------
     seg code
@@ -65,6 +75,11 @@ Reset
     lda #60
     sta tank1Y
 
+    lda #3
+    sta score0              ; non-zero so both digits are visibly distinct
+    lda #5
+    sta score1
+
 ; ---------------------------------------------------------------------------
 ; Frame loop -- NTSC 262 lines: 3 VSYNC + 37 VBLANK + 192 visible + 30 overscan
 ;
@@ -100,16 +115,39 @@ MainLoop
     lda #44
     sta TIM64T
 
-    ; -- position both tanks horizontally --
-    ; Done here, inside VBLANK, for two reasons: the routine burns 2 scanlines
-    ; per object (4 of the 37 available), and HMOVE extends the horizontal blank
-    ; by 8 pixels on whatever line it is strobed -- the "HMOVE comb". Strobing
-    ; it during VBLANK puts that bar on an invisible line. SPEC.md never
-    ; mentions this cost anywhere (spec review 3.3).
-    lda tank0X
+    ; -- resolve each score digit to a font pointer --
+    ; Done once per frame in VBLANK so the HUD kernel can use (zp),y and stay
+    ; inside horizontal blank.
+    lda score0
+    asl
+    asl
+    asl                     ; digit * 8 bytes per glyph
+    clc
+    adc #<DigitFont
+    sta digit0Ptr
+    lda #>DigitFont
+    adc #0
+    sta digit0Ptr+1
+
+    lda score1
+    asl
+    asl
+    asl
+    clc
+    adc #<DigitFont
+    sta digit1Ptr
+    lda #>DigitFont
+    adc #0
+    sta digit1Ptr+1
+
+    ; -- position both players at the HUD digit columns --
+    ; P0 and P1 serve the score band first, then get repositioned for the tanks
+    ; at the band boundary. Positioning here costs 4 of the 37 VBLANK lines, and
+    ; puts the HMOVE comb on an invisible line (spec review 3.3).
+    lda #HUD_DIGIT0_X
     ldx #0                  ; object 0 = player 0
     jsr PosObjectX
-    lda tank1X
+    lda #HUD_DIGIT1_X
     ldx #1                  ; object 1 = player 1
     jsr PosObjectX
 
@@ -126,6 +164,74 @@ MainLoop
 ;
 ; Playfield bit order is not left-to-right: PF0 uses only D4-D7 (D4 leftmost),
 ; PF1 runs D7->D0, PF2 runs D0->D7. $10 in PF0 is the leftmost 4-pixel block.
+
+    ; ======================= HUD BAND: 12 lines =========================
+    ; One BCD digit per player. P0 and P1 are the ONLY movable objects on this
+    ; machine, so the score band and the tanks compete for the same two -- the
+    ; band is reused vertically, then both objects are repositioned below.
+    ;
+    ; Deliberately one digit per side, not two. NUSIZ copies cannot help: copies
+    ; share graphics, so three copies render the SAME digit three times. Real
+    ; multi-digit scores require rewriting GRP0 mid-line between copies, at
+    ; precise cycle offsets. That is a separate kernel, and its cost belongs in
+    ; its own increment rather than being smuggled into this measurement.
+    lda #0
+    sta PF0                 ; no arena walls behind the score
+    sta PF1
+    sta PF2
+    lda #$0E
+    sta COLUP0              ; white digits
+    sta COLUP1
+
+    ldx #2                  ; 2 blank lines above the glyphs
+.hudTop
+    sta WSYNC
+    dex
+    bne .hudTop
+
+    ldy #0
+.hudDigit                   ; 8 glyph rows
+    sta WSYNC
+    lda (digit0Ptr),y
+    sta GRP0                ; lands ~cycle 8, inside horizontal blank
+    lda (digit1Ptr),y
+    sta GRP1                ; lands ~cycle 16, still inside blank
+    iny
+    cpy #8
+    bne .hudDigit
+
+    lda #0
+    sta GRP0
+    sta GRP1
+    ldx #2                  ; 2 blank lines below
+.hudBottom
+    sta WSYNC
+    dex
+    bne .hudBottom
+                            ; 2 + 8 + 2 = HUD_LINES
+
+    ; ==================== BAND TRANSITION: the measurement ===============
+    ; THE finding this increment exists to produce. The score band leaves P0/P1
+    ; at the HUD digit columns; the field needs them at the tanks' gameplay
+    ; columns. Repositioning is not free and cannot happen in VBLANK, because
+    ; VBLANK is over -- the HUD has already been drawn.
+    ;
+    ; PosObjectX costs 2 scanlines per object, so this boundary costs 4 VISIBLE
+    ; scanlines. SPEC.md 4.4's band model budgets ZERO for it: 12 + 168 + 12
+    ; sums to exactly 192 with nothing left for the transition.
+    ;
+    ; The HMOVE comb also lands on visible lines here, unlike the VBLANK case.
+    lda tank0X
+    ldx #0
+    jsr PosObjectX
+    lda tank1X
+    ldx #1
+    jsr PosObjectX
+
+    lda #$46
+    sta COLUP0              ; back to tank colours
+    lda #$86
+    sta COLUP1
 
     ; -- top wall: 8 solid lines --
     lda #$F0
@@ -157,7 +263,7 @@ MainLoop
     ; Consequence of computing ahead: a sprite whose top row is computed at
     ; counter N is displayed on line N-1, so tankY is the counter value one
     ; line above the visible top row.
-    ldx #176
+    ldx #FIELD_LINES
 .openField
     sta WSYNC
     lda gfx0
@@ -272,6 +378,92 @@ PosObjectX subroutine
 ; --- Sprite data -----------------------------------------------------------
 ; Aligned so the 8-byte table cannot straddle a page boundary, which would add
 ; an unpredictable cycle to `lda TankSprite,y` inside the visible kernel.
+; --- Digit font ------------------------------------------------------------
+; Ten 8-row glyphs. Page-aligned so `lda (digitPtr),y` never crosses a page
+; boundary inside a glyph, keeping the HUD kernel's timing fixed.
+    align 256
+DigitFont
+    .byte %00111100         ; 0
+    .byte %01100110
+    .byte %01100110
+    .byte %01100110
+    .byte %01100110
+    .byte %01100110
+    .byte %01100110
+    .byte %00111100
+    .byte %00011000         ; 1
+    .byte %00111000
+    .byte %00011000
+    .byte %00011000
+    .byte %00011000
+    .byte %00011000
+    .byte %00011000
+    .byte %01111110
+    .byte %00111100         ; 2
+    .byte %01100110
+    .byte %00000110
+    .byte %00001100
+    .byte %00011000
+    .byte %00110000
+    .byte %01100000
+    .byte %01111110
+    .byte %00111100         ; 3
+    .byte %01100110
+    .byte %00000110
+    .byte %00011100
+    .byte %00000110
+    .byte %00000110
+    .byte %01100110
+    .byte %00111100
+    .byte %00001100         ; 4
+    .byte %00011100
+    .byte %00111100
+    .byte %01101100
+    .byte %01111110
+    .byte %00001100
+    .byte %00001100
+    .byte %00001100
+    .byte %01111110         ; 5
+    .byte %01100000
+    .byte %01100000
+    .byte %01111100
+    .byte %00000110
+    .byte %00000110
+    .byte %01100110
+    .byte %00111100
+    .byte %00111100         ; 6
+    .byte %01100110
+    .byte %01100000
+    .byte %01111100
+    .byte %01100110
+    .byte %01100110
+    .byte %01100110
+    .byte %00111100
+    .byte %01111110         ; 7
+    .byte %00000110
+    .byte %00001100
+    .byte %00011000
+    .byte %00110000
+    .byte %00110000
+    .byte %00110000
+    .byte %00110000
+    .byte %00111100         ; 8
+    .byte %01100110
+    .byte %01100110
+    .byte %00111100
+    .byte %01100110
+    .byte %01100110
+    .byte %01100110
+    .byte %00111100
+    .byte %00111100         ; 9
+    .byte %01100110
+    .byte %01100110
+    .byte %00111110
+    .byte %00000110
+    .byte %00000110
+    .byte %01100110
+    .byte %00111100
+
     align 8
 TankSprite
     .byte %00011000         ; row 0 -- barrel
