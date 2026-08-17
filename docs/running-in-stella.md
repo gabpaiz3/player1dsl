@@ -44,12 +44,39 @@ your setup or your controller.
 
 ## The measurement that matters
 
-Press **Alt + L** to toggle the frame-stats overlay (scanline count, FPS,
-bankswitch type).
+Press **Alt + L**. Stella overlays three lines of white text in the **top-left
+corner** of the picture. You do not count anything — Stella computes the
+scanline total and prints it:
 
-Look for **262 scanlines, stable** — the number must not flicker between values
-frame to frame. That single reading verifies increment 1's timer constants. Record
-it in `examples/tank-arena/reference/NOTES.md`.
+```
+262 / 60.0Hz => NTSC*
+60.0fps @ 100% speed
+4K* (4K)
+```
+
+Read the **first number on the first line**. That is the scanline count for the
+current frame.
+
+| Line | Meaning |
+|---|---|
+| `262 / 60.0Hz => NTSC*` | scanline count, derived framerate, detected display format |
+| `60.0fps @ 100% speed` | actual emulation speed |
+| `4K* (4K)` | detected bankswitch type and ROM size |
+
+The `*` means the value was auto-detected rather than forced.
+
+**What we need: `262`, and steady.** Watch it for a few seconds — if the number
+flickers between values (261/263), the frame timing is inconsistent, which is
+the failure this measurement exists to catch. A second clue costs nothing: an
+inconsistent scanline count makes the picture visibly *roll* vertically, so a
+rock-steady image is weak evidence the count is stable even before you read it.
+
+`4K` on the third line should also match our 4 KiB unbanked target.
+
+Record the reading in `examples/tank-arena/reference/NOTES.md`.
+
+If reading the overlay is awkward, just screenshot the window with it showing —
+the three lines are legible in any capture.
 
 ## Controls
 
