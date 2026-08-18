@@ -80,12 +80,16 @@ export class Riot {
     this.timerValue = value & 0xff;
     this.prescaler = prescaler;
     this.timerExpired = false;
-    // Writing the timer restarts the prescaler division from zero. The real
-    // 6532 does not resynchronise a free-running divider here -- this is the
-    // documented behaviour, and the reason a derived constant can land a
-    // scanline away from where arithmetic predicts is the interaction between
-    // this reset and where in the line the write occurs.
-    this.prescalerCount = 0;
+    // The first decrement happens on the NEXT cycle, not after a full
+    // prescaler interval. Zero is therefore reached at 1 + (N-1)*interval
+    // cycles, not N*interval -- for TIM64T #44 that is 2753 rather than 2816,
+    // a 63-cycle difference, which is most of a scanline.
+    //
+    // MEASURED, not assumed: tests/fixtures/timing/timer-only.asm isolates
+    // this with no WSYNC in the timed region. Stella 7.0c reports 262
+    // scanlines for it (T = 37). Starting the divider at zero instead gave
+    // T = 38.
+    this.prescalerCount = prescaler - 1;
   }
 
   /** Advance the timer by CPU cycles. */
