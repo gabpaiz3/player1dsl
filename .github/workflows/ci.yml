@@ -19,10 +19,13 @@ jobs:
       # than preferring one. packageManager is the single source of truth.
       - uses: pnpm/action-setup@v4
 
+      # No `cache:` here. setup-node's pnpm caching resolves the pnpm store
+      # path and fails the job when that lookup does not work, which it did.
+      # Caching is an optimisation; correctness first, revisit if installs
+      # become slow.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
@@ -46,10 +49,13 @@ jobs:
       # than preferring one. packageManager is the single source of truth.
       - uses: pnpm/action-setup@v4
 
+      # No `cache:` here. setup-node's pnpm caching resolves the pnpm store
+      # path and fails the job when that lookup does not work, which it did.
+      # Caching is an optimisation; correctness first, revisit if installs
+      # become slow.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
