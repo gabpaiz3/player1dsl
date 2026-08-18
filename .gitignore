@@ -54,3 +54,7 @@ screeencaps/
 
 # Terminal Paste Image folder
 .cp-images/
+
+# TypeScript build info and emitted declarations
+*.tsbuildinfo
+packages/*/dist/
