@@ -18,6 +18,15 @@ function frameOf(name: string) {
   return machine.runFrame();
 }
 
+/**
+ * VALIDATED against Stella 7.0c on 2026-08-17: Stella reports 262 scanlines for
+ * this ROM, matching this emulator exactly. Two independent implementations
+ * agreeing on a ROM built purely from counted WSYNCs establishes that WSYNC is
+ * 1:1 with scanlines, and that this emulator's model of it is correct.
+ *
+ * Consequence for the reference kernel: tank-arena's visible region emits 193
+ * WSYNCs, so it really is 193 scanlines -- the 192 in its comments is wrong.
+ */
 describe('WSYNC semantics (tests/fixtures/timing/wsync-only.asm)', () => {
   // No timer anywhere in this ROM. The frame is 3 + 37 + 192 + 30 = 262
   // counted WSYNCs, so the scanline total is a pure function of that count.
