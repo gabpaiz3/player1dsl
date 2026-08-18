@@ -32,7 +32,25 @@ score0      ds 1            ; $87 BCD, one digit (0-9)
 score1      ds 1            ; $88
 digit0Ptr   ds 2            ; $89 pointer into DigitFont for score0's glyph
 digit1Ptr   ds 2            ; $8B
-                            ; 13 bytes used; stack grows down from $FF
+hitFlag     ds 1            ; $8D debounce: latches accumulate while objects overlap
+                            ; 14 bytes used; stack grows down from $FF
+
+; --- Joystick masks (SWCHA, active LOW: a 0 bit means pressed) --------------
+; High nibble is the left controller, low nibble the right.
+J0_UP       = %00010000
+J0_DOWN     = %00100000
+J0_LEFT     = %01000000
+J0_RIGHT    = %10000000
+J1_UP       = %00000001
+J1_DOWN     = %00000010
+J1_LEFT     = %00000100
+J1_RIGHT    = %00001000
+
+; --- Arena bounds ----------------------------------------------------------
+X_MIN       = 8
+X_MAX       = 144
+Y_MIN       = 12
+Y_MAX       = 155
 
 ; --- Code ------------------------------------------------------------------
     seg code
@@ -114,6 +132,79 @@ MainLoop
 ; inside line 37 after the prescaler loss.
     lda #44
     sta TIM64T
+
+    ; -- read both joysticks and move the tanks --
+    ; All of this runs in VBLANK, where there is real budget: 33 of the 37 lines
+    ; are free once positioning takes its 4. That is the RIOT timer's purpose --
+    ; it bounds this work so it cannot bleed into the visible frame.
+    ;
+    ; Note the Y sense is inverted: the field loop counts DOWN, so a larger
+    ; tankY is higher up the screen. Joystick up therefore increments it.
+    lda SWCHA
+    and #J0_LEFT
+    bne .noP0Left
+    ldx tank0X
+    cpx #X_MIN
+    bcc .noP0Left
+    dec tank0X
+.noP0Left
+    lda SWCHA
+    and #J0_RIGHT
+    bne .noP0Right
+    ldx tank0X
+    cpx #X_MAX
+    bcs .noP0Right
+    inc tank0X
+.noP0Right
+    lda SWCHA
+    and #J0_UP
+    bne .noP0Up
+    ldx tank0Y
+    cpx #Y_MAX
+    bcs .noP0Up
+    inc tank0Y
+.noP0Up
+    lda SWCHA
+    and #J0_DOWN
+    bne .noP0Down
+    ldx tank0Y
+    cpx #Y_MIN
+    bcc .noP0Down
+    dec tank0Y
+.noP0Down
+
+    lda SWCHA
+    and #J1_LEFT
+    bne .noP1Left
+    ldx tank1X
+    cpx #X_MIN
+    bcc .noP1Left
+    dec tank1X
+.noP1Left
+    lda SWCHA
+    and #J1_RIGHT
+    bne .noP1Right
+    ldx tank1X
+    cpx #X_MAX
+    bcs .noP1Right
+    inc tank1X
+.noP1Right
+    lda SWCHA
+    and #J1_UP
+    bne .noP1Up
+    ldx tank1Y
+    cpx #Y_MAX
+    bcs .noP1Up
+    inc tank1Y
+.noP1Up
+    lda SWCHA
+    and #J1_DOWN
+    bne .noP1Down
+    ldx tank1Y
+    cpx #Y_MIN
+    bcc .noP1Down
+    dec tank1Y
+.noP1Down
 
     ; -- resolve each score digit to a font pointer --
     ; Done once per frame in VBLANK so the HUD kernel can use (zp),y and stay
@@ -366,6 +457,41 @@ MainLoop
     sta VBLANK              ; blanking on
     lda #35
     sta TIM64T
+
+    ; -- collisions --
+    ; Read AFTER the visible region and cleared here, in blank: the latches
+    ; accumulate across the whole frame rather than reporting an instant.
+    ;
+    ; CXPPMM D7 is the P0/P1 pair. That is usable directly ONLY because each
+    ; logical actor owns a whole TIA object this frame. The moment a player
+    ; object is multiplexed across several actors, the latch still reports "a
+    ; collision happened" and can no longer say WHICH actor -- so any rule
+    ; needing actor identity falls back to software (spec review 3.6).
+    ;
+    ; The latch is also level, not edge: it stays set for every frame the tanks
+    ; overlap. Scoring needs its own edge detection, which is game semantics the
+    ; hardware does not provide.
+    bit CXPPMM
+    bpl .noContact
+    lda hitFlag
+    bne .contactDone        ; already scored this contact
+    lda score0
+    clc
+    adc #1
+    cmp #10
+    bcc .scoreOk
+    lda #0                  ; single digit wraps 9 -> 0
+.scoreOk
+    sta score0
+    lda #1
+    sta hitFlag
+    jmp .contactDone
+.noContact
+    lda #0
+    sta hitFlag
+.contactDone
+    sta CXCLR               ; strobe: clear all latches for the next frame
+
 .waitOverscan
     lda INTIM
     bne .waitOverscan

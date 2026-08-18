@@ -243,7 +243,55 @@ pixel at which each register is first read. `PF0` is read at pixel 0, `PF1` at 1
 code generator emitting band transitions has to sort by that and prove the tail
 fits inside blank. Nothing in SPEC.md expresses it.
 
-## Still open for increment 5
-- **§3.6 — collision identity.** Which of the 15 latch pairs are usable directly,
-  and which interactions need a software check because the latch cannot say
-  *which* logical actor was involved.
+## ANSWERED — §3.6: collision latches, and what they cannot tell you
+
+`CXPPMM` D7 (the P0/P1 pair) drives tank-to-tank scoring directly. It is usable
+**only because each logical actor owns a whole TIA object this frame.**
+
+Two properties the DSL has to model, neither in SPEC.md §4.3:
+
+1. **Latches report pairs, not actors.** The moment a player object is
+   multiplexed across several actors, the latch still says "a collision
+   happened" and can no longer say *which* one. So `when A hits B` maps to
+   hardware only while the rendering plan gives A and B their own objects —
+   exactly the condition `strategy multiplex` destroys. Choosing multiplex
+   silently converts every identity-dependent rule to software collision.
+2. **Latches are level, not edge.** They stay set for every frame two objects
+   overlap. Scoring a *hit* needs edge detection in RAM (`hitFlag` here). That
+   is game semantics the hardware does not provide, and `score += 10` in the
+   DSL implies it without saying so.
+
+Read after the visible region, cleared with `CXCLR` during blank.
+
+## MEASURED — missiles do not fit; the field kernel is full
+
+Increment 5 ships joystick control and collisions but **no missiles**, because
+they do not fit. This is a measurement, not a shortcut:
+
+| Field-kernel line budget | Cycles |
+|---|---|
+| `sta WSYNC` | 3 |
+| `gfx0`/`gfx1` → `GRP0`/`GRP1` | 12 |
+| `stx lineTmp` | 3 |
+| Player 0 sprite compute (visible path) | 24 |
+| Player 1 sprite compute (visible path) | 24 |
+| `dex` + `bne` | 5 |
+| **Worst case** | **71 of 76 — 5 free** |
+
+One missile needs ~6 cycles to write `ENAM` plus ~18 to compute it: **24 cycles
+each, 48 for two.** There are 5.
+
+**A one-line kernel on this machine cannot draw two players and two missiles.**
+That is why Combat-class games use a two-line kernel — sprites updated every
+other scanline, halving per-line work. Reaching missiles means changing the
+rendering strategy, not adding code.
+
+This is the clearest instance yet of what SPEC.md §5's strategy table is really
+about. The table presents strategies as choices an author makes for effect; here
+the machine *forces* one. A compiler asked for two tanks and two shots in a
+one-line kernel must reject the design and name the alternative — the E230-style
+diagnostic §5 promises, arrived at from a real budget rather than an invented one.
+
+Cheaper path noted for later: the sprite compute becomes branchless if the sprite
+table is padded to 256 bytes with zeros, turning 24/18 cycles into a constant 17
+and freeing ~14 per line. Still short of the 48 needed, but it is the first move.
