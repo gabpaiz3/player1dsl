@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { Machine } from '../src/index.ts';
+import { romFor } from './support/roms.ts';
 
 /**
  * Diagnostic fixtures that isolate one timing mechanism each.
@@ -11,8 +10,7 @@ import { Machine } from '../src/index.ts';
  * separate them. Sources live in tests/fixtures/timing/.
  */
 function frameOf(name: string) {
-  const url = new URL(`../../../build/${name}.bin`, import.meta.url);
-  const machine = new Machine(new Uint8Array(readFileSync(fileURLToPath(url))));
+  const machine = new Machine(romFor(name));
   machine.runFrame();
   machine.runFrame(); // settle: region state carries across frames
   return machine.runFrame();

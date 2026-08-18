@@ -56,7 +56,9 @@ export class Tia {
    * Receives the beam position at the moment of the write, which is what makes
    * a missed band-transition deadline visible without looking at a screen.
    */
-  onWrite: ((register: number, value: number, line: number, clock: number, pixel: number) => void) | undefined;
+  onWrite:
+    | ((register: number, value: number, line: number, clock: number, pixel: number) => void)
+    | undefined;
 
   get isHalted(): boolean {
     return this.halted;

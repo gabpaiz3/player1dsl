@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
 import { assembleFile } from '../src/index.ts';
 
 /**
@@ -13,8 +13,9 @@ import { assembleFile } from '../src/index.ts';
  */
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 
-function dasmOutput(name: string): Uint8Array {
-  return new Uint8Array(readFileSync(`${root}/build/${name}.bin`));
+function dasmOutput(name: string): Uint8Array | null {
+  const path = `${root}/build/${name}.bin`;
+  return existsSync(path) ? new Uint8Array(readFileSync(path)) : null;
 }
 
 function ours(source: string): Uint8Array {
@@ -41,10 +42,17 @@ describe('DASM parity', () => {
   ];
 
   for (const [name, source] of cases) {
-    it(`assembles ${name} to the same 4096 bytes as DASM`, () => {
+    it(`assembles ${name} to the same 4096 bytes as DASM`, (context) => {
+      const reference = dasmOutput(name);
+      if (!reference) {
+        // DASM is a dev-only cross-check, not a CI dependency. Where it has not
+        // been run, skip loudly rather than passing vacuously.
+        context.skip(`build/${name}.bin absent -- run sh tools/build-asm.sh first`);
+        return;
+      }
       const mine = ours(source);
       expect(mine.length).toBe(4096);
-      expect(firstDifference(mine, dasmOutput(name))).toBeNull();
+      expect(firstDifference(mine, reference)).toBeNull();
     });
   }
 });

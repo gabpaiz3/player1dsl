@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
-import { MODE_SIZE, OPCODES, type Mode } from './opcodes.ts';
+import { MODE_SIZE, type Mode, OPCODES } from './opcodes.ts';
 
 export interface AssembleOptions {
   /** Directories searched by `include`, in order. */
@@ -32,7 +32,11 @@ interface SourceLine {
 }
 
 /** Expand `include` directives depth-first into one flat line list. */
-function loadSource(path: string, includeDirs: readonly string[], seen: string[] = []): SourceLine[] {
+function loadSource(
+  path: string,
+  includeDirs: readonly string[],
+  seen: string[] = [],
+): SourceLine[] {
   const resolved = resolve(path);
   if (seen.includes(resolved)) throw new Error(`circular include: ${resolved}`);
   const out: SourceLine[] = [];
@@ -42,7 +46,10 @@ function loadSource(path: string, includeDirs: readonly string[], seen: string[]
     const include = /^\s*include\s+"([^"]+)"/i.exec(text);
     const name = include?.[1];
     if (name) {
-      const candidates = [resolve(dirname(resolved), name), ...includeDirs.map((d) => resolve(d, name))];
+      const candidates = [
+        resolve(dirname(resolved), name),
+        ...includeDirs.map((d) => resolve(d, name)),
+      ];
       const found = candidates.find((candidate) => {
         try {
           readFileSync(candidate);
@@ -330,7 +337,11 @@ export function assemble(path: string, options: AssembleOptions = {}): AssembleR
         const mnemonic = head.toUpperCase();
         const table = OPCODES[mnemonic];
         if (!table) {
-          throw new AssemblyError(`unknown instruction or directive "${head}"`, source.file, source.line);
+          throw new AssemblyError(
+            `unknown instruction or directive "${head}"`,
+            source.file,
+            source.line,
+          );
         }
 
         const operand = parseOperand(tail);
@@ -351,10 +362,14 @@ export function assemble(path: string, options: AssembleOptions = {}): AssembleR
           } catch {
             value = null;
           }
-          const zpMode: Mode = operand.indexed === 'x' ? 'zpx' : operand.indexed === 'y' ? 'zpy' : 'zp';
-          const absMode: Mode = operand.indexed === 'x' ? 'abx' : operand.indexed === 'y' ? 'aby' : 'abs';
+          const zpMode: Mode =
+            operand.indexed === 'x' ? 'zpx' : operand.indexed === 'y' ? 'zpy' : 'zp';
+          const absMode: Mode =
+            operand.indexed === 'x' ? 'abx' : operand.indexed === 'y' ? 'aby' : 'abs';
           mode =
-            value !== null && value >= 0 && value <= 0xff && table[zpMode] !== undefined ? zpMode : absMode;
+            value !== null && value >= 0 && value <= 0xff && table[zpMode] !== undefined
+              ? zpMode
+              : absMode;
         }
 
         const opcode = table[mode];

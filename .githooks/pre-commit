@@ -57,6 +57,28 @@ for f in $staged; do
   fi
 done
 
+# --- 3. TypeScript: lint, format and typecheck -------------------------------
+# Fast and certain, so it belongs here: ~250ms for biome, ~200ms for tsc.
+# The full test suite runs in CI instead -- at ~2.4s it is the kind of delay
+# that gets a hook --no-verify'd into uselessness.
+#
+# Skipped entirely when no TypeScript is staged, so .asm and docs commits stay
+# instant.
+if echo "$staged" | grep -qE '[.](ts|tsx|json)$'; then
+  if [ -d node_modules ]; then
+    if ! node node_modules/@biomejs/biome/bin/biome check packages/ >/dev/null 2>&1; then
+      note "BLOCKED  biome check failed. Run: pnpm lint:fix"
+      fail=1
+    fi
+    if ! node node_modules/typescript/bin/tsc --build >/dev/null 2>&1; then
+      note "BLOCKED  tsc failed. Run: pnpm typecheck"
+      fail=1
+    fi
+  else
+    note "SKIPPED  TypeScript checks: node_modules absent (run pnpm install)"
+  fi
+fi
+
 if [ "$fail" -ne 0 ]; then
   note ""
   note "pre-commit failed. Override with --no-verify only if you mean it."

@@ -31,17 +31,50 @@ export interface TiaWrite {
 
 /** Names for TIA write registers, for readable trace output. */
 export const TIA_WRITE_NAMES: Readonly<Record<number, string>> = {
-  0x00: 'VSYNC', 0x01: 'VBLANK', 0x02: 'WSYNC', 0x03: 'RSYNC',
-  0x04: 'NUSIZ0', 0x05: 'NUSIZ1', 0x06: 'COLUP0', 0x07: 'COLUP1',
-  0x08: 'COLUPF', 0x09: 'COLUBK', 0x0a: 'CTRLPF', 0x0b: 'REFP0',
-  0x0c: 'REFP1', 0x0d: 'PF0', 0x0e: 'PF1', 0x0f: 'PF2',
-  0x10: 'RESP0', 0x11: 'RESP1', 0x12: 'RESM0', 0x13: 'RESM1',
-  0x14: 'RESBL', 0x15: 'AUDC0', 0x16: 'AUDC1', 0x17: 'AUDF0',
-  0x18: 'AUDF1', 0x19: 'AUDV0', 0x1a: 'AUDV1', 0x1b: 'GRP0',
-  0x1c: 'GRP1', 0x1d: 'ENAM0', 0x1e: 'ENAM1', 0x1f: 'ENABL',
-  0x20: 'HMP0', 0x21: 'HMP1', 0x22: 'HMM0', 0x23: 'HMM1',
-  0x24: 'HMBL', 0x25: 'VDELP0', 0x26: 'VDELP1', 0x27: 'VDELBL',
-  0x28: 'RESMP0', 0x29: 'RESMP1', 0x2a: 'HMOVE', 0x2b: 'HMCLR',
+  0x00: 'VSYNC',
+  0x01: 'VBLANK',
+  0x02: 'WSYNC',
+  0x03: 'RSYNC',
+  0x04: 'NUSIZ0',
+  0x05: 'NUSIZ1',
+  0x06: 'COLUP0',
+  0x07: 'COLUP1',
+  0x08: 'COLUPF',
+  0x09: 'COLUBK',
+  0x0a: 'CTRLPF',
+  0x0b: 'REFP0',
+  0x0c: 'REFP1',
+  0x0d: 'PF0',
+  0x0e: 'PF1',
+  0x0f: 'PF2',
+  0x10: 'RESP0',
+  0x11: 'RESP1',
+  0x12: 'RESM0',
+  0x13: 'RESM1',
+  0x14: 'RESBL',
+  0x15: 'AUDC0',
+  0x16: 'AUDC1',
+  0x17: 'AUDF0',
+  0x18: 'AUDF1',
+  0x19: 'AUDV0',
+  0x1a: 'AUDV1',
+  0x1b: 'GRP0',
+  0x1c: 'GRP1',
+  0x1d: 'ENAM0',
+  0x1e: 'ENAM1',
+  0x1f: 'ENABL',
+  0x20: 'HMP0',
+  0x21: 'HMP1',
+  0x22: 'HMM0',
+  0x23: 'HMM1',
+  0x24: 'HMBL',
+  0x25: 'VDELP0',
+  0x26: 'VDELP1',
+  0x27: 'VDELBL',
+  0x28: 'RESMP0',
+  0x29: 'RESMP1',
+  0x2a: 'HMOVE',
+  0x2b: 'HMCLR',
   0x2c: 'CXCLR',
 };
 
@@ -51,10 +84,18 @@ export function registerName(register: number): string {
 
 /** Registers whose value the beam reads while drawing a visible line. */
 const BEAM_READ_REGISTERS = new Set([
-  0x0d, 0x0e, 0x0f, // PF0 PF1 PF2
-  0x1b, 0x1c,       // GRP0 GRP1
-  0x1d, 0x1e, 0x1f, // ENAM0 ENAM1 ENABL
-  0x06, 0x07, 0x08, 0x09, // COLUP0 COLUP1 COLUPF COLUBK
+  0x0d,
+  0x0e,
+  0x0f, // PF0 PF1 PF2
+  0x1b,
+  0x1c, // GRP0 GRP1
+  0x1d,
+  0x1e,
+  0x1f, // ENAM0 ENAM1 ENABL
+  0x06,
+  0x07,
+  0x08,
+  0x09, // COLUP0 COLUP1 COLUPF COLUBK
 ]);
 
 /**
@@ -66,7 +107,7 @@ const BEAM_READ_REGISTERS = new Set([
  * the earliest read is the one that matters.
  */
 export const FIRST_READ_PIXEL: Readonly<Record<number, number>> = {
-  0x0d: 0,  // PF0 -- leftmost 4-pixel block
+  0x0d: 0, // PF0 -- leftmost 4-pixel block
   0x0e: 16, // PF1
   0x0f: 48, // PF2
 };

@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Lint and format, then types, then the suite. Ordered cheapest first so
+      # an obvious failure reports in seconds.
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
+
+  # DASM is a dev-only cross-check, never a runtime dependency, so the parity
+  # test skips without it. This job supplies it so the check is not lost: it
+  # assembles every ROM with DASM, then reruns the suite with the reference
+  # output present.
+  dasm-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Install DASM
+        run: |
+          curl -sSL -o dasm.tar.gz \
+            https://github.com/dasm-assembler/dasm/releases/download/v2.20.17/dasm-v2.20.17-linux.zip
+          mkdir -p "$HOME/dasm"
+          unzip -o -q dasm.tar.gz -d "$HOME/dasm" || tar -xzf dasm.tar.gz -C "$HOME/dasm"
+          chmod +x "$HOME/dasm/dasm"
+          echo "$HOME/dasm" >> "$GITHUB_PATH"
+
+      - name: Assemble every ROM with DASM
+        env:
+          DASM: dasm
+        run: |
+          sh tools/build-asm.sh tests/fixtures/timing/wsync-only.asm
+          sh tools/build-asm.sh tests/fixtures/timing/timer-only.asm
+          sh tools/build-asm.sh tests/fixtures/timing/late-write.asm
+          sh examples/tank-arena/reference/build.sh
+
+      - name: Byte parity against DASM
+        run: pnpm test

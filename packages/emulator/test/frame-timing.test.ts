@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { Machine } from '../src/index.ts';
+import { romFor } from './support/roms.ts';
 
 /**
  * Acceptance test for step 2's emulator.
@@ -14,10 +13,8 @@ import { Machine } from '../src/index.ts';
  * See examples/tank-arena/reference/NOTES.md for the measurement history --
  * including the derivation that said 262 while the machine said 261.
  */
-const ROM_PATH = fileURLToPath(new URL('../../../build/tank-arena.bin', import.meta.url));
-
 function loadRom(): Uint8Array {
-  return new Uint8Array(readFileSync(ROM_PATH));
+  return romFor('tank-arena');
 }
 
 /**
