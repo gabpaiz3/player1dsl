@@ -1,5 +1,5 @@
-import { Riot } from './riot.ts';
-import { Tia } from './tia.ts';
+import type { Riot } from './riot.ts';
+import type { Tia } from './tia.ts';
 
 /**
  * 6507 address decoding.

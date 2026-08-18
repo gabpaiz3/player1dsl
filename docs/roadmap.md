@@ -47,7 +47,7 @@ Together these make review §1.1 possible: once the kernel's cycle costs are kno
 emulator can measure them, the planner's claims become regression-testable. That is the
 difference between honesty as a design goal and honesty as a verified property.
 
-Monorepo plumbing (pnpm workspaces, vitest, tsc) is about an hour at the front of this step,
+Monorepo plumbing (npm workspaces, vitest, tsc) is about an hour at the front of this step,
 not a step of its own.
 
 ## Step 3 — The narrowest compiler that reproduces that exact ROM

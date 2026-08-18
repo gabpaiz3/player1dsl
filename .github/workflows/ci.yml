@@ -14,26 +14,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # No `version:` here on purpose. pnpm/action-setup@v4 fails outright if
-      # a version is given AND package.json has a packageManager field, rather
-      # than preferring one. packageManager is the single source of truth.
-      - uses: pnpm/action-setup@v4
-
-      # No `cache:` here. setup-node's pnpm caching resolves the pnpm store
-      # path and fails the job when that lookup does not work, which it did.
-      # Caching is an optimisation; correctness first, revisit if installs
-      # become slow.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
-      - run: pnpm install --frozen-lockfile
+      - run: npm ci
 
       # Lint and format, then types, then the suite. Ordered cheapest first so
       # an obvious failure reports in seconds.
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
 
   # DASM is a dev-only cross-check, never a runtime dependency, so the parity
   # test skips without it. This job supplies it so the check is not lost: it
@@ -44,20 +36,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # No `version:` here on purpose. pnpm/action-setup@v4 fails outright if
-      # a version is given AND package.json has a packageManager field, rather
-      # than preferring one. packageManager is the single source of truth.
-      - uses: pnpm/action-setup@v4
-
-      # No `cache:` here. setup-node's pnpm caching resolves the pnpm store
-      # path and fails the job when that lookup does not work, which it did.
-      # Caching is an optimisation; correctness first, revisit if installs
-      # become slow.
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
 
-      - run: pnpm install --frozen-lockfile
+      - run: npm ci
 
       - name: Install DASM
         run: |
@@ -78,4 +62,4 @@ jobs:
           sh examples/tank-arena/reference/build.sh
 
       - name: Byte parity against DASM
-        run: pnpm test
+        run: npm test

@@ -67,15 +67,15 @@ done
 if echo "$staged" | grep -qE '[.](ts|tsx|json)$'; then
   if [ -d node_modules ]; then
     if ! node node_modules/@biomejs/biome/bin/biome check packages/ >/dev/null 2>&1; then
-      note "BLOCKED  biome check failed. Run: pnpm lint:fix"
+      note "BLOCKED  biome check failed. Run: npm run lint:fix"
       fail=1
     fi
     if ! node node_modules/typescript/bin/tsc --build >/dev/null 2>&1; then
-      note "BLOCKED  tsc failed. Run: pnpm typecheck"
+      note "BLOCKED  tsc failed. Run: npm run typecheck"
       fail=1
     fi
   else
-    note "SKIPPED  TypeScript checks: node_modules absent (run pnpm install)"
+    note "SKIPPED  TypeScript checks: node_modules absent (run npm install)"
   fi
 fi
 

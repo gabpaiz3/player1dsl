@@ -13,7 +13,7 @@
     "lint:fix": "biome check --write packages/",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "pnpm lint && pnpm typecheck && pnpm test"
+    "check": "npm run lint && npm run typecheck && npm test"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.8",
@@ -21,10 +21,7 @@
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
-  "packageManager": "pnpm@11.22.0",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  }
+  "workspaces": [
+    "packages/*"
+  ]
 }
