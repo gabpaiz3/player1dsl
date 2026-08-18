@@ -36,14 +36,12 @@ function settledFrame() {
  * VALIDATED against Stella 7.0c on 2026-08-17: 262 scanlines, matching this
  * emulator exactly, as do both diagnostic fixtures in timing-fixtures.test.ts.
  *
- * The region split below is the MEASURED structure, and it is not the one the
- * kernel's comments claim. tank-arena.asm says 192 visible and 30 overscan; it
- * actually produces 193 visible and 29 overscan -- the visible region borrows a
- * scanline from overscan. The two errors cancel in the total, which is why
- * neither Stella nor the screen ever revealed them.
- *
- * Found by a second independent implementation counting the regions, which is
- * the argument for spec review 1.1 in miniature.
+ * The region split below was NOT always what the kernel produced. Measurement
+ * showed 193 visible and 29 overscan against comments claiming 192 and 30 --
+ * the visible region borrowed a scanline from overscan, and the two errors
+ * cancelled in the total, which is why neither Stella nor the screen revealed
+ * them. The kernel was then corrected (FIELD_LINES 159 -> 158, overscan timer
+ * #35 -> #36) so it produces the split SPEC.md 3 specifies.
  */
 describe('tank-arena reference ROM frame timing', () => {
   it('is exactly 4096 bytes (4 KiB unbanked)', () => {
@@ -66,11 +64,11 @@ describe('tank-arena reference ROM frame timing', () => {
     expect([...counts]).toEqual([262]);
   });
 
-  it('splits the frame into the regions actually produced', () => {
+  it('splits the frame into the NTSC regions SPEC.md 3 specifies', () => {
     const frame = settledFrame();
     expect(frame.vsyncLines).toBe(3);
     expect(frame.vblankLines).toBe(37);
-    expect(frame.visibleLines).toBe(193); // kernel comments claim 192
-    expect(frame.overscanLines).toBe(29); // kernel comments claim 30
+    expect(frame.visibleLines).toBe(192);
+    expect(frame.overscanLines).toBe(30);
   });
 });
