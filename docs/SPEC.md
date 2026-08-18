@@ -50,11 +50,13 @@ The author thinks in game terms. The compiler remains honest about the machine t
 The initial compiler targets the original 2600 execution model:
 
 - 6507-compatible CPU, TIA video/audio, and RIOT I/O/timer model.
+- The RIOT interval timer (`TIM64T` and friends, polled through `INTIM`) is the mechanism that bounds VBLANK and overscan work. It is what makes §4.3's claim that per-frame rules fit in non-visible time enforceable at runtime rather than merely asserted at compile time.
+- Timer arithmetic is not obvious: a timer write's first decrement lands on the **next cycle**, not after a full prescaler interval, so zero is reached at `1 + (N-1) * interval` cycles rather than `N * interval`. Constants derived without this are off by a scanline. Measured; see `examples/tank-arena/reference/NOTES.md`.
 - v0.1 is NTSC-only. PAL and PAL60 are deferred until timing and regression tests are mature.
 - A visible frame is modeled as a scanline program, not a framebuffer. NTSC uses the conventional 3 VSYNC + 37 VBLANK + 192 visible + 30 overscan-line layout.
 - Native movable graphics are two 8-bit player objects, two missiles, and a ball, alongside the playfield. The compiler may reuse/reposition objects during a line (multiplexing) only when a selected technique and cycle budget permit it.
-- Initial cartridge output: 4 KiB and 8 KiB F8 bankswitching. Later releases may add other well-defined mapper profiles.
-- Initial controller support: joystick (one button), console switches, and paddles. Other controllers are future profiles.
+- Initial cartridge output: 4 KiB unbanked only. 8 KiB F8 bankswitching follows in phase 2 (see §12); later releases may add other well-defined mapper profiles.
+- Initial controller support: joystick (one button) and console switches. Paddles are deferred: they are read by timing a capacitor charge through the INPT ports, which costs cycles inside the same non-visible budget §4.3 already rations, so they are a later profile rather than a small addition.
 
 The compiler must emit a mapper declaration into build metadata and use a ROM layout that Stella can identify or that can be explicitly configured.
 
@@ -99,7 +101,7 @@ sprite jeep 8x12:
 
 scene play:
   background sky
-  playfield road, mode mirror
+  playfield road, mode reflect
   actor jeep_player uses jeep at (76, 150) controls joystick1
   score at top_right
 ```
@@ -125,6 +127,13 @@ every 120 frames:
 
 `every frame` runs in VBLANK/overscan. The compiler rejects unbounded work that cannot fit the available non-visible CPU time. `when A hits B` uses TIA collision latches when the rendering plan maps the pair to compatible TIA objects; otherwise the compiler generates bounded software collision checks and reports their cost.
 
+Two properties of the hardware latches constrain what `when A hits B` can mean:
+
+- **Latches report object pairs, not actors.** A latch says *a* collision occurred between two TIA objects. Where one player object is multiplexed across several logical actors, it cannot say *which* actor was involved. So hardware collision is available only while the rendering plan gives A and B their own objects — precisely the condition `strategy multiplex` (§5) destroys. Selecting multiplex silently converts every identity-dependent rule to software collision, and the report must say so.
+- **Latches are level, not edge.** They remain set for every frame two objects overlap, and accumulate until `CXCLR`. Scoring a *hit* therefore needs edge detection the hardware does not provide: `score += 10` implies a per-contact latch in RAM that the compiler must generate, not a direct read.
+
+The conventional contract is to read latches after the visible region and clear them during vertical blank.
+
 ### 4.4 Scenes, bands, and playfields
 
 A scene is a complete rendering/update policy. A scene contains one or more vertical `band`s. Bands express areas whose display behavior is stable, such as a score row, play area, river, or ground.
@@ -144,7 +153,33 @@ scene play:
     lives icons ship count lives
 ```
 
-`playfield` supports repeat, reflect/mirror, and asymmetric modes. The compiler displays a preview grid indicating the physical 20-bit playfield constraints.
+> **Open: band boundaries are not free, and this example does not fit.**
+>
+> The bands above sum to exactly 192 with nothing budgeted between them. A real boundary
+> costs visible scanlines whenever objects must change position across it — and they must
+> whenever a band reuses P0/P1, which is unavoidable given there are only two.
+>
+> Measured on the reference kernel (`examples/tank-arena/reference/NOTES.md`): a
+> HUD-to-field boundary repositioning both players cost **five** visible scanlines — two
+> per object, plus one to absorb the `HMOVE` comb, which blanks 8 pixels on whatever line
+> `HMOVE` is strobed and can only be *placed*, never suppressed.
+>
+> That five is **not a constant**, which is why no number is specified here yet. It
+> depends on how many objects cross the boundary and whether a line exists whose
+> background can hide the comb. There is also a *phase* constraint the model does not
+> express: register writes at a boundary must complete before the beam reads them, so a
+> boundary following a loop exit — which leaves no horizontal blank — needs either a
+> `WSYNC` or writes ordered by deadline.
+>
+> The cost model is deferred to step 3 (see `docs/roadmap.md`), which produces a second
+> data point by making the compiler emit a transition rather than copy one. Until then,
+> treat the band syntax as settled and the boundary accounting as unspecified.
+
+`playfield` supports `repeat`, `reflect`, and `asymmetric` modes. `reflect` is the only
+spelling: it is one hardware bit (`CTRLPF` D0), and an earlier draft used `mirror` and
+`reflect` interchangeably for it. The compiler displays a preview grid indicating the
+physical 20-bit playfield constraints — PF0 contributes only 4 bits, so the narrowest
+expressible feature is 4 pixels wide.
 
 ### 4.5 Assets
 
@@ -256,15 +291,32 @@ score opponent_score at top_right style bcd digits 2 value opponent_score
 
 The initial kernel favors stable timing and minimal RAM/ROM over arbitrary fonts or per-digit colors. Complex HUDs, labels, and animated scoreboards remain later kernels. This makes score display practical in the first `tank-arena` example without silently consuming the actors needed by gameplay.
 
+> **Open: `digits 4` is more expensive than this section implies.**
+>
+> A score band uses the player objects, and there are only two — so the digits and the
+> gameplay actors contend for the same hardware, and the band is reused vertically with a
+> boundary cost (§4.4).
+>
+> `NUSIZ` copies cannot supply extra digit columns. Copies share graphics: three copies of
+> P0 draw the *same* digit three times, so no arrangement of copies renders "35". A
+> multi-digit score requires rewriting `GRP0` mid-line between copies at precise cycle
+> offsets — a materially different kernel from the single-digit case, with its own budget.
+>
+> The reference kernel therefore ships **one digit per side**, and that was a measurement,
+> not a simplification. The `digits 4` and `digits 2` syntax above is retained as intent,
+> but its cost is unspecified until the mid-line-rewrite kernel is built and measured.
+> Committing to the syntax before then risks promising a primitive the machine will not
+> deliver at the implied price.
+
 ## 8. Reverse-engineering assistant
 
-The import feature is an **analysis and proposal** tool, not an authoritative decompiler. It is available as both a CLI command (`p1 import-rom --assist llm`) and a Codex skill/command (`reverse-engineer-2600-to-player1dsl`). The first release deliberately proves the skill-assisted path; deterministic extraction is a supporting evidence service, not a claim that every ROM can be reconstructed automatically.
+The import feature is an **analysis and proposal** tool, not an authoritative decompiler. It is available as both a CLI command (`p1 import-rom --assist llm`) and an agent skill (`reverse-engineer-2600-to-player1dsl`) under `.agents/skills/`. The skill contract is an evidence bundle in and a constrained proposal out, which is not specific to any one assistant, so the skill lives in a vendor-neutral location with thin per-vendor pointers. The first release deliberately proves the skill-assisted path; deterministic extraction is a supporting evidence service, not a claim that every ROM can be reconstructed automatically.
 
 Input may be a user-owned ROM, source tree, disassembly, gameplay recording, screenshots, or a combination. The work is divided into independently useful stages:
 
 1. **Evidence capture (deterministic):** fingerprint the ROM, detect the mapper, disassemble it, and record emulator traces—frame boundaries, TIA writes, input reads, collision reads, audio writes, and RAM changes.
 2. **Known-pattern catalog (deterministic):** compare traces to documented kernel signatures: standard frame timing, score kernels, playfield updates, NUSIZ copies, object repositioning, and common multiplex patterns. Each match links to evidence and a documented pattern, never an asserted game meaning.
-3. **Skill-assisted interpretation (first deliverable):** the Codex skill accepts the evidence bundle plus optional user-provided screenshots, gameplay notes, source/disassembly, and design references. It proposes Player1DSL scenes, actors, assets, and rules with `observed` / `inferred` / `unknown` labels.
+3. **Skill-assisted interpretation (first deliverable):** the skill accepts the evidence bundle plus optional user-provided screenshots, gameplay notes, source/disassembly, and design references. It proposes Player1DSL scenes, actors, assets, and rules with `observed` / `inferred` / `unknown` labels.
 4. **Author review and replay:** generate `recovered.p1`, a `recovery-report.md`, source-to-address annotations, confidence levels, and a comparison harness. The author confirms or edits every inferred semantic name/rule.
 5. **CLI supplement (later hardening):** `p1 import-rom` automates stages 1–2 and invokes the same constrained proposal schema. It grows incrementally as the pattern catalog proves reliable across permitted fixtures.
 
@@ -288,54 +340,86 @@ Every example has a short design note that explains its physical constraints, se
 
 ## 10. Repository structure
 
+Entries marked **(exists)** are present today; the rest are planned. Keeping the two
+apart matters because this section is what someone navigates the tree by, and an
+aspirational layout presented as fact wastes their time.
+
 ```text
 player1dsl/
-├── README.md                     # quick start, installation, one-minute example
-├── LICENSE
+├── README.md                     # (exists) quick start, install, one-minute example
+├── AGENTS.md                     # (exists) contributor guidance and conventions
+├── LICENSE                       # selection still pending
+├── package.json                  # (exists) npm workspaces; Node 20+
+├── tsconfig.base.json            # (exists)
+├── biome.json                    # (exists) lint and format
+├── .gitattributes                # (exists) LF normalisation; binary goldens
+├── .githooks/pre-commit          # (exists) artifacts, file size, lint, typecheck
 ├── docs/
-│   ├── SPEC.md                   # this language/compiler specification
+│   ├── SPEC.md                   # (exists) this language/compiler specification
+│   ├── spec-review-0.1.md        # (exists) review of this document
+│   ├── roadmap.md                # (exists) three-step foundation plan
+│   ├── running-in-stella.md      # (exists) building and running ROMs
+│   ├── next-session.md           # (exists) continuation prompt
+│   ├── session-logs/             # (exists) one log per working day, YYYY-MM-DD.md
+│   ├── superpowers/plans/        # (exists) detailed implementation plans
 │   ├── language-reference.md     # grammar, standard library, diagnostics
 │   ├── rendering-model.md        # TIA model and scheduling strategies
 │   ├── compiler-design.md        # IRs, templates, mapper support
 │   ├── reverse-engineering.md    # import workflow, evidence, legal/ethical use
 │   └── tutorials/
 ├── examples/
-│   ├── paddle-duel/
 │   ├── tank-arena/
+│   │   └── reference/            # (exists) hand-written kernel, build and run scripts,
+│   │                             #          NOTES.md of measured hardware costs
+│   ├── paddle-duel/
 │   ├── brick-breaker/
 │   ├── space-swarm/
 │   ├── frog-crossing/
 │   ├── river-runner/
 │   └── rope-run/
 ├── packages/
+│   ├── emulator/                 # (exists) 6507 + TIA + RIOT, frame timing, TIA tracing
+│   ├── assembler/                # (exists) 6502 assembler, byte parity with DASM
 │   ├── cli/                      # p1 command-line interface
 │   ├── parser/                   # lexer, parser, formatter, AST
 │   ├── compiler/                 # checker, IR, planner, code generation
 │   ├── runtime/                  # 6502/TIA runtime and kernel templates
-│   ├── emulator/                 # deterministic test harness/adapters
 │   ├── rom-analysis/             # disassembly, tracing, evidence extraction
 │   ├── llm-assist/               # bounded prompts/schemas for recovery proposals
 │   └── vscode/                   # syntax, diagnostics, template commands
 ├── editor/                       # browser-based beginner editor (post-v0.1)
 │   ├── app/                      # project, scene, sprite, and score views
-│   └── preview/                  # compiler-backed live preview/report integration
-├── kernels/                      # declarative/assembly kernel implementations
+│   └── preview/                  # compiler-backed live preview and report integration
+├── kernels/
+│   ├── include/                  # (exists) vcs.h: the single TIA/RIOT register map,
+│   │                             #          consumed by kernels, emulator and assembler
 │   ├── native/
 │   ├── multiplex/
 │   ├── score/
 │   └── scroll/
 ├── tests/
-│   ├── fixtures/                 # tiny source programs and permitted ROM fixtures
+│   ├── fixtures/
+│   │   └── timing/               # (exists) diagnostic ROMs isolating one mechanism each
 │   ├── unit/
 │   ├── integration/
-│   ├── goldens/                  # expected ROM/report/assembly outputs
+│   ├── goldens/                  # expected ROM, report and assembly outputs
 │   └── emulator/
-├── tools/                        # release, screenshot, and regression scripts
-├── .github/workflows/            # build, test, example-ROM regression CI
-└── .codex/skills/
-    └── reverse-engineer-2600-to-player1dsl/
-        └── SKILL.md
+├── tools/
+│   └── build-asm.sh              # (exists) assemble any .asm against kernels/include
+├── .github/workflows/
+│   └── ci.yml                    # (exists) lint, typecheck, tests, plus DASM byte parity
+└── .agents/skills/
+    └── reviewing-player1dsl-changes/   # (exists) review guidance, hardware invariants
 ```
+
+Unit and integration tests currently live beside their package as
+`packages/*/test/`, which is where the toolchain expects them; `tests/` holds fixtures
+and goldens that are shared across packages rather than owned by one.
+
+Skills live under `.agents/skills/` rather than a vendor-specific directory. The
+reverse-engineering skill described in §8 defines an evidence bundle in and a constrained
+proposal out; nothing about that contract is tied to one assistant, so the neutral
+location is the correct home and per-vendor pointers can be thin.
 
 ## 11. Quality gates
 
@@ -345,7 +429,7 @@ Regression tests compare deterministic frame captures and selected TIA-write tra
 
 ## 12. Proposed delivery phases
 
-1. **Foundation / proof game:** parser, formatter, 4 KiB NTSC ROM, native player/missile/ball/playfield rendering, joystick, sound, compact BCD score kernel, Stella run/test, and `tank-arena`.
+1. **Foundation / proof game:** parser, formatter, 4 KiB NTSC ROM, native player/missile/ball/playfield rendering, joystick, sound, compact BCD score kernel, Stella run/test, and `tank-arena`. This lists the phase contents, not their order: `docs/roadmap.md` sequences them deliberately, building the hand-written reference kernel and the emulator *before* the parser, because the parser's shape depends on what the kernels need and not the reverse.
 2. **Productive games:** scenes/bands, collision model, 8 KiB F8, feasibility and cycle reports, `paddle-duel` and `brick-breaker`.
 3. **Signature capability:** copies, controlled multiplexing, kernel templates, resource timeline, `space-swarm` and `frog-crossing`.
 4. **Skill-assisted recovery proof:** first recover one of our own `tank-arena` ROM builds, where canonical DSL and trace expectations are known; then repeat with a user-supplied open-source/homebrew ROM with published source. Build the CLI on the same evidence/proposal contract.
@@ -358,7 +442,7 @@ Regression tests compare deterministic frame captures and selected TIA-write tra
 - v0.1 targets 4 KiB NTSC ROMs. F8 and PAL/PAL60 follow after the foundation is proven.
 - The first end-to-end example is `tank-arena`, including a compact BCD score display.
 - The text DSL is the canonical format. A browser-based visual editor follows the compiler and examples.
-- ROM recovery ships as both a Codex skill and CLI supplement. Validation begins with our own example ROM, then an open-source/homebrew ROM with published source.
+- ROM recovery ships as both an agent skill and a CLI supplement. Validation begins with our own example ROM, then an open-source/homebrew ROM with published source.
 
 ## References
 
