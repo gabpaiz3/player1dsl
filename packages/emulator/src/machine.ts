@@ -2,6 +2,7 @@ import { Bus } from './bus.ts';
 import { Cpu } from './cpu.ts';
 import { Riot } from './riot.ts';
 import { COLOR_CLOCKS_PER_CPU_CYCLE, Tia } from './tia.ts';
+import type { TiaWrite } from './trace.ts';
 
 /**
  * A frame's measured structure.
@@ -17,6 +18,13 @@ export interface FrameResult {
   readonly visibleLines: number;
   readonly overscanLines: number;
   readonly cpuCycles: number;
+  /** Every TIA write in this frame, present only when tracing was requested. */
+  readonly writes?: readonly TiaWrite[];
+}
+
+export interface RunFrameOptions {
+  /** Collect every TIA write with the beam position it landed on. */
+  readonly trace?: boolean;
 }
 
 /** Guard against a ROM that never asserts VSYNC, so tests fail fast. */
@@ -40,7 +48,7 @@ export class Machine {
    * A frame boundary is the rising edge of VSYNC, which is what Stella counts
    * and therefore what makes the two measurements comparable.
    */
-  runFrame(): FrameResult {
+  runFrame(options: RunFrameOptions = {}): FrameResult {
     let scanlines = 0;
     let vsyncLines = 0;
     let vblankLines = 0;
@@ -53,6 +61,14 @@ export class Machine {
     let seenVisible = false;
     let done = false;
     let previousVsync = this.tia.vsync;
+
+    const writes: TiaWrite[] | undefined = options.trace ? [] : undefined;
+    const baseLine = this.tia.scanline;
+    if (writes) {
+      this.tia.onWrite = (register, value, line, clock, pixel) => {
+        writes.push({ line: line - baseLine, clock, pixel, register, value });
+      };
+    }
 
     this.tia.onScanline = (record) => {
       scanlines += 1;
@@ -101,8 +117,11 @@ export class Machine {
       }
     } finally {
       this.tia.onScanline = undefined;
+      this.tia.onWrite = undefined;
     }
 
-    return { scanlines, vsyncLines, vblankLines, visibleLines, overscanLines, cpuCycles };
+    return writes
+      ? { scanlines, vsyncLines, vblankLines, visibleLines, overscanLines, cpuCycles, writes }
+      : { scanlines, vsyncLines, vblankLines, visibleLines, overscanLines, cpuCycles };
   }
 }

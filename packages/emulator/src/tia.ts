@@ -51,6 +51,13 @@ export class Tia {
   /** Callback fired at the completion of every scanline. */
   onScanline: ((record: ScanlineRecord) => void) | undefined;
 
+  /**
+   * Callback fired on every TIA register write, before the write takes effect.
+   * Receives the beam position at the moment of the write, which is what makes
+   * a missed band-transition deadline visible without looking at a screen.
+   */
+  onWrite: ((register: number, value: number, line: number, clock: number, pixel: number) => void) | undefined;
+
   get isHalted(): boolean {
     return this.halted;
   }
@@ -78,6 +85,7 @@ export class Tia {
 
   write(address: number, value: number): void {
     const reg = address & 0x3f;
+    this.onWrite?.(reg, value & 0xff, this.line, this.clock, this.pixel);
     this.registers[reg] = value & 0xff;
 
     switch (reg) {

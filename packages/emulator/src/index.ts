@@ -13,3 +13,4 @@ export {
   VISIBLE_PIXELS,
 } from './tia.ts';
 export type { ScanlineRecord } from './tia.ts';
+export * from './trace.ts';
