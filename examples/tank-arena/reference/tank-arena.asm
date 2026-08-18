@@ -16,7 +16,7 @@
 HUD_DIGIT0_X    = 60        ; score band digit columns, symmetric about centre
 HUD_DIGIT1_X    = 92
 HUD_LINES       = 12        ; score band height (SPEC.md 4.4 band model)
-FIELD_LINES     = 160       ; open field between the arena walls
+FIELD_LINES     = 159       ; open field; pays for the 5-line band transition
 
 ; --- RAM map ($80-$FF, shared with the stack growing down from $FF) ---------
     seg.u variables
@@ -235,20 +235,28 @@ MainLoop
     ldx #1
     jsr PosObjectX
 
+    ; Absorb the HMOVE comb on a black line.
+    ;
+    ; PosObjectX ends `sta WSYNC / sta HMOVE / rts`, so the second call strobes
+    ; HMOVE at the start of the line the wall setup then runs on -- and HMOVE
+    ; extends that line's horizontal blank by 8 pixels. Measured: an 8-pixel
+    ; black notch down the left of the first white wall line.
+    ;
+    ; The comb cannot be suppressed; it can only be placed. This WSYNC spends
+    ; one line so it falls on a line where the playfield is still 0 from the
+    ; HUD band -- black comb on black background, invisible.
+    ;
+    ; So the band transition costs FIVE visible scanlines, not four: two per
+    ; object to reposition, plus one to absorb the comb.
+    sta WSYNC
+
     ; -- top wall: 8 solid lines --
-    ; Write order matters, and it is ordered by DEADLINE, not by readability.
-    ; PosObjectX returns ~9 cycles into a line (HMOVE + rts), leaving only ~13
-    ; cycles of horizontal blank. The playfield writes must fit inside it: PF0
-    ; is read at pixel 0, so it has the earliest deadline; the colour registers
-    ; are not read at all on this line, since no player is drawn over the wall.
-    ;
-    ; Putting the colour writes first, as reads more naturally, pushed PF0 to
-    ; pixel 4 and PF1 to pixel 19 -- a black notch across the left of the first
-    ; wall line.
-    ;
-    ; sta PF2 completes at cycle 22 = colour clock 66, with blank ending at 68.
-    ; Two colour clocks of margin: valid, but exactly the "tight but valid" case
-    ; SPEC.md 5 proposes warning about below 8 cycles of headroom.
+    ; Writes are ordered by DEADLINE rather than readability: PF0 is read at
+    ; pixel 0, PF1 at 16, PF2 at 48, and the colour registers are not read at
+    ; all on this line since no player draws over the wall. The WSYNC above now
+    ; provides a full blank, so this ordering is no longer load-bearing -- but
+    ; it is the ordering a code generator must produce when a boundary does not
+    ; get a WSYNC of its own.
     lda #$F0
     sta PF0                 ; deadline: pixel 0
     lda #$FF

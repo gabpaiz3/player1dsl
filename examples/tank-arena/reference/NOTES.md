@@ -188,13 +188,62 @@ derivation — the running argument for review §1.1.
   This is deterministic, not a bug, but step 3's compiler must reproduce it
   exactly or trace comparison against this reference will disagree by one line.
 
-## Open questions increments 4–5 will answer
+## ANSWERED — §3.4: a band transition costs 5 visible scanlines
 
-- **§3.4 — band transition cost.** SPEC.md §4.4's bands sum to exactly 192
-  (12 + 168 + 12) with nothing budgeted for transitions. The score band needs both
-  players for digits and the field needs both for tanks, so the boundary requires
-  repositioning both objects — at least one WSYNC'd line, plus the HMOVE bar.
-  Increment 4 measures whether 12 + 168 + 12 is achievable as written.
+**SPEC.md §4.4's example band layout does not fit on the machine.** Its bands are
+12 + 168 + 12 = exactly 192, leaving nothing for the boundaries between them.
+
+Measured cost of a single HUD → field boundary:
+
+| Component | Scanlines | Why |
+|---|---|---|
+| Reposition P0 | 2 | `PosObjectX`: one line to place, one to `HMOVE` |
+| Reposition P1 | 2 | same |
+| Absorb the HMOVE comb | 1 | see below |
+| **Total** | **5** | against SPEC.md's implicit 0 |
+
+The reposition is unavoidable: P0 and P1 are the only movable objects, so the
+score digits and the tanks contend for the same two. The band is reused
+vertically, which is what forces the boundary work.
+
+**The comb is the part no cycle model would predict.** `HMOVE` extends its
+line's horizontal blank by 8 pixels. `PosObjectX` ends `sta WSYNC / sta HMOVE /
+rts`, so the second call strobes `HMOVE` at the start of the line the wall setup
+runs on — putting an 8-pixel black notch down the left of the first white wall
+line. Confirmed visually, measured at 8 pixels wide.
+
+It cannot be suppressed, only *placed*. Spending one more scanline drops it onto
+a line where the playfield is still 0 from the HUD band: black comb on black
+background, invisible.
+
+**Implication for the compiler.** Band transition cost is not a constant. It
+depends on how many objects change position, and on whether a line exists whose
+background can hide the comb. A planner that models a band boundary as a line
+number — which is all SPEC.md §4.4 offers — cannot compute this. It needs to know
+which objects cross the boundary, where the beam sits when the previous region
+exits, and what colour the absorbing line will be.
+
+## Write ordering is a compiler obligation
+
+Three separate defects in this kernel had one root cause: **a loop exit leaves no
+horizontal blank**, so register writes following it land in the visible region.
+
+| Site | Landed at | Symptom |
+|---|---|---|
+| `openField` → bottom wall | `PF0` at pixel 136 | white sliver, bottom right |
+| glyph loop → `GRP` clear | `GRP0` at pixel 13 | score row 7 missing |
+| transition → top wall | `PF0` at pixel 4 | black notch, top left |
+
+Only one boundary in the kernel was ever correct — `topWall → openField` — and
+only by accident, because it happens to follow a `WSYNC`.
+
+Where a `WSYNC` is too expensive, the writes must be **ordered by deadline**: the
+pixel at which each register is first read. `PF0` is read at pixel 0, `PF1` at 16,
+`PF2` at 48; `COLUP0`/`COLUP1` are not read at all on a line with no players. A
+code generator emitting band transitions has to sort by that and prove the tail
+fits inside blank. Nothing in SPEC.md expresses it.
+
+## Still open for increment 5
 - **§3.6 — collision identity.** Which of the 15 latch pairs are usable directly,
   and which interactions need a software check because the latch cannot say
   *which* logical actor was involved.
