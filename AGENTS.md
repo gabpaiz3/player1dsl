@@ -27,6 +27,15 @@
 - Do not claim semantic certainty from a trace alone. Link pattern matches to their evidence.
 - Only analyze ROMs, source, artwork, and recordings that the user is entitled to provide or use. Never add third-party ROMs or recovered commercial assets to the repository.
 
+## Session logs
+
+- Keep one log per working day at `docs/session-logs/YYYY-MM-DD.md`. Start a new file
+  for each new date rather than appending to yesterday's.
+- Record decisions and their rationale, findings that change the specification, and
+  the state left at the end. Do not restate what the diff already shows.
+- Where a measurement contradicted a derivation, record both. That contrast is the
+  evidence base for treating cycle costs as measured rather than assumed.
+
 ## Before completing a change
 
 - Run the smallest relevant formatter, typecheck, unit tests, and emulator/integration checks that exist.

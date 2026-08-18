@@ -46,3 +46,11 @@ pnpm-debug.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Screen captures used to verify ROM output. Both spellings: the directory on
+# disk is "screeencaps".
+screencaps/
+screeencaps/
+
+# Terminal Paste Image folder
+.cp-images/
