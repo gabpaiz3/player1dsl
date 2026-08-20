@@ -1,0 +1,27 @@
+{
+  "name": "player1dsl",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc --build",
+    "typecheck": "tsc --build",
+    "lint": "biome check packages/",
+    "lint:fix": "biome check --write packages/",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.8",
+    "@types/node": "^26.2.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "workspaces": [
+    "packages/*"
+  ]
+}

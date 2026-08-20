@@ -16,7 +16,7 @@
 HUD_DIGIT0_X    = 60        ; score band digit columns, symmetric about centre
 HUD_DIGIT1_X    = 92
 HUD_LINES       = 12        ; score band height (SPEC.md 4.4 band model)
-FIELD_LINES     = 159       ; open field; pays for the 5-line band transition
+FIELD_LINES     = 158       ; open field; pays for the 5-line band transition
 
 ; --- RAM map ($80-$FF, shared with the stack growing down from $FF) ---------
     seg.u variables
@@ -118,18 +118,16 @@ MainLoop
     sta VSYNC
 
 ; --- VBLANK: 37 lines ------------------------------------------------------
-; MEASURED, not derived. The arithmetic says #43: 37 lines * 76 = 2812 cycles,
-; and 43*64 = 2752 lands 16 cycles into line 37 for the trailing WSYNC to
-; finish. Stella measured 261 scanlines with that value -- one short.
+; MEASURED, not derived. The arithmetic says #43: 37 lines * 76 = 2812 cycles
+; and 43*64 = 2752. Stella measured 261 scanlines with that value -- one short.
 ;
-; The cause is the write to TIM64T itself: the internal prescaler may already
-; be partway through a 64-cycle interval, so up to 63 cycles are lost. Sixteen
-; cycles of margin does not survive that, and expiry falls back into line 36.
-; Overscan's 36 cycles of margin does survive it, which is why VBLANK is the
-; constant that moved.
+; The cause, isolated later by tests/fixtures/timing/timer-only.asm: a timer
+; write's first decrement lands on the NEXT cycle, not after a full prescaler
+; interval, so zero is reached at 1 + (N-1)*64 cycles rather than N*64. #43
+; therefore gives 2689, not 2752 -- 35.4 lines, expiring inside line 36.
 ;
-; #44 gives 2816 cycles, landing early in line 38 nominally and comfortably
-; inside line 37 after the prescaler loss.
+; #44 gives 1 + 43*64 = 2753 cycles = 36.2 lines, expiring inside line 37 for
+; the trailing WSYNC to complete. Verified at 37 lines by the emulator.
     lda #44
     sta TIM64T
 
@@ -451,11 +449,14 @@ MainLoop
                             ; 8 + 176 + 8 = 192
 
 ; --- OVERSCAN: 30 lines ----------------------------------------------------
-; 30 * 76 = 2280 cycles; #35 gives 35*64 = 2240, expiring ~36 cycles into
-; line 30, completed by the trailing WSYNC.
+; MEASURED. A timer write's first decrement lands on the NEXT cycle, so zero
+; is reached at 1 + (N-1)*64 cycles, not N*64. #35 therefore gives 2177 cycles
+; = 28.6 lines and produced only 29 -- one short of the 30 this comment used to
+; claim. #36 gives 2241 = 29.5 lines, expiring inside line 30 for the trailing
+; WSYNC to complete.
     lda #2
     sta VBLANK              ; blanking on
-    lda #35
+    lda #36
     sta TIM64T
 
     ; -- collisions --
