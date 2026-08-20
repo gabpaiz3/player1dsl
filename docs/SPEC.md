@@ -446,6 +446,7 @@ player1dsl/
 │   └── tutorials/
 ├── examples/
 │   ├── tank-arena/
+│   │   ├── tank-arena.p1         # (exists) the source the compiler must reproduce
 │   │   └── reference/            # (exists) hand-written kernel, build and run scripts,
 │   │                             #          NOTES.md of measured hardware costs
 │   ├── paddle-duel/
@@ -457,9 +458,10 @@ player1dsl/
 ├── packages/
 │   ├── emulator/                 # (exists) 6507 + TIA + RIOT, frame timing, TIA tracing
 │   ├── assembler/                # (exists) 6502 assembler, byte parity with DASM
-│   ├── cli/                      # p1 command-line interface
-│   ├── parser/                   # lexer, parser, formatter, AST
-│   ├── compiler/                 # checker, IR, planner, code generation
+│   ├── cli/                      # (exists) p1 check and p1 fmt
+│   ├── parser/                   # (exists) lexer, parser, formatter, AST, diagnostics
+│   ├── compiler/                 # (exists) checker, game IR, RAM allocator; the
+│   │                             #          planner and codegen are still to come
 │   ├── runtime/                  # 6502/TIA runtime and kernel templates
 │   ├── rom-analysis/             # disassembly, tracing, evidence extraction
 │   ├── llm-assist/               # bounded prompts/schemas for recovery proposals
