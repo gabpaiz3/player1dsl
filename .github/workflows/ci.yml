@@ -59,6 +59,8 @@ jobs:
           sh tools/build-asm.sh tests/fixtures/timing/wsync-only.asm
           sh tools/build-asm.sh tests/fixtures/timing/timer-only.asm
           sh tools/build-asm.sh tests/fixtures/timing/late-write.asm
+          sh tools/build-asm.sh tests/fixtures/timing/golden-base.asm
+          sh tools/build-asm.sh tests/fixtures/timing/golden-late.asm
           sh examples/tank-arena/reference/build.sh
 
       - name: Byte parity against DASM

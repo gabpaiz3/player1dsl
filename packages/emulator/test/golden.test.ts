@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TiaWrite } from '../src/index.ts';
 import {
   expandScript,
+  findLateWrites,
   Machine,
   parseGolden,
   SWCHA_IDLE,
@@ -225,5 +226,26 @@ describe('input script expansion', () => {
         phases: [{ frames: 1, p0: ['sideways' as any], note: 'bad' }],
       }),
     ).toThrow(/sideways/);
+  });
+});
+
+describe('comparator fixtures', () => {
+  it('golden-base writes PF0 inside horizontal blank', () => {
+    const frame = settled(romFor('golden-base')).runFrame({ trace: true });
+    expect(findLateWrites(frame.writes ?? [])).toEqual([]);
+  });
+
+  it('golden-late writes PF0 on the same lines with the same value, but late', () => {
+    const base = settled(romFor('golden-base')).runFrame({ trace: true });
+    const late = settled(romFor('golden-late')).runFrame({ trace: true });
+
+    const pf0 = (f: typeof base) => (f.writes ?? []).filter((wr) => wr.register === 0x0d);
+
+    // The mutation is invisible to (line, value) -- that is the whole point.
+    expect(pf0(late).map((wr) => [wr.line, wr.value])).toEqual(
+      pf0(base).map((wr) => [wr.line, wr.value]),
+    );
+    // ...and visible only in the pixel.
+    expect(findLateWrites(late.writes ?? []).length).toBeGreaterThan(100);
   });
 });
