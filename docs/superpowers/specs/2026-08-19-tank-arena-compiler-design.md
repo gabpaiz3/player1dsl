@@ -203,7 +203,8 @@ Each ends in something independently testable, following step 1's discipline.
 
 | # | Increment | Done when |
 |---|---|---|
-| 1 | Golden harness + input injection | Golden committed from the reference ROM; `.gitignore` no longer swallows it; comparator proved against a deliberately-mutated ROM, not only against a passing one |
+| 1a | Input injection + trace format + golden | `runFrame({ swcha })` drives a committed input script; golden generated from the reference ROM and committed; `.gitignore` no longer swallows it |
+| 1b | Comparator + **two** known-positives | Both positives below fail the comparator, and the unmutated ROM passes |
 | 2 | Lexer, parser, AST, `p1 fmt` | `p1 fmt` round-trips `tank-arena.p1` |
 | 3 | Checker, game IR, RAM allocator | RAM map computed with the stack reserved; types and bounds checked; over-budget RAM is a compile error |
 | 4 | Layout IR + line ledger | `p1 check` prints the ledger and **fails** if it does not sum to 192 |
@@ -214,10 +215,25 @@ Each ends in something independently testable, following step 1's discipline.
 Increment 4 is where the design holds or does not: the ledger is derived arithmetic that
 must independently land on 158.
 
-Increment 1's comparator must be proved against a known-positive — a mutated ROM whose
-trace deliberately diverges — for the same reason step 2 proved `findLateWrites` against
-`late-write.asm` first. "The golden matches" also passes with a comparator that never
-fails.
+### Why increment 1b needs two known-positives, not one
+
+For the same reason step 2 proved `findLateWrites` against `late-write.asm` before
+trusting a clean result: "the golden matches" also passes with a comparator that never
+fires. But one mutation is not enough here, because the comparator has two independent
+halves and the obvious mutation only exercises the easy one.
+
+1. **Trace divergence.** Change a sprite byte or a starting position. This trips the
+   `(register, value, line)` equality — which is just equality, and the half least likely
+   to be wrong.
+2. **Deadline-only.** A mutation that holds `(register, value, line)` *constant* and moves
+   a write later within its scanline, from horizontal blank into the visible region. Delay
+   cycles inserted before a wall-setup `PF0` write do exactly this: same line, same value,
+   pixel slides from `-1` to positive.
+
+Without the second, every mutation trips the equality fields first and the deadline check
+is never observed to fail — so the one genuinely novel part of the comparator ships
+unverified. `findLateWrites` already computes the deadline; 1b verifies that the
+comparator actually consults it.
 
 ## What this step does not do
 
@@ -239,3 +255,13 @@ fails.
 - Whether the field-setup line (ledger row 4) is best modelled as a template entry cost or
   as a general "region change after loop exit" rule in the layout IR. It is one line either
   way for tank-arena; the second catalog entry will discriminate.
+- **Initial-state syntax.** The reference starts `score0 = 3`, `score1 = 5`, tanks at
+  `(40, 120)` and `(110, 60)`. All four must be expressible or frame 0 of the trace
+  diverges immediately. Actor positions have an obvious home (`at (40, 120)`, already in
+  [SPEC §4.2](../../SPEC.md)); a non-zero starting score does not, and `score p0 start 3`
+  is a guess until increment 2 parses it.
+- **Frame count for the golden.** Unspecified here on purpose, but it must be a number
+  before increment 1a, not during it: the tanks are 70px apart horizontally and 60
+  vertically at 1px/frame, so directed contact needs roughly 60+ frames, and the count
+  decides whether run-length collapsing is necessary or merely tidy. The implementation
+  plan fixes it.
