@@ -6,6 +6,15 @@
     },
     {
       "path": "./packages/assembler"
+    },
+    {
+      "path": "./packages/parser"
+    },
+    {
+      "path": "./packages/compiler"
+    },
+    {
+      "path": "./packages/cli"
     }
   ]
 }
