@@ -224,12 +224,45 @@ Each ends in something independently testable, following step 1's discipline.
 | 2 | Lexer, parser, AST, `p1 fmt` | `p1 fmt` round-trips `tank-arena.p1` |
 | 3 | Checker, game IR, RAM allocator | RAM map computed with the stack reserved; types and bounds checked; over-budget RAM is a compile error |
 | 4 | Layout IR + line ledger | `p1 check` prints the ledger and **fails** if it does not sum to 192 |
+| 4b | Kernel-shape fixtures | Three diagnostic kernels measured; the applicability vocabulary revised against what they need (see below) |
 | 5 | Template catalog + selector | Selector matches declarations against declared conditions; a deliberately unsatisfiable band produces a diagnostic |
 | 6 | Rule lowering + instruction selection | VBLANK/overscan code generated from rules |
 | 7 | `p1 build` end to end | 4096 bytes; golden trace matches |
 
 Increment 4 is where the design holds or does not: the ledger is derived arithmetic that
 must independently land on 158.
+
+### Why increment 4b exists
+
+The catalog's applicability vocabulary is to step 3 what the band model was to step 1. If
+it is derived from one kernel and validated at step 4, that repeats precisely the mistake
+the roadmap's ordering argument exists to avoid — committing to an interface before the
+thing it must describe has been measured.
+
+Unlike a cycle cost, a vocabulary cannot be checked with a fixture that isolates it. It is
+tested by trying to express something it was not designed for. So increment 4b writes three
+diagnostic kernels — each a fixture in the `tests/fixtures/` tradition, not a game — and
+asks whether the vocabulary can state what each one needs:
+
+| Fixture | Shape it isolates | Question it answers |
+|---|---|---|
+| `scroll-field` | playfield rewritten every line | Is "static playfield within the band" the right axis, or should it be "PF writes per line"? |
+| `ball-and-paddles` | two players + ball, no runs, no border | Does a band with zero `run` row groups work, and what does the ball object cost? |
+| `sprite-formation` | one player object multiplexed across a row | Does the vocabulary express multiplex separation and per-line reload budget at all? |
+
+These are diagnostics: the step-2 timing fixtures are 40–90 lines each and this is the same
+scale. They produce measured numbers we own outright, and they run through our own
+assembler and emulator, which incidentally stresses the assembler against opcodes the four
+existing ROMs never exercise — a known open item from step 2.
+
+**On third-party sources.** Complete commercial games are not usable here. Disassemblies of
+Combat, Adventure, Pitfall and River Raid circulate widely and are typically unlicensed
+derivative works of copyrighted code; AGENTS.md already forbids adding third-party ROMs or
+recovered commercial assets. The specific hazard for this project is that kernel structure
+copied from such a source would land in `packages/runtime`, which ships inside every
+generated ROM. Properly-licensed homebrew remains an option later, with each licence
+verified individually — but for the vocabulary question a fixture is the better instrument
+regardless, because it isolates one shape instead of bundling a whole game's decisions.
 
 ### Why increment 1b needs two known-positives, not one
 
@@ -270,12 +303,13 @@ comparator actually consults it.
   decides it against what actually parses cleanly. Whatever it becomes, it must be a
   property of *this game's playfield*, not a first-class band concept — see the row-group
   note above.
-- **Whether the applicability vocabulary is right.** This is the largest untested
-  assumption in the document. "Movable object count, static playfield within the band,
-  maximum sprite height, supported strategies" is derived from exactly one kernel, and it
-  is the interface every future genre must fit through. Unlike a cycle cost, a vocabulary
-  cannot be checked with a fixture — it is tested by trying to express something it was
-  not designed for. Step 3 cannot close this; it is named here so the next step does.
+- **What the applicability vocabulary becomes.** "Movable object count, static playfield
+  within the band, maximum sprite height, supported strategies" is derived from exactly one
+  kernel, and it is the interface every future genre must fit through. Increment 4b exists
+  to revise it against three measured shapes before increment 5 commits to it, so this is
+  an open question with a scheduled answer rather than a deferred risk. What 4b cannot do
+  is prove the vocabulary complete — only that it survives three shapes it was not designed
+  for.
 - Whether the field-setup line (ledger row 4) is best modelled as a template entry cost or
   as a general "region change after loop exit" rule in the layout IR. It is one line either
   way for tank-arena; the second catalog entry will discriminate.
