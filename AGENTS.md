@@ -19,7 +19,8 @@
 - Make compilation deterministic: the same source and tool version must produce equivalent ROM, report, and diagnostic output.
 - Treat cycle budgets, scanline schedules, RAM, ROM size, and mapper constraints as compile-time validation—not best-effort runtime behavior.
 - Add a focused test for every compiler bug and use deterministic emulator screenshots or TIA-write traces for rendering regressions.
-- Do not commit generated ROMs, coverage output, dependency directories, secrets, or local emulator configuration.
+- Do not commit build output: generated ROMs, coverage output, dependency directories, secrets, or local emulator configuration.
+- Goldens are the deliberate exception and *are* checked in, under `tests/goldens/`. ROM bytes are stored as SHA-256 manifests rather than binaries; human-readable artifacts (TIA-write traces, listings, reports) are stored whole, because those are the ones that diff usefully when a test fails. `.gitignore` carries negation rules for them — an ignored golden is silently swallowed instead of committed, which is the worst failure mode a golden has.
 
 ## ROM analysis and LLM assistance
 

@@ -125,11 +125,20 @@ every 120 frames:
   spawn enemy from right at y random(32..160)
 ```
 
-`every frame` runs in VBLANK/overscan. The compiler rejects unbounded work that cannot fit the available non-visible CPU time. `when A hits B` uses TIA collision latches when the rendering plan maps the pair to compatible TIA objects; otherwise the compiler generates bounded software collision checks and reports their cost.
+`every frame` runs in VBLANK/overscan. The compiler rejects unbounded work that cannot fit the available non-visible CPU time.
+
+That rejection is a worst-case execution time analysis, and it is only tractable because
+the game layer is **statically bounded by construction**: no unbounded loops, no
+recursion, no indirect calls, and only bounded arrays with compile-time-known extents.
+Every construct therefore has a statically computable cycle bound, and the bound of a
+rule is the sum of its parts. This is the single most consequential constraint in the
+language, and it is what §2's "no arbitrary C/JavaScript extensions in the game runtime"
+non-goal exists to protect. Iteration is available only through forms whose trip count is
+fixed at compile time; anything else is a diagnostic, not a slow program. `when A hits B` uses TIA collision latches when the rendering plan maps the pair to compatible TIA objects; otherwise the compiler generates bounded software collision checks and reports their cost.
 
 Two properties of the hardware latches constrain what `when A hits B` can mean:
 
-- **Latches report object pairs, not actors.** A latch says *a* collision occurred between two TIA objects. Where one player object is multiplexed across several logical actors, it cannot say *which* actor was involved. So hardware collision is available only while the rendering plan gives A and B their own objects — precisely the condition `strategy multiplex` (§5) destroys. Selecting multiplex silently converts every identity-dependent rule to software collision, and the report must say so.
+- **Latches report object pairs, not actors.** A latch says *a* collision occurred between two TIA objects. Where one player object is multiplexed across several logical actors, it cannot say *which* actor was involved. So hardware collision is available only while the rendering plan gives A and B their own objects — precisely the condition `strategy multiplex` (§5.2) destroys. Selecting multiplex silently converts every identity-dependent rule to software collision, and the report must say so.
 - **Latches are level, not edge.** They remain set for every frame two objects overlap, and accumulate until `CXCLR`. Scoring a *hit* therefore needs edge detection the hardware does not provide: `score += 10` implies a per-contact latch in RAM that the compiler must generate, not a direct read.
 
 The conventional contract is to read latches after the visible region and clear them during vertical blank.
@@ -196,6 +205,35 @@ sound engine:
 ## 5. More-than-two-sprite abstraction
 
 The 2600 does not contain a conventional multi-sprite renderer. Player1DSL must make that visible without making authors hand-code raster tricks.
+
+### 5.1 The two axes are not alike
+
+Actors carry `(x, y)` everywhere in this document, and that symmetry is a fiction the
+compiler has to unpick. The two coordinates are different kinds of thing on this machine:
+
+- **`x` is a register.** Horizontal position is real state, set by strobing `RESPx` for
+  coarse placement and trimming with `HMPx` + `HMOVE`. It costs cycles (§4.4) but it is
+  a value the hardware holds.
+- **`y` is not.** There is no vertical position register. An object's vertical position
+  *is* the set of scanlines on which the kernel writes `GRPx` — so `y` is a property of
+  the generated kernel's structure, not of a variable the kernel reads. Moving an actor
+  down the screen means the kernel's per-line comparison selects a different range of
+  lines, and every distinct `y` a band must support is a constraint on the loop body that
+  band's kernel can afford.
+
+This is the actual reason 2600 games look the way they do, and it bounds how many
+distinct vertical positions can coexist in one band far more tightly than the horizontal
+multiplexing table below suggests. A band's kernel must recompute each object's graphics
+row within its per-line budget; two objects at arbitrary independent `y` is affordable,
+twelve is not, regardless of how their horizontal positions resolve.
+
+`VDELP0`/`VDELP1` are the standard tool here: they delay a `GRPx` write by one line so an
+object can be updated across the write boundary without tearing, which is what makes some
+otherwise-unschedulable vertical layouts fit. The rendering model document owes this a
+full treatment; what belongs in the specification is that vertical position is kernel
+structure, and the planner must budget it as such.
+
+### 5.2 Horizontal strategies
 
 An `actor` is a logical game object; it is not a promise of a dedicated hardware player. An actor group can request a strategy:
 
@@ -264,6 +302,43 @@ Compilation phases:
 6. Generate 6502/TIA/RIOT code from tested kernel templates plus generated game logic.
 7. Assemble, determine mapper metadata, verify vectors/ROM size, and generate report artifacts.
 8. Optionally run the ROM in Stella in headless or debugger-assisted smoke tests.
+
+### 6.1 The planner is a template catalog, not a solver
+
+Phase 5 above reads like a search problem, and it must not be implemented as one. A
+heuristic scheduler that explores arrangements until a timeout is a determinism hazard:
+AGENTS.md requires that the same source and tool version produce equivalent output, and a
+solver that runs out of budget on a slower machine produces a different ROM — or none.
+
+The planner is therefore a **catalog of measured kernel templates plus a selector**. Each
+template declares, as data:
+
+- its **applicability conditions** — how many movable objects it renders, whether the
+  playfield is static within the band, the maximum sprite height, which strategies it
+  supports;
+- its **costs** — cycles per line, and the scanlines it charges at band entry and exit
+  (for example `2n + 1` for a transition repositioning *n* objects, per §4.4);
+- the **register writes it emits, with each write's deadline**, so the schedule is
+  checkable rather than asserted.
+
+Selection matches band declarations against those conditions in a fixed, documented order
+and reports the chosen template with its costs. When nothing matches, the compiler emits a
+diagnostic naming what would have to change — as in the `E230` example in §5.2 — rather
+than degrading silently.
+
+Two consequences worth stating. First, a template's declared costs are *measured*, not
+derived: every cost in the catalog traces to a fixture that isolates the mechanism, which
+is the discipline `examples/tank-arena/reference/NOTES.md` records the reasons for.
+Second, adding a genre means adding a catalog entry, not changing the compiler. That is a
+falsifiable claim, and the examples in §9 are how it gets tested.
+
+### 6.2 RAM budget
+
+The 6532 provides 128 bytes, and the stack lives in the same 128 bytes, growing down from
+`$FF`. The RAM accounting in phase 2 must therefore reserve a documented stack allowance
+and allocate variables below it; without that reservation the first sufficiently deep call
+chain silently corrupts game state. The reservation is part of the build report, and
+exceeding the remaining space is a compile-time error like any other budget overrun.
 
 ## 7. Command-line interface
 
@@ -402,7 +477,8 @@ player1dsl/
 │   │   └── timing/               # (exists) diagnostic ROMs isolating one mechanism each
 │   ├── unit/
 │   ├── integration/
-│   ├── goldens/                  # expected ROM, report and assembly outputs
+│   ├── goldens/                  # committed: ROM hashes, traces, reports (§11.1),
+│   │                             #            plus the input scripts that drive them
 │   └── emulator/
 ├── tools/
 │   └── build-asm.sh              # (exists) assemble any .asm against kernels/include
@@ -426,6 +502,37 @@ location is the correct home and per-vendor pointers can be thin.
 A build is successful only when parsing/type checks pass, every visible scanline has a valid schedule, RAM/ROM limits fit the selected cartridge profile, reset/interrupt vectors are valid, and the ROM loads in automated Stella smoke testing. A `--strict` build promotes tight timing, fallback rendering, unused hardware collision opportunities, and unknown import inferences to errors.
 
 Regression tests compare deterministic frame captures and selected TIA-write traces, not only ROM byte output. This catches visible timing regressions even when a compiler refactor changes generated code shape.
+
+### 11.1 What a golden stores, and how equivalence is judged
+
+Goldens live in `tests/goldens/` and are **committed deliberately**, which makes them the
+one exception to AGENTS.md's rule against committing generated artifacts. The split:
+
+- **ROM bytes are stored as SHA-256 manifests**, not binaries. A ROM diff is unreadable
+  anyway, so storing the bytes costs repository size on every regeneration and buys
+  nothing a hash does not.
+- **Human-readable artifacts are stored whole** — TIA-write traces, listings, reports.
+  These are the ones that diff usefully, and a golden whose failure says only *that*
+  something changed rather than *what* is worth much less than one that shows the line.
+
+`.gitignore` carries explicit negation rules for these paths. This is not incidental
+tidiness: the ignore patterns for build output (`*.bin`, `*.trace`, `*.frame.json`) would
+otherwise swallow every golden silently, so a test would appear to pass against a file
+that was never committed.
+
+**Equivalence is judged on the trace, not on the bytes.** Two ROMs are equivalent when,
+driven by the same committed input script, they produce the same sequence of TIA writes:
+identical register, identical value, identical scanline, and a colour clock that meets
+that register's deadline — the pixel at which the beam first reads it. The clock itself is
+recorded for diffing but not asserted, because clock position is a function of instruction
+cycle counts, and demanding exact clocks would forbid the compiler from ever choosing a
+different-but-correct instruction sequence. That is the freedom §6.1's catalog exists to
+preserve; the deadline is the part that determines what appears on screen.
+
+Input scripts are committed alongside their goldens and must exercise the rules they
+claim to cover. A script that idles produces a green golden proving little, so scripts
+drive boundary conditions — clamping at limits, collisions, and any edge-detected state —
+deliberately.
 
 ## 12. Proposed delivery phases
 

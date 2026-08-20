@@ -20,6 +20,15 @@ coverage/
 *.frame.json
 *.tia-trace.json
 
+# ...but goldens are checked in deliberately, and an ignored golden is silently
+# swallowed rather than committed -- the worst failure mode a golden has (spec
+# review 2.4). ROM bytes are stored as hashes; the human-readable artifacts are
+# stored whole, because those are the ones that diff usefully.
+!tests/goldens/**/*.trace
+!tests/goldens/**/*.lst
+!tests/goldens/**/*.frame.json
+!tests/goldens/**/*.tia-trace.json
+
 # Local tooling and emulator configuration
 .p1/
 .stella/
