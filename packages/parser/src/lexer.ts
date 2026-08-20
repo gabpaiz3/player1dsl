@@ -21,6 +21,7 @@ export type TokenKind =
   | 'newline'
   | 'indent'
   | 'dedent'
+  | 'comment'
   | 'eof';
 
 export interface Token {
@@ -74,8 +75,22 @@ export function lex(source: string, file: string): Token[] {
     const indent = raw.length - raw.trimStart().length;
     const body = raw.trim();
 
-    // Blank and comment-only lines carry no indentation information.
-    if (body === '' || body.startsWith('#')) continue;
+    // Blank and comment-only lines carry no indentation information -- a
+    // comment indented anywhere must not open or close a block.
+    //
+    // Comments are EMITTED rather than dropped. A formatter that deletes them is
+    // not usable, and in this project comments carry the reasoning, which is most
+    // of what is worth keeping. The parser drains them into the `leading` list of
+    // whatever construct comes next.
+    //
+    // Known limit: a comment trailing a code line is still dropped. Every comment
+    // in tank-arena.p1 is on its own line, so this is a gap rather than a
+    // blocker, and the formatter round-trip test is what would catch it changing.
+    if (body === '') continue;
+    if (body.startsWith('#')) {
+      push('comment', body.slice(1).trim(), span(indent + 1, body.length));
+      continue;
+    }
 
     const top = indents.at(-1) ?? 0;
     if (indent > top) {

@@ -37,15 +37,23 @@ describe('lexer', () => {
   });
 
   it('ignores blank and comment-only lines for indentation', () => {
+    // The comment is emitted, but it must not open a block: `indent` still
+    // arrives with `b`, not with the comment above it.
     expect(kinds('a:\n\n  # note\n  b\n')).toEqual([
       'name',
       'punct',
       'newline',
+      'comment',
       'indent',
       'name',
       'newline',
       'dedent',
     ]);
+  });
+
+  it('emits comment text without its hash or surrounding space', () => {
+    const comment = lex('#   note here\n', 't.p1').find((t) => t.kind === 'comment');
+    expect(comment?.text).toBe('note here');
   });
 
   it('reads decimal and hex numbers', () => {
