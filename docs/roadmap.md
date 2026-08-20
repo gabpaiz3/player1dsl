@@ -66,7 +66,7 @@ Step 3 runs as four plans, each producing working software on its own:
 | Plan | Increments | Deliverable | State |
 |---|---|---|---|
 | [1](superpowers/plans/2026-08-19-golden-trace-harness.md) | 1a, 1b | Golden trace harness and comparator | **done** |
-| 2 | 2, 3 | Parser, AST, `p1 fmt`, checker, game IR, RAM allocator | to write |
+| [2](superpowers/plans/2026-08-20-parser-and-game-ir.md) | 2, 3 | Parser, AST, `p1 fmt`, checker, game IR, RAM allocator | planned |
 | 3 | 4, 4b, 5 | Layout IR, line ledger, kernel-shape fixtures, template catalog | to write |
 | 4 | 6, 7 | Rule lowering, `p1 build` end to end | to write |
 
