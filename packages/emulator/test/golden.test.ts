@@ -84,6 +84,22 @@ describe('golden records', () => {
     ]);
   });
 
+  it('collapses interleaved registers, which alternate on every field-loop line', () => {
+    // MEASURED, not assumed: the first generated golden collapsed NOTHING --
+    // 33390 records, 489 KB, zero runs. GRP0 and GRP1 alternate on every line
+    // of the field loop, so a run detector that only merges writes adjacent in
+    // the stream never sees two consecutive writes of the same register.
+    // Collapsing is therefore per-SCANLINE-signature, not per-register.
+    const writes = [];
+    for (let line = 10; line < 15; line += 1) {
+      writes.push(w(line, 0x1b, 0x00), w(line, 0x1c, 0x00));
+    }
+    expect(toRecords(writes)).toEqual([
+      { line: 10, endLine: 14, register: 0x1b, value: 0x00, pixel: -1 },
+      { line: 10, endLine: 14, register: 0x1c, value: 0x00, pixel: -1 },
+    ]);
+  });
+
   it('never collapses a visible write, because its pixel is asserted', () => {
     const records = toRecords([w(5, 0x1b, 0x00, 4), w(6, 0x1b, 0x00, 4)]);
     expect(records.map((r) => [r.line, r.endLine, r.pixel])).toEqual([

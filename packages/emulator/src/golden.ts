@@ -52,60 +52,93 @@ function hex2(value: number): string {
   return `$${(value & 0xff).toString(16).padStart(2, '0')}`;
 }
 
+/** One scanline's writes, in the order they happened. */
+interface LineGroup {
+  readonly line: number;
+  readonly writes: TiaWrite[];
+  /** Identity for merging: the whole line's (register, value) sequence. */
+  readonly signature: string;
+  /** A line containing any visible write never merges -- its pixels matter. */
+  readonly allBlank: boolean;
+}
+
 /**
  * Collapse a frame's writes into canonical records.
  *
- * Only blank writes collapse. A visible write records the pixel it landed on,
- * because that is what the deadline check consults, and a run would lose it.
+ * Collapsing is per-SCANLINE-SIGNATURE, not per-register. That distinction was
+ * MEASURED, not designed: the first version merged writes adjacent in the
+ * stream, and the first generated golden collapsed nothing at all -- 33390
+ * records and 489 KB against a predicted ~50 KB. GRP0 and GRP1 alternate on
+ * every line of the field loop, so no two consecutive writes ever share a
+ * register and the run detector never fired once in 90 frames.
+ *
+ * Merging whole scanlines instead matches the actual structure -- the field
+ * loop repeats the same pair of writes for most of 158 lines -- and preserves
+ * stream order, which the comparator compares positionally.
+ *
+ * Only all-blank lines merge. A line containing a visible write is emitted
+ * write-by-write with its pixel, because that is what the deadline check
+ * consults and a run would lose it.
  */
 export function toRecords(writes: readonly TiaWrite[]): GoldenRecord[] {
-  const records: GoldenRecord[] = [];
-  let open: { line: number; endLine: number; register: number; value: number } | null = null;
-
-  const flush = () => {
-    if (open) {
-      records.push({ ...open, pixel: -1 });
-      open = null;
-    }
-  };
-
+  const groups: LineGroup[] = [];
   for (const write of writes) {
     if (write.register === WSYNC) continue;
+    const last = groups.at(-1);
+    if (last && last.line === write.line) {
+      last.writes.push(write);
+      continue;
+    }
+    groups.push({ line: write.line, writes: [write], signature: '', allBlank: true });
+  }
 
-    if (write.pixel >= 0) {
-      flush();
+  const sealed = groups.map((group) => ({
+    ...group,
+    signature: group.writes.map((x) => `${x.register}=${x.value}`).join(','),
+    allBlank: group.writes.every((x) => x.pixel < 0),
+  }));
+
+  const records: GoldenRecord[] = [];
+  for (let i = 0; i < sealed.length; i += 1) {
+    const group = sealed[i];
+    if (!group) continue;
+
+    if (!group.allBlank) {
+      for (const write of group.writes) {
+        records.push({
+          line: write.line,
+          endLine: write.line,
+          register: write.register,
+          value: write.value,
+          pixel: write.pixel,
+        });
+      }
+      continue;
+    }
+
+    let end = i;
+    while (end + 1 < sealed.length) {
+      const next = sealed[end + 1];
+      const current = sealed[end];
+      if (!next || !current) break;
+      if (!next.allBlank || next.signature !== group.signature || next.line !== current.line + 1) {
+        break;
+      }
+      end += 1;
+    }
+
+    const endLine = sealed[end]?.line ?? group.line;
+    for (const write of group.writes) {
       records.push({
-        line: write.line,
-        endLine: write.line,
+        line: group.line,
+        endLine,
         register: write.register,
         value: write.value,
-        pixel: write.pixel,
+        pixel: -1,
       });
-      continue;
     }
-
-    // Bound to a const first: `flush` closes over `open`, which makes TypeScript
-    // discard the null-narrowing on the `let` inside this block.
-    const run = open;
-    if (
-      run &&
-      run.register === write.register &&
-      run.value === write.value &&
-      write.line === run.endLine + 1
-    ) {
-      run.endLine = write.line;
-      continue;
-    }
-
-    flush();
-    open = {
-      line: write.line,
-      endLine: write.line,
-      register: write.register,
-      value: write.value,
-    };
+    i = end;
   }
-  flush();
   return records;
 }
 
