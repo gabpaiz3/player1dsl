@@ -46,6 +46,14 @@ export interface MemberRef extends Node {
   readonly kind: 'member';
   readonly target: string;
   readonly member: string;
+  /**
+   * True for `a.b`, false for the space-separated `score p0`.
+   *
+   * Two surface forms reach this one node, and the formatter has to reproduce
+   * the one the author wrote -- rendering `score p0` as `score.p0` produces a
+   * file that no longer parses. Same reason NumberLit records its base.
+   */
+  readonly dotted: boolean;
 }
 export interface Binary extends Node {
   readonly kind: 'binary';

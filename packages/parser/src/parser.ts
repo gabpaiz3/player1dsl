@@ -512,7 +512,7 @@ class Parser {
     // `score p0 += 1` and `p0.score = 1`
     const target =
       this.at('name') && !this.at('punct')
-        ? ({ kind: 'member', span, target: first, member: this.name() } as const)
+        ? ({ kind: 'member', span, target: first, member: this.name(), dotted: false } as const)
         : ({ kind: 'name', span, name: first } as const);
 
     if (this.at('punct', '+')) {
@@ -559,7 +559,7 @@ class Parser {
     }
     if (this.at('punct', '.')) {
       this.next();
-      return { kind: 'member', span: token.span, target: name, member: this.name() };
+      return { kind: 'member', span: token.span, target: name, member: this.name(), dotted: true };
     }
     return { kind: 'name', span: token.span, name };
   }

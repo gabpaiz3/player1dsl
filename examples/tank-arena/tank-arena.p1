@@ -6,7 +6,6 @@
 # Note what this file does NOT say: no scanline counts, no timer values, no register
 # names, no write ordering, no band-transition budget. Those are what the compiler has
 # to earn -- anything stated here is a claim it never has to derive.
-
 game "Tank Arena"
 target ntsc
 cartridge 4k
