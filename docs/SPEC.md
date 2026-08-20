@@ -436,6 +436,8 @@ player1dsl/
 │   ├── spec-review-0.1.md        # (exists) review of this document
 │   ├── roadmap.md                # (exists) three-step foundation plan
 │   ├── running-in-stella.md      # (exists) building and running ROMs
+│   ├── testing.md                # (exists) test inventory, disciplines, CI wiring
+│   ├── genre-survey.md           # (exists) kernel shapes real 2600 games need
 │   ├── next-session.md           # (exists) continuation prompt
 │   ├── session-logs/             # (exists) one log per working day, YYYY-MM-DD.md
 │   ├── superpowers/plans/        # (exists) detailed implementation plans

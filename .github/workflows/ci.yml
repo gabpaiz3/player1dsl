@@ -12,9 +12,9 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -25,7 +25,13 @@ jobs:
       # an obvious failure reports in seconds.
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm test
+
+      # The github-actions reporter emits ::error annotations carrying file,
+      # line and column, so a failure shows up inline on the pull request diff
+      # rather than only inside the log. GitHub has no native test-results view;
+      # annotations are the closest thing, and this needs no third-party action.
+      # See docs/testing.md.
+      - run: npm test -- --reporter=default --reporter=github-actions
 
   # DASM is a dev-only cross-check, never a runtime dependency, so the parity
   # test skips without it. This job supplies it so the check is not lost: it
@@ -34,9 +40,9 @@ jobs:
   dasm-parity:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -64,4 +70,4 @@ jobs:
           sh examples/tank-arena/reference/build.sh
 
       - name: Byte parity against DASM
-        run: npm test
+        run: npm test -- --reporter=default --reporter=github-actions
