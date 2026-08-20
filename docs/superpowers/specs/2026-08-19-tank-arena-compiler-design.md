@@ -51,18 +51,34 @@ It does not. **Measured from the reference ROM** (`Machine.runFrame({ trace: tru
 settled frame, region boundaries read from the actual writes rather than from the source
 comments — three of which are stale and still claim a 176-line field):
 
-| Region | Frame lines | Count | Where the number comes from |
-|---|---|---|---|
-| HUD band | 40–51 | 12 | authored: `band hud height 12` |
-| Band transition | 52–56 | 5 | derived: `2n + 1` for `n = 2` repositioned objects |
-| Top wall | 57–64 | 8 | authored: arena playfield shape |
-| Field setup | 65 | 1 | derived: a region change after a loop exit has no horizontal blank |
-| Field loop | 66–223 | **158** | **solved: the remainder** |
-| Bottom wall | 224–231 | 8 | authored: arena playfield shape |
-| **Visible total** | | **192** | |
+| Row group | Kind | Frame lines | Count | Where the number comes from |
+|---|---|---|---|---|
+| HUD band | band | 40–51 | 12 | authored: `band hud height 12` |
+| Band transition | transition | 52–56 | 5 | derived: `2n + 1` for `n = 2` repositioned objects |
+| Top wall | run | 57–64 | 8 | authored: this game's playfield shape |
+| Field setup | setup | 65 | 1 | derived: a region change after a loop exit has no horizontal blank |
+| Field loop | loop | 66–223 | **158** | **solved: the remainder** |
+| Bottom wall | run | 224–231 | 8 | authored: this game's playfield shape |
+| **Visible total** | | | **192** | |
 
-So `158 = 192 − 12 − 5 − 8 − 1 − 8`. The compiler needs two cost rules, both already
-measured in step 1 and both belonging to the *template*, not to the compiler:
+So `158 = 192 − 12 − 5 − 8 − 1 − 8`.
+
+**The generalisation, stated because the table above invites the wrong reading.** The two
+wall rows are not structural. A band is a sequence of **row groups**, each a
+`(kernel, line count)` pair, and the ledger is nothing more than *the row groups sum to the
+band's height*. `[wall][field][wall]` is what an arena game happens to decompose into;
+most genres do not have it. A paddle game's field is one loop with no runs at all; a
+scrolling canyon has no static run anywhere, because its playfield changes every line and
+so the whole band is a loop with a much smaller per-line budget. Nothing in the ledger
+assumes a border — it assumes only that every visible line belongs to exactly one row
+group with a known cost.
+
+The kinds in the table (`band`, `transition`, `run`, `setup`, `loop`) are the vocabulary;
+which ones appear, and how many, comes from the scene. Only `transition` and `setup` are
+compiler-derived. The rest come from the selected templates.
+
+The compiler needs two cost rules, both already measured in step 1 and both belonging to
+the *template*, not to the compiler:
 
 1. A band transition repositioning *n* objects costs `2n + 1` visible scanlines — two per
    object for `RESPx`, plus one to absorb the `HMOVE` comb on a line whose background can
@@ -251,7 +267,15 @@ comparator actually consults it.
 - The exact `.p1` surface for the arena playfield shape. The wall thickness must be
   readable from the declaration, since the ledger consumes it, but whether that is a
   pixel-art block, a named shape, or `border thickness 8` is not yet settled. Increment 2
-  decides it against what actually parses cleanly.
+  decides it against what actually parses cleanly. Whatever it becomes, it must be a
+  property of *this game's playfield*, not a first-class band concept — see the row-group
+  note above.
+- **Whether the applicability vocabulary is right.** This is the largest untested
+  assumption in the document. "Movable object count, static playfield within the band,
+  maximum sprite height, supported strategies" is derived from exactly one kernel, and it
+  is the interface every future genre must fit through. Unlike a cycle cost, a vocabulary
+  cannot be checked with a fixture — it is tested by trying to express something it was
+  not designed for. Step 3 cannot close this; it is named here so the next step does.
 - Whether the field-setup line (ledger row 4) is best modelled as a template entry cost or
   as a general "region change after loop exit" rule in the layout IR. It is one line either
   way for tank-arena; the second catalog entry will discriminate.
