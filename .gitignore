@@ -29,6 +29,13 @@ coverage/
 !tests/goldens/**/*.frame.json
 !tests/goldens/**/*.tia-trace.json
 
+# Reference screenshots of commercial titles, kept locally for design reference.
+# AGENTS.md forbids committing third-party ROMs or commercial assets, and
+# screenshots are exactly that. What the collection is FOR is captured instead in
+# docs/genre-survey.md, which cites the titles and their source without
+# redistributing anything.
+game-images/
+
 # Local tooling and emulator configuration
 .p1/
 .stella/

@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 460" width="640" height="460"
+     font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+     role="img" aria-labelledby="title desc">
+  <title id="title">NTSC frame structure for the Atari 2600</title>
+  <desc id="desc">A 262-scanline NTSC frame divided into 3 lines of vertical sync, 37 of
+  vertical blank, 192 visible, and 30 of overscan; each line is 228 colour clocks, of
+  which the first 68 are horizontal blank and the remaining 160 are visible pixels.</desc>
+
+  <style>
+    :root { color-scheme: light dark; }
+    .ink   { fill: #1a1a1a; }
+    .rule  { stroke: #1a1a1a; }
+    .band  { fill: #e8e8e8; stroke: #1a1a1a; }
+    .live  { fill: #cfe3f5; stroke: #1a1a1a; }
+    .hb    { fill: #d8d8d8; stroke: #1a1a1a; }
+    @media (prefers-color-scheme: dark) {
+      .ink  { fill: #e8e8e8; }
+      .rule { stroke: #e8e8e8; }
+      .band { fill: #2a2a2a; stroke: #e8e8e8; }
+      .live { fill: #24405a; stroke: #e8e8e8; }
+      .hb   { fill: #333333; stroke: #e8e8e8; }
+    }
+    text { font-size: 13px; }
+    .small { font-size: 11px; }
+    .mono  { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  </style>
+
+  <!-- horizontal extent labels -->
+  <g class="rule" stroke-width="1" fill="none">
+    <path d="M80 26 H600 M80 22 V30 M600 22 V30"/>
+    <path d="M80 52 H190 M80 48 V56 M190 48 V56"/>
+    <path d="M190 52 H600 M190 48 V56 M600 48 V56"/>
+  </g>
+  <text class="ink" x="340" y="20" text-anchor="middle">228 colour clocks</text>
+  <text class="ink small" x="135" y="46" text-anchor="middle">68 blank</text>
+  <text class="ink small" x="395" y="46" text-anchor="middle">160 visible pixels</text>
+
+  <!-- bands -->
+  <g stroke-width="1.25">
+    <rect class="band" x="80" y="64"  width="520" height="16"/>
+    <rect class="band" x="80" y="80"  width="520" height="60"/>
+    <rect class="hb"   x="80" y="140" width="110" height="230"/>
+    <rect class="live" x="190" y="140" width="410" height="230"/>
+    <rect class="band" x="80" y="370" width="520" height="52"/>
+  </g>
+
+  <text class="ink" x="340" y="76"  text-anchor="middle">VERTICAL SYNC — 3 lines</text>
+  <text class="ink" x="340" y="115" text-anchor="middle">VERTICAL BLANK — 37 lines</text>
+  <text class="ink" x="395" y="250" text-anchor="middle">VISIBLE — 192 lines</text>
+  <text class="ink" x="340" y="402" text-anchor="middle">OVERSCAN — 30 lines</text>
+
+  <!-- horizontal blank, rotated -->
+  <text class="ink small" x="135" y="255" text-anchor="middle"
+        transform="rotate(-90 135 255)">HORIZONTAL BLANK</text>
+
+  <!-- scanline extents on the right -->
+  <g class="rule" stroke-width="1" fill="none">
+    <path d="M614 64 V422 M610 64 H618 M610 422 H618"/>
+  </g>
+  <text class="ink small" x="632" y="247" text-anchor="middle"
+        transform="rotate(-90 632 247)">262 scanlines</text>
+
+  <!-- footer facts -->
+  <text class="ink small mono" x="80" y="444">76 CPU cycles per line · 3 colour clocks per CPU cycle</text>
+</svg>

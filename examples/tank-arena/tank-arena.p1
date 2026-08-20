@@ -1,0 +1,57 @@
+# tank-arena -- the first Player1DSL program.
+#
+# Every value here comes from examples/tank-arena/reference/tank-arena.asm, so a
+# divergence in the golden trace is a compiler defect rather than a content mismatch.
+#
+# Note what this file does NOT say: no scanline counts, no timer values, no register
+# names, no write ordering, no band-transition budget. Those are what the compiler has
+# to earn -- anything stated here is a claim it never has to derive.
+game "Tank Arena"
+target ntsc
+cartridge 4k
+
+palette arena:
+  background = $00
+  walls = $0E
+  hud = $0E
+  red = $46
+  blue = $86
+
+sprite tank 8x8:
+  # barrel
+  ...XX...
+  ...XX...
+  .XXXXXX.
+  XXXXXXXX
+  XXXXXXXX
+  XXXXXXXX
+  .XXXXXX.
+  # treads
+  XX....XX
+
+scene arena:
+  background background
+
+  # One digit per player. NUSIZ copies share graphics, so copies cannot render
+  # distinct digits -- multi-digit scores need mid-line GRP rewrites and their own
+  # kernel. SPEC 7.1 records why.
+  band hud height 12:
+    score p0 at (60, 2) digits 1 start 3 color hud
+    score p1 at (92, 2) digits 1 start 5 color hud
+
+  # No height: the field takes whatever the HUD and the band transition leave.
+  # Working out what that is, is the compiler's job.
+  band field:
+    playfield border thickness 8, mode reflect, color walls
+    actor tank0 uses tank at (40, 120) color red controls joystick1
+    actor tank1 uses tank at (110, 60) color blue controls joystick2
+
+every frame:
+  tank0 moves with joystick1 speed 1 within field
+  tank1 moves with joystick2 speed 1 within field
+
+# The TIA collision latches are level, not edge -- they stay set for every frame the
+# tanks overlap. Scoring one point per contact is the language's promise; the debounce
+# that keeps it true is the compiler's obligation.
+when tank0 hits tank1:
+  score p0 += 1

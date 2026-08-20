@@ -19,6 +19,11 @@
 - Make compilation deterministic: the same source and tool version must produce equivalent ROM, report, and diagnostic output.
 - Treat cycle budgets, scanline schedules, RAM, ROM size, and mapper constraints as compile-time validation—not best-effort runtime behavior.
 - Add a focused test for every compiler bug and use deterministic emulator screenshots or TIA-write traces for rendering regressions.
+- **Read [`docs/testing.md`](docs/testing.md) before adding a test.** It carries the test
+  inventory, the toolchain, and the disciplines this project learned the hard way -- prove
+  a detector can fail before trusting that it passed, watch the test go red by deleting
+  the code it covers, and assert that extracted data was actually found before comparing
+  against it. A test that cannot fail has slipped through twice.
 - Do not commit build output: generated ROMs, coverage output, dependency directories, secrets, or local emulator configuration.
 - Goldens are the deliberate exception and *are* checked in, under `tests/goldens/`. ROM bytes are stored as SHA-256 manifests rather than binaries; human-readable artifacts (TIA-write traces, listings, reports) are stored whole, because those are the ones that diff usefully when a test fails. `.gitignore` carries negation rules for them — an ignored golden is silently swallowed instead of committed, which is the worst failure mode a golden has.
 
@@ -49,6 +54,11 @@
   the state left at the end. Do not restate what the diff already shows.
 - Where a measurement contradicted a derivation, record both. That contrast is the
   evidence base for treating cycle costs as measured rather than assumed.
+
+## Testing
+
+See [`docs/testing.md`](docs/testing.md) for the full guidelines: what exists, how to run
+it, the golden policy, and how results surface in CI.
 
 ## Before completing a change
 

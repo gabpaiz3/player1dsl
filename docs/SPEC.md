@@ -50,6 +50,8 @@ The author thinks in game terms. The compiler remains honest about the machine t
 The initial compiler targets the original 2600 execution model:
 
 - 6507-compatible CPU, TIA video/audio, and RIOT I/O/timer model.
+![NTSC frame structure: 3 lines of vertical sync, 37 of vertical blank, 192 visible and 30 of overscan, with each 228-clock line split into 68 clocks of horizontal blank and 160 visible pixels.](frame-structure.svg)
+
 - The RIOT interval timer (`TIM64T` and friends, polled through `INTIM`) is the mechanism that bounds VBLANK and overscan work. It is what makes §4.3's claim that per-frame rules fit in non-visible time enforceable at runtime rather than merely asserted at compile time.
 - Timer arithmetic is not obvious: a timer write's first decrement lands on the **next cycle**, not after a full prescaler interval, so zero is reached at `1 + (N-1) * interval` cycles rather than `N * interval`. Constants derived without this are off by a scanline. Measured; see `examples/tank-arena/reference/NOTES.md`.
 - v0.1 is NTSC-only. PAL and PAL60 are deferred until timing and regression tests are mature.
@@ -434,6 +436,8 @@ player1dsl/
 │   ├── spec-review-0.1.md        # (exists) review of this document
 │   ├── roadmap.md                # (exists) three-step foundation plan
 │   ├── running-in-stella.md      # (exists) building and running ROMs
+│   ├── testing.md                # (exists) test inventory, disciplines, CI wiring
+│   ├── genre-survey.md           # (exists) kernel shapes real 2600 games need
 │   ├── next-session.md           # (exists) continuation prompt
 │   ├── session-logs/             # (exists) one log per working day, YYYY-MM-DD.md
 │   ├── superpowers/plans/        # (exists) detailed implementation plans
@@ -444,6 +448,7 @@ player1dsl/
 │   └── tutorials/
 ├── examples/
 │   ├── tank-arena/
+│   │   ├── tank-arena.p1         # (exists) the source the compiler must reproduce
 │   │   └── reference/            # (exists) hand-written kernel, build and run scripts,
 │   │                             #          NOTES.md of measured hardware costs
 │   ├── paddle-duel/
@@ -455,9 +460,10 @@ player1dsl/
 ├── packages/
 │   ├── emulator/                 # (exists) 6507 + TIA + RIOT, frame timing, TIA tracing
 │   ├── assembler/                # (exists) 6502 assembler, byte parity with DASM
-│   ├── cli/                      # p1 command-line interface
-│   ├── parser/                   # lexer, parser, formatter, AST
-│   ├── compiler/                 # checker, IR, planner, code generation
+│   ├── cli/                      # (exists) p1 check and p1 fmt
+│   ├── parser/                   # (exists) lexer, parser, formatter, AST, diagnostics
+│   ├── compiler/                 # (exists) checker, game IR, RAM allocator; the
+│   │                             #          planner and codegen are still to come
 │   ├── runtime/                  # 6502/TIA runtime and kernel templates
 │   ├── rom-analysis/             # disassembly, tracing, evidence extraction
 │   ├── llm-assist/               # bounded prompts/schemas for recovery proposals

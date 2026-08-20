@@ -1,0 +1,14 @@
+{
+  "name": "@player1dsl/cli",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "p1": "./dist/main.js"
+  }
+}
