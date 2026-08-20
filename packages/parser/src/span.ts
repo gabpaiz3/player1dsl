@@ -35,10 +35,15 @@ export interface Diagnostic {
  */
 export class P1Error extends Error {
   constructor(readonly diagnostics: readonly Diagnostic[]) {
+    // The code goes in the message. Anything matching on a thrown error -- a
+    // test, a CI log, a caller deciding whether to retry -- has only the
+    // message, and a bare sentence is not identifiable.
+    const first = diagnostics[0];
     super(
-      diagnostics.length === 1
-        ? (diagnostics[0]?.message ?? 'compilation failed')
-        : `compilation failed with ${diagnostics.length} diagnostics`,
+      diagnostics.length === 1 && first
+        ? `${first.code}: ${first.message}`
+        : `compilation failed with ${diagnostics.length} diagnostics` +
+            (first ? ` (first: ${first.code})` : ''),
     );
     this.name = 'P1Error';
   }
