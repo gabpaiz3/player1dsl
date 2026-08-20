@@ -59,6 +59,17 @@ golden already exists from step 1.
 This closes the walking skeleton. Everything after is widening the language, not proving the
 architecture.
 
+**Design:** [superpowers/specs/2026-08-19-tank-arena-compiler-design.md](superpowers/specs/2026-08-19-tank-arena-compiler-design.md)
+
+Step 3 runs as four plans, each producing working software on its own:
+
+| Plan | Increments | Deliverable | State |
+|---|---|---|---|
+| [1](superpowers/plans/2026-08-19-golden-trace-harness.md) | 1a, 1b | Golden trace harness and comparator | **done** |
+| 2 | 2, 3 | Parser, AST, `p1 fmt`, checker, game IR, RAM allocator | to write |
+| 3 | 4, 4b, 5 | Layout IR, line ledger, kernel-shape fixtures, template catalog | to write |
+| 4 | 6, 7 | Rule lowering, `p1 build` end to end | to write |
+
 `docs/language-reference.md` is the next *document* but not the next *step*: writing the
 grammar before one ROM exists encodes assumptions the ROM will overturn. Step 3 produces the
 grammar for the tank-arena subset; the full reference follows it.
