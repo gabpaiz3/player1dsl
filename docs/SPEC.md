@@ -50,6 +50,8 @@ The author thinks in game terms. The compiler remains honest about the machine t
 The initial compiler targets the original 2600 execution model:
 
 - 6507-compatible CPU, TIA video/audio, and RIOT I/O/timer model.
+![NTSC frame structure: 3 lines of vertical sync, 37 of vertical blank, 192 visible and 30 of overscan, with each 228-clock line split into 68 clocks of horizontal blank and 160 visible pixels.](frame-structure.svg)
+
 - The RIOT interval timer (`TIM64T` and friends, polled through `INTIM`) is the mechanism that bounds VBLANK and overscan work. It is what makes §4.3's claim that per-frame rules fit in non-visible time enforceable at runtime rather than merely asserted at compile time.
 - Timer arithmetic is not obvious: a timer write's first decrement lands on the **next cycle**, not after a full prescaler interval, so zero is reached at `1 + (N-1) * interval` cycles rather than `N * interval`. Constants derived without this are off by a scanline. Measured; see `examples/tank-arena/reference/NOTES.md`.
 - v0.1 is NTSC-only. PAL and PAL60 are deferred until timing and regression tests are mature.
