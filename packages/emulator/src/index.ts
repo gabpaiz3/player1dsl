@@ -1,5 +1,6 @@
 export { Bus } from './bus.ts';
 export { Cpu } from './cpu.ts';
+export * from './golden.ts';
 export type { FrameResult } from './machine.ts';
 export { Machine } from './machine.ts';
 export { RIOT, Riot, SWCHA_IDLE, SWCHB_IDLE } from './riot.ts';

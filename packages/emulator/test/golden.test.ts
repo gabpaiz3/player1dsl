@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { Machine, SWCHA_IDLE } from '../src/index.ts';
+import type { TiaWrite } from '../src/index.ts';
+import { Machine, parseGolden, SWCHA_IDLE, serialiseGolden, toRecords } from '../src/index.ts';
 import { romFor } from './support/roms.ts';
 
 /** Joystick 0 direction bits in SWCHA. Active LOW: a 0 bit means pressed. */
@@ -40,5 +41,123 @@ describe('per-frame controller injection', () => {
       (f.writes ?? []).filter((w) => w.register === 0x10).map((w) => w.clock);
 
     expect(resp0(heldFrame)).not.toEqual(resp0(idleFrame));
+  });
+});
+
+const w = (line: number, register: number, value: number, pixel = -1, clock = 0): TiaWrite => ({
+  line,
+  clock,
+  pixel,
+  register,
+  value,
+});
+
+describe('golden records', () => {
+  it('drops WSYNC, which carries no value', () => {
+    expect(toRecords([w(0, 0x02, 0), w(0, 0x0d, 0xf0)])).toEqual([
+      { line: 0, endLine: 0, register: 0x0d, value: 0xf0, pixel: -1 },
+    ]);
+  });
+
+  it('collapses consecutive blank writes of the same register and value', () => {
+    const records = toRecords([w(5, 0x1b, 0x00), w(6, 0x1b, 0x00), w(7, 0x1b, 0x00)]);
+    expect(records).toEqual([{ line: 5, endLine: 7, register: 0x1b, value: 0x00, pixel: -1 }]);
+  });
+
+  it('does not collapse across a value change', () => {
+    const records = toRecords([w(5, 0x1b, 0x00), w(6, 0x1b, 0x3c), w(7, 0x1b, 0x00)]);
+    expect(records.map((r) => r.value)).toEqual([0x00, 0x3c, 0x00]);
+  });
+
+  it('does not collapse across a line gap', () => {
+    const records = toRecords([w(5, 0x1b, 0x00), w(7, 0x1b, 0x00)]);
+    expect(records.map((r) => [r.line, r.endLine])).toEqual([
+      [5, 5],
+      [7, 7],
+    ]);
+  });
+
+  it('never collapses a visible write, because its pixel is asserted', () => {
+    const records = toRecords([w(5, 0x1b, 0x00, 4), w(6, 0x1b, 0x00, 4)]);
+    expect(records.map((r) => [r.line, r.endLine, r.pixel])).toEqual([
+      [5, 5, 4],
+      [6, 6, 4],
+    ]);
+  });
+
+  it('serialises a frame header and its records', () => {
+    const text = serialiseGolden(
+      [
+        {
+          index: 0,
+          swcha: 0xff,
+          swchb: 0x3f,
+          scanlines: 262,
+          regions: [3, 37, 192, 30],
+          records: toRecords([
+            w(40, 0x0d, 0x00),
+            w(66, 0x1b, 0x00),
+            w(67, 0x1b, 0x00),
+            w(65, 0x1c, 0x00, 10),
+          ]),
+        },
+      ],
+      {
+        rom: 'tank-arena',
+        input: 'tests/goldens/tank-arena.input.json',
+        frames: 1,
+        settleFrames: 2,
+      },
+    );
+    expect(text).toContain('frame 0 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30');
+    expect(text).toContain('40 PF0 $00');
+    expect(text).toContain('66..67 GRP0 $00');
+    expect(text).toContain('65 GRP1 $00 px10');
+    expect(text.endsWith('\n')).toBe(true);
+  });
+});
+
+describe('golden parsing', () => {
+  it('round-trips serialised frames', () => {
+    const frames = [
+      {
+        index: 0,
+        swcha: 0xff,
+        swchb: 0x3f,
+        scanlines: 262,
+        regions: [3, 37, 192, 30] as [number, number, number, number],
+        records: toRecords([
+          w(40, 0x0d, 0x00),
+          w(66, 0x1b, 0x00),
+          w(67, 0x1b, 0x00),
+          w(65, 0x1c, 0x00, 10),
+        ]),
+      },
+      {
+        index: 1,
+        swcha: 0x7f,
+        swchb: 0x3f,
+        scanlines: 262,
+        regions: [3, 37, 192, 30] as [number, number, number, number],
+        records: toRecords([w(41, 0x0e, 0xff)]),
+      },
+    ];
+    const header = {
+      rom: 'tank-arena',
+      input: 'tests/goldens/tank-arena.input.json',
+      frames: 2,
+      settleFrames: 2,
+    };
+    expect(parseGolden(serialiseGolden(frames, header))).toEqual(frames);
+  });
+
+  it('rejects a malformed record rather than silently skipping it', () => {
+    expect(() =>
+      parseGolden('frame 0 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30\n  nonsense\n'),
+    ).toThrow(/line 2/);
+  });
+
+  it('rejects an unrecognised frame header', () => {
+    expect(() => parseGolden('frame nonsense\n')).toThrow(/line 1/);
   });
 });
