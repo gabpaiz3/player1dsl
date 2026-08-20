@@ -28,6 +28,19 @@
 - Do not claim semantic certainty from a trace alone. Link pattern matches to their evidence.
 - Only analyze ROMs, source, artwork, and recordings that the user is entitled to provide or use. Never add third-party ROMs or recovered commercial assets to the repository.
 
+## Branches and pull requests
+
+- Work on a branch, never directly on `main`. Open a pull request when the work is
+  ready, even when the intent is to merge it straight away: the PR is the durable
+  record of what changed and why, and a merge commit alone does not carry the diff
+  view, the checks, or the discussion.
+- CI runs on **every branch push**, not only on pull requests, so a broken build
+  surfaces while the branch is still in progress rather than at review time. Do not
+  wait for a PR to get a signal.
+- Merge only once CI is green on the branch head that is actually being merged.
+- Large work splits into one branch per plan rather than one branch per step, so each
+  merge stays reviewable and the bisect surface stays small.
+
 ## Session logs
 
 - Keep one log per working day at `docs/session-logs/YYYY-MM-DD.md`. Start a new file
