@@ -13,7 +13,13 @@
 
 import type { FrameResult } from './machine.ts';
 import { SWCHA_IDLE } from './riot.ts';
-import { registerName, TIA_WRITE_NAMES, type TiaWrite } from './trace.ts';
+import {
+  CONSERVATIVE_PLAYER_READ_PIXEL,
+  FIRST_READ_PIXEL,
+  registerName,
+  TIA_WRITE_NAMES,
+  type TiaWrite,
+} from './trace.ts';
 
 /** WSYNC is a strobe with no value; the frame's scanline structure covers it. */
 const WSYNC = 0x02;
@@ -301,4 +307,118 @@ export function expandScript(script: InputScript): number[] {
     for (let i = 0; i < phase.frames; i += 1) bytes.push(SWCHA_IDLE & ~pressed & 0xff);
   }
   return bytes;
+}
+
+export interface GoldenMismatch {
+  readonly frame: number;
+  /**
+   * `structure` -- frame count or region split differs.
+   * `record`    -- a (line, register, value) entry differs.
+   * `deadline`  -- an actual write landed at or after its register's read pixel.
+   */
+  readonly kind: 'structure' | 'record' | 'deadline';
+  readonly detail: string;
+}
+
+export interface CompareOptions {
+  /** Also check GRP0/GRP1 against the conservative pixel-0 bound. */
+  readonly includePlayers?: boolean;
+}
+
+/**
+ * Compare a candidate trace against a golden.
+ *
+ * Equality covers (line, endLine, register, value) -- the observable content.
+ * The colour clock is NOT compared: it is a function of instruction cycle
+ * counts, so comparing it would force a compiler to reproduce the reference's
+ * exact instruction selection, which is transcription rather than compilation.
+ * Each visible write is instead checked against its register's read deadline,
+ * which is what actually decides whether the write appears on screen.
+ */
+export function compareGolden(
+  expected: readonly GoldenFrame[],
+  actual: readonly GoldenFrame[],
+  options: CompareOptions = {},
+): GoldenMismatch[] {
+  const mismatches: GoldenMismatch[] = [];
+
+  if (expected.length !== actual.length) {
+    return [
+      {
+        frame: -1,
+        kind: 'structure',
+        detail: `expected ${expected.length} frames, got ${actual.length}`,
+      },
+    ];
+  }
+
+  const deadlines: Record<number, number> = options.includePlayers
+    ? { ...FIRST_READ_PIXEL, ...CONSERVATIVE_PLAYER_READ_PIXEL }
+    : { ...FIRST_READ_PIXEL };
+
+  for (let f = 0; f < expected.length; f += 1) {
+    const want = expected[f];
+    const got = actual[f];
+    if (!want || !got) continue;
+
+    if (want.scanlines !== got.scanlines || want.regions.join('/') !== got.regions.join('/')) {
+      mismatches.push({
+        frame: f,
+        kind: 'structure',
+        detail:
+          `expected ${want.scanlines} lines ${want.regions.join('/')}, ` +
+          `got ${got.scanlines} lines ${got.regions.join('/')}`,
+      });
+    }
+
+    const limit = Math.max(want.records.length, got.records.length);
+    for (let i = 0; i < limit; i += 1) {
+      const a = want.records[i];
+      const b = got.records[i];
+      if (!a && b) {
+        mismatches.push({
+          frame: f,
+          kind: 'record',
+          detail: `extra record at ${i}: ${formatRecord(b)}`,
+        });
+        break;
+      }
+      if (a && !b) {
+        mismatches.push({
+          frame: f,
+          kind: 'record',
+          detail: `missing record at ${i}: expected ${formatRecord(a)}`,
+        });
+        break;
+      }
+      if (!a || !b) break;
+      if (
+        a.line !== b.line ||
+        a.endLine !== b.endLine ||
+        a.register !== b.register ||
+        a.value !== b.value
+      ) {
+        mismatches.push({
+          frame: f,
+          kind: 'record',
+          detail: `at ${i}: expected ${formatRecord(a)}, got ${formatRecord(b)}`,
+        });
+        break; // one divergence per frame; everything after it is downstream noise
+      }
+    }
+
+    for (const record of got.records) {
+      if (record.pixel < 0) continue;
+      const deadline = deadlines[record.register];
+      if (deadline === undefined) continue;
+      if (record.pixel >= deadline) {
+        mismatches.push({
+          frame: f,
+          kind: 'deadline',
+          detail: `${formatRecord(record)} missed its deadline (read at pixel ${deadline})`,
+        });
+      }
+    }
+  }
+  return mismatches;
 }

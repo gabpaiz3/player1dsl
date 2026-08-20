@@ -1,12 +1,16 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import type { TiaWrite } from '../src/index.ts';
+import type { InputScript, TiaWrite } from '../src/index.ts';
 import {
+  compareGolden,
   expandScript,
   findLateWrites,
   Machine,
   parseGolden,
   SWCHA_IDLE,
   serialiseGolden,
+  toGoldenFrame,
   toRecords,
 } from '../src/index.ts';
 import { romFor } from './support/roms.ts';
@@ -247,5 +251,94 @@ describe('comparator fixtures', () => {
     );
     // ...and visible only in the pixel.
     expect(findLateWrites(late.writes ?? []).length).toBeGreaterThan(100);
+  });
+});
+
+function goldenFor(name: string, frames: number) {
+  const machine = settled(romFor(name));
+  const out = [];
+  for (let i = 0; i < frames; i += 1) {
+    out.push(
+      toGoldenFrame(i, SWCHA_IDLE, 0x3f, machine.runFrame({ swcha: SWCHA_IDLE, trace: true })),
+    );
+  }
+  return out;
+}
+
+describe('golden comparison', () => {
+  it('reports no mismatch when a ROM is compared against its own trace', () => {
+    expect(compareGolden(goldenFor('golden-base', 2), goldenFor('golden-base', 2))).toEqual([]);
+  });
+
+  /** Known-positive 1: a value differs. Trips the equality half. */
+  it('catches a changed value', () => {
+    const expected = goldenFor('golden-base', 2);
+    const actual = goldenFor('golden-base', 2);
+    const first = actual[0];
+    if (!first) throw new Error('no frame');
+    const mutated = [
+      {
+        ...first,
+        records: first.records.map((r, i) => (i === 0 ? { ...r, value: r.value ^ 0xff } : r)),
+      },
+      ...actual.slice(1),
+    ];
+    const mismatches = compareGolden(expected, mutated);
+    expect(mismatches.length).toBeGreaterThan(0);
+    expect(mismatches[0]?.kind).toBe('record');
+  });
+
+  /**
+   * Known-positive 2: NOTHING the equality half looks at has changed. If this
+   * passes, the comparator is not checking deadlines and the clean result above
+   * means nothing.
+   */
+  it('catches a write that kept its line and value but missed its deadline', () => {
+    const mismatches = compareGolden(goldenFor('golden-base', 2), goldenFor('golden-late', 2));
+    expect(mismatches.length).toBeGreaterThan(0);
+    expect(mismatches.some((m) => m.kind === 'deadline')).toBe(true);
+    expect(mismatches.find((m) => m.kind === 'deadline')?.detail).toContain('PF0');
+  });
+
+  /**
+   * The airtight form of known-positive 2. golden-late compared against
+   * golden-BASE trips the record half too, because moving a write from blank
+   * into the visible region also changes whether it collapses into a run --
+   * so that test alone does not prove the deadline half in isolation.
+   *
+   * Compared against ITS OWN trace, the record half matches perfectly by
+   * construction. Any mismatch left can only have come from the deadline
+   * check, so this is the one assertion that fails if that check is deleted.
+   */
+  it('flags a late write even when the trace matches itself exactly', () => {
+    const mismatches = compareGolden(goldenFor('golden-late', 2), goldenFor('golden-late', 2));
+    expect(mismatches.every((m) => m.kind === 'deadline')).toBe(true);
+    expect(mismatches.length).toBeGreaterThan(100);
+    expect(mismatches[0]?.detail).toContain('PF0');
+  });
+
+  it('reports a structural mismatch when the frame count differs', () => {
+    expect(compareGolden(goldenFor('golden-base', 2), goldenFor('golden-base', 1))[0]?.kind).toBe(
+      'structure',
+    );
+  });
+
+  it('matches the committed golden against the reference ROM', () => {
+    const root = new URL('../../../', import.meta.url);
+    const text = readFileSync(
+      fileURLToPath(new URL('tests/goldens/tank-arena.trace', root)),
+      'utf8',
+    );
+    const script = JSON.parse(
+      readFileSync(fileURLToPath(new URL('tests/goldens/tank-arena.input.json', root)), 'utf8'),
+    ) as InputScript;
+
+    const machine = new Machine(romFor('tank-arena'));
+    for (let i = 0; i < script.settleFrames; i += 1) machine.runFrame();
+    const actual = expandScript(script).map((swcha, index) =>
+      toGoldenFrame(index, swcha, 0x3f, machine.runFrame({ swcha, trace: true })),
+    );
+
+    expect(compareGolden(parseGolden(text), actual)).toEqual([]);
   });
 });
