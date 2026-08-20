@@ -12,6 +12,7 @@
  */
 
 import type { FrameResult } from './machine.ts';
+import { SWCHA_IDLE } from './riot.ts';
 import { registerName, TIA_WRITE_NAMES, type TiaWrite } from './trace.ts';
 
 /** WSYNC is a strobe with no value; the frame's scanline structure covers it. */
@@ -211,4 +212,60 @@ export function parseGolden(text: string): GoldenFrame[] {
   }
   if (current) frames.push({ ...current.header, records: current.records });
   return frames;
+}
+
+export type Direction = 'up' | 'down' | 'left' | 'right';
+
+export interface ScriptPhase {
+  readonly frames: number;
+  readonly p0?: readonly Direction[];
+  readonly p1?: readonly Direction[];
+  /** Why this phase exists. Committed scripts must say what they exercise. */
+  readonly note: string;
+}
+
+export interface InputScript {
+  readonly rom: string;
+  readonly settleFrames: number;
+  readonly phases: readonly ScriptPhase[];
+}
+
+/**
+ * SWCHA bits, active LOW. The high nibble is the left controller and the low
+ * nibble the right -- the layout the reference kernel's J0_/J1_ masks encode.
+ */
+const P0_BITS: Readonly<Record<Direction, number>> = {
+  up: 0x10,
+  down: 0x20,
+  left: 0x40,
+  right: 0x80,
+};
+const P1_BITS: Readonly<Record<Direction, number>> = {
+  up: 0x01,
+  down: 0x02,
+  left: 0x04,
+  right: 0x08,
+};
+
+function maskFor(
+  directions: readonly Direction[] | undefined,
+  bits: Readonly<Record<Direction, number>>,
+): number {
+  let mask = 0;
+  for (const direction of directions ?? []) {
+    const bit = bits[direction];
+    if (bit === undefined) throw new Error(`unknown joystick direction "${direction}"`);
+    mask |= bit;
+  }
+  return mask;
+}
+
+/** Expand a script to one SWCHA byte per frame. */
+export function expandScript(script: InputScript): number[] {
+  const bytes: number[] = [];
+  for (const phase of script.phases) {
+    const pressed = maskFor(phase.p0, P0_BITS) | maskFor(phase.p1, P1_BITS);
+    for (let i = 0; i < phase.frames; i += 1) bytes.push(SWCHA_IDLE & ~pressed & 0xff);
+  }
+  return bytes;
 }

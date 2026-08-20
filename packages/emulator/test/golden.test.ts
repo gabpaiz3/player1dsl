@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { TiaWrite } from '../src/index.ts';
-import { Machine, parseGolden, SWCHA_IDLE, serialiseGolden, toRecords } from '../src/index.ts';
+import {
+  expandScript,
+  Machine,
+  parseGolden,
+  SWCHA_IDLE,
+  serialiseGolden,
+  toRecords,
+} from '../src/index.ts';
 import { romFor } from './support/roms.ts';
 
 /** Joystick 0 direction bits in SWCHA. Active LOW: a 0 bit means pressed. */
@@ -159,5 +166,48 @@ describe('golden parsing', () => {
 
   it('rejects an unrecognised frame header', () => {
     expect(() => parseGolden('frame nonsense\n')).toThrow(/line 1/);
+  });
+});
+
+describe('input script expansion', () => {
+  it('produces one swcha byte per frame', () => {
+    const bytes = expandScript({
+      rom: 'tank-arena',
+      settleFrames: 2,
+      phases: [
+        { frames: 2, note: 'idle' },
+        { frames: 3, p0: ['right'], note: 'p0 right' },
+      ],
+    });
+    expect(bytes).toHaveLength(5);
+  });
+
+  it('clears the bit for a held direction, since the lines are active low', () => {
+    const [byte] = expandScript({
+      rom: 'tank-arena',
+      settleFrames: 2,
+      phases: [{ frames: 1, p0: ['right'], p1: ['left'], note: 'both' }],
+    });
+    expect(byte).toBe(SWCHA_IDLE & ~0x80 & ~0x04);
+  });
+
+  it('leaves an omitted phase fully idle', () => {
+    const [byte] = expandScript({
+      rom: 'tank-arena',
+      settleFrames: 2,
+      phases: [{ frames: 1, note: 'idle' }],
+    });
+    expect(byte).toBe(SWCHA_IDLE);
+  });
+
+  it('rejects an unknown direction rather than ignoring it', () => {
+    expect(() =>
+      expandScript({
+        rom: 'tank-arena',
+        settleFrames: 2,
+        // biome-ignore lint/suspicious/noExplicitAny: deliberately invalid input
+        phases: [{ frames: 1, p0: ['sideways' as any], note: 'bad' }],
+      }),
+    ).toThrow(/sideways/);
   });
 });
