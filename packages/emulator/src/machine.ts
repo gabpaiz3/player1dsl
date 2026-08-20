@@ -1,6 +1,6 @@
 import { Bus } from './bus.ts';
 import { Cpu } from './cpu.ts';
-import { Riot } from './riot.ts';
+import { Riot, SWCHA_IDLE, SWCHB_IDLE } from './riot.ts';
 import { COLOR_CLOCKS_PER_CPU_CYCLE, Tia } from './tia.ts';
 import type { TiaWrite } from './trace.ts';
 
@@ -25,6 +25,13 @@ export interface FrameResult {
 export interface RunFrameOptions {
   /** Collect every TIA write with the beam position it landed on. */
   readonly trace?: boolean;
+  /**
+   * Controller port A for this frame (both joysticks' directions), active LOW.
+   * Defaults to the idle value, so an omitted script frame means "no input".
+   */
+  readonly swcha?: number;
+  /** Console switches for this frame, active LOW. */
+  readonly swchb?: number;
 }
 
 /** Guard against a ROM that never asserts VSYNC, so tests fail fast. */
@@ -49,6 +56,13 @@ export class Machine {
    * and therefore what makes the two measurements comparable.
    */
   runFrame(options: RunFrameOptions = {}): FrameResult {
+    // Applied before the frame runs, not during it: the kernel samples SWCHA
+    // once in VBLANK, and a value that changed mid-frame would make the trace
+    // depend on where in the frame the host happened to write it -- exactly the
+    // nondeterminism a golden exists to exclude.
+    this.riot.swcha = options.swcha ?? SWCHA_IDLE;
+    this.riot.swchb = options.swchb ?? SWCHB_IDLE;
+
     let scanlines = 0;
     let vsyncLines = 0;
     let vblankLines = 0;

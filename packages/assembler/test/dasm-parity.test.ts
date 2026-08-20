@@ -38,6 +38,8 @@ describe('DASM parity', () => {
     ['wsync-only', 'tests/fixtures/timing/wsync-only.asm'],
     ['timer-only', 'tests/fixtures/timing/timer-only.asm'],
     ['late-write', 'tests/fixtures/timing/late-write.asm'],
+    ['golden-base', 'tests/fixtures/timing/golden-base.asm'],
+    ['golden-late', 'tests/fixtures/timing/golden-late.asm'],
     ['tank-arena', 'examples/tank-arena/reference/tank-arena.asm'],
   ];
 

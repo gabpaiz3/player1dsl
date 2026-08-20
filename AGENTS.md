@@ -19,13 +19,27 @@
 - Make compilation deterministic: the same source and tool version must produce equivalent ROM, report, and diagnostic output.
 - Treat cycle budgets, scanline schedules, RAM, ROM size, and mapper constraints as compile-time validation—not best-effort runtime behavior.
 - Add a focused test for every compiler bug and use deterministic emulator screenshots or TIA-write traces for rendering regressions.
-- Do not commit generated ROMs, coverage output, dependency directories, secrets, or local emulator configuration.
+- Do not commit build output: generated ROMs, coverage output, dependency directories, secrets, or local emulator configuration.
+- Goldens are the deliberate exception and *are* checked in, under `tests/goldens/`. ROM bytes are stored as SHA-256 manifests rather than binaries; human-readable artifacts (TIA-write traces, listings, reports) are stored whole, because those are the ones that diff usefully when a test fails. `.gitignore` carries negation rules for them — an ignored golden is silently swallowed instead of committed, which is the worst failure mode a golden has.
 
 ## ROM analysis and LLM assistance
 
 - Recovery output is a proposal, not authoritative source. Preserve raw evidence and label conclusions as `observed`, `inferred`, or `unknown`.
 - Do not claim semantic certainty from a trace alone. Link pattern matches to their evidence.
 - Only analyze ROMs, source, artwork, and recordings that the user is entitled to provide or use. Never add third-party ROMs or recovered commercial assets to the repository.
+
+## Branches and pull requests
+
+- Work on a branch, never directly on `main`. Open a pull request when the work is
+  ready, even when the intent is to merge it straight away: the PR is the durable
+  record of what changed and why, and a merge commit alone does not carry the diff
+  view, the checks, or the discussion.
+- CI runs on **every branch push**, not only on pull requests, so a broken build
+  surfaces while the branch is still in progress rather than at review time. Do not
+  wait for a PR to get a signal.
+- Merge only once CI is green on the branch head that is actually being merged.
+- Large work splits into one branch per plan rather than one branch per step, so each
+  merge stays reviewable and the bisect surface stays small.
 
 ## Session logs
 

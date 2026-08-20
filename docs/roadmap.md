@@ -59,6 +59,17 @@ golden already exists from step 1.
 This closes the walking skeleton. Everything after is widening the language, not proving the
 architecture.
 
+**Design:** [superpowers/specs/2026-08-19-tank-arena-compiler-design.md](superpowers/specs/2026-08-19-tank-arena-compiler-design.md)
+
+Step 3 runs as four plans, each producing working software on its own:
+
+| Plan | Increments | Deliverable | State |
+|---|---|---|---|
+| [1](superpowers/plans/2026-08-19-golden-trace-harness.md) | 1a, 1b | Golden trace harness and comparator | **done** |
+| 2 | 2, 3 | Parser, AST, `p1 fmt`, checker, game IR, RAM allocator | to write |
+| 3 | 4, 4b, 5 | Layout IR, line ledger, kernel-shape fixtures, template catalog | to write |
+| 4 | 6, 7 | Rule lowering, `p1 build` end to end | to write |
+
 `docs/language-reference.md` is the next *document* but not the next *step*: writing the
 grammar before one ROM exists encodes assumptions the ROM will overturn. Step 3 produces the
 grammar for the tank-arena subset; the full reference follows it.
@@ -74,9 +85,17 @@ Installed outside the repository at `C:\Users\gabpa\tools\` (dev-only, per the r
 
 Neither is a runtime or CI dependency.
 
-## Note on SPEC.md §10
+## Specification alignment
 
-Step 1 adds `examples/tank-arena/reference/` (hand-written assembly) and
-`kernels/include/` (shared TIA/RIOT equates), neither of which appears in the repository
-structure in SPEC.md §10. AGENTS.md requires the specification be updated in the same change
-as a structural decision — folding these into §10 is pending the in-progress spec update.
+Steps 1 and 2 are folded into SPEC.md: §10 lists the directories they added, and the
+measured findings (the band-transition cost, collision latch semantics, the real cost of
+the score kernel) are recorded where they belong. The five review items step 3 depends on
+— the goldens policy, the statically bounded rule language, vertical position as kernel
+structure, the template catalog, and the stack reservation — landed before step 3's code.
+
+Still outstanding from [the review](spec-review-0.1.md), to fold in as each feature forces
+the answer: §3.3 positioning costs stated generally, §3.7 RNG, §3.8 `hz` for AUDF,
+§3.9 `resolution 2` / `spacing` / error-code ranges, and the TypeScript integer-discipline
+conventions.
+
+**Design for step 3:** [superpowers/specs/2026-08-19-tank-arena-compiler-design.md](superpowers/specs/2026-08-19-tank-arena-compiler-design.md)

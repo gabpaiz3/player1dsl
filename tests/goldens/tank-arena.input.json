@@ -1,0 +1,26 @@
+{
+  "rom": "tank-arena",
+  "settleFrames": 2,
+  "phases": [
+    {
+      "frames": 4,
+      "note": "idle baseline: the steady-state frame, with both tanks at their starting positions"
+    },
+    {
+      "frames": 33,
+      "p0": ["right", "down"],
+      "p1": ["left", "up"],
+      "note": "converge: tanks close from (40,120) and (110,60) toward contact. Exercises all four movement rules and both axes at once."
+    },
+    {
+      "frames": 12,
+      "note": "hold the overlap. CXPPMM is LEVEL, not edge, so it stays set every frame the tanks overlap -- the hitFlag debounce must score exactly once across these 12 frames."
+    },
+    {
+      "frames": 41,
+      "p0": ["left", "up"],
+      "p1": ["right", "down"],
+      "note": "separate, clearing the latch and resetting the debounce so a second contact could score again"
+    }
+  ]
+}
