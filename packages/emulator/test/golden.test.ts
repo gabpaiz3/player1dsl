@@ -317,6 +317,25 @@ describe('golden comparison', () => {
     expect(mismatches[0]?.detail).toContain('PF0');
   });
 
+  it('surrounds a record divergence with context from both sides', () => {
+    // Record comparison is positional, so one missing write shifts every later
+    // record. The detail string is the whole diagnostic a codegen divergence
+    // gets from a 6990-record golden -- "differs at 412" is not workable.
+    const expected = goldenFor('golden-base', 1);
+    const first = expected[0];
+    if (!first) throw new Error('no frame');
+    const dropped = [{ ...first, records: first.records.filter((_, i) => i !== 4) }];
+
+    const detail = compareGolden(expected, dropped).find((m) => m.kind === 'record')?.detail ?? '';
+    expect(detail).toContain('>> [4]'); // the divergence itself, marked
+    expect(detail).toContain('[2]'); // context before
+    expect(detail).toContain('[5]'); // context after
+    // The shift is what the context makes visible: everything after the drop is
+    // one record behind, and the last expected record has no counterpart.
+    expect(detail).toContain('got (none)');
+    expect(detail.split(String.fromCharCode(10)).length).toBeGreaterThan(4);
+  });
+
   it('reports a structural mismatch when the frame count differs', () => {
     expect(compareGolden(goldenFor('golden-base', 2), goldenFor('golden-base', 1))[0]?.kind).toBe(
       'structure',

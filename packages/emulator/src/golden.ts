@@ -335,6 +335,36 @@ export interface CompareOptions {
  * Each visible write is instead checked against its register's read deadline,
  * which is what actually decides whether the write appears on screen.
  */
+/**
+ * A few records either side of a divergence, both sides aligned.
+ *
+ * Record comparison is positional, so one extra or missing write shifts every
+ * later record and the divergence gets reported wherever the shift became
+ * visible rather than where it was caused. Without surrounding context, the
+ * whole diagnostic from a 6990-record golden is "something differs at 412",
+ * which is not enough to work from.
+ */
+function context(
+  want: readonly GoldenRecord[],
+  got: readonly GoldenRecord[],
+  at: number,
+  window = 2,
+): string {
+  const from = Math.max(0, at - window);
+  const to = at + window;
+  const lines: string[] = [];
+  for (let i = from; i <= to; i += 1) {
+    const a = want[i];
+    const b = got[i];
+    if (!a && !b) continue;
+    const marker = i === at ? '>>' : '  ';
+    lines.push(
+      `    ${marker} [${i}] expected ${a ? formatRecord(a) : '(none)'} | got ${b ? formatRecord(b) : '(none)'}`,
+    );
+  }
+  return lines.join('\n');
+}
+
 export function compareGolden(
   expected: readonly GoldenFrame[],
   actual: readonly GoldenFrame[],
@@ -401,7 +431,9 @@ export function compareGolden(
         mismatches.push({
           frame: f,
           kind: 'record',
-          detail: `at ${i}: expected ${formatRecord(a)}, got ${formatRecord(b)}`,
+          detail:
+            `at ${i}: expected ${formatRecord(a)}, got ${formatRecord(b)}\n` +
+            `${context(want.records, got.records, i)}`,
         });
         break; // one divergence per frame; everything after it is downstream noise
       }
