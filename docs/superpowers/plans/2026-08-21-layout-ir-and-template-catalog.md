@@ -1248,7 +1248,7 @@ assuming.
 
 ```bash
 npx vitest run packages/cli
-node --experimental-strip-types packages/cli/src/main.ts check examples/tank-arena
+npx tsx packages/cli/src/main.ts check examples/tank-arena
 ```
 
 Expected: the ledger table, ending `192 of 192 visible scanlines`.
@@ -1324,6 +1324,11 @@ measured against each other in a single trace.
 ; 16-entry table at the top of every iteration; the bottom band sets them once
 ; again. Whether each band's FIRST line renders its own content or the previous
 ; band's is then a fact in the trace, not an argument.
+;
+; PREDICTION, written before the run: the scroll band occupies visible lines
+; 16..175 but renders scroll patterns only on 17..175, so its entry cost is 1.
+; The bottom band occupies 176..191 and renders solid from 176, so its entry
+; cost is 0.
 ; ---------------------------------------------------------------------------
 
     processor 6502
@@ -1393,22 +1398,32 @@ MainLoop
     ; Deadlines: PF1 is read at pixel 16 (cycle ~27), PF2 at 48 (cycle ~38).
     ; The writes complete at cycles 7 and 14, so neither is late and the loop
     ; body is 24 of the line's 76 cycles.
+    ; The counter is tested at the TOP, so the 160th pass does its WSYNC and
+    ; then exits WITHOUT writing. That matters: if the last pass wrote, its
+    ; PF1/PF2 stores would burn ~24 cycles of the bottom band's first horizontal
+    ; blank, pushing the bottom band's own PF0 store past cycle 22 -- past
+    ; FIRST_READ_PIXEL[PF0] = 0 -- and putting a late-write notch on the exact
+    ; line whose "renders solid" this fixture exists to measure. Skipping the
+    ; final write costs nothing: that pass's data would have rendered on line
+    ; 176, which belongs to the bottom band.
     lda #$46
     sta COLUPF
     ldy Phase
     ldx #SCROLL_LINES
 .scroll
     sta WSYNC
-    lda ScrollPF1,y
+    dex
+    beq .scrollDone
+    lda ScrollPF1,y             ; cycle 4 -> PF1 stored by cycle 11 (deadline ~27)
     sta PF1
     lda ScrollPF2,y
-    sta PF2
+    sta PF2                     ; stored by cycle 18 (deadline ~38)
     iny
     tya
     and #$0F
     tay
-    dex
-    bne .scroll
+    jmp .scroll
+.scrollDone
 
     ; --- bottom band: 16 lines, playfield set ONCE, in the loop's first blank ---
     lda #$F0
@@ -1478,7 +1493,9 @@ describe('scroll-field (tests/fixtures/kernels/scroll-field.asm)', () => {
 });
 ```
 
-- [ ] **Step 4 — watch it fail, then pass.** Run `npm test -w @player1/emulator`. This test
+- [ ] **Step 4 — watch it fail, then pass.** Run `npx vitest run packages/emulator/test/kernel-fixtures.test.ts`. There is no
+      per-package `test` script -- vitest runs from the root, so `npm test -w <pkg>` fails
+      before it runs anything. This test
       is not vacuous: it fails if the fixture miscounts a WSYNC, if the assembler mis-assembles
       a directive the fixture is the first to use, or if `align 256` moves the tables somewhere
       the reset vector cannot reach. Fix the fixture until it passes. **Do not change the
@@ -1486,17 +1503,33 @@ describe('scroll-field (tests/fixtures/kernels/scroll-field.asm)', () => {
 
 - [ ] **Step 5 — measure, do not predict.** Run the trace and read the decomposition:
 
-```bash
-node --experimental-strip-types -e "
-import { Machine } from './packages/emulator/src/index.ts';
-import { romFor } from './packages/emulator/test/support/roms.ts';
-import { formatWrite } from './packages/emulator/src/trace.ts';
-const m = new Machine(romFor('scroll-field'));
-m.runFrame(); m.runFrame();
-const f = m.runFrame({ trace: true });
-for (const w of f.writes ?? []) console.log(formatWrite(w));
-" | tee /tmp/scroll-field.trace
+Create `tools/dump-trace.ts` once -- **Tasks 7 and 8 reuse it**, so getting it right here
+      saves it twice. Follow `tools/gen-golden.ts`, which is the existing script of this shape
+      and is run with `tsx`:
+
+```ts
+// tools/dump-trace.ts -- print every TIA write of one frame, for measurement.
+import { Machine } from '../packages/emulator/src/index.ts';
+import { formatWrite } from '../packages/emulator/src/trace.ts';
+import { romFor } from '../packages/emulator/test/support/roms.ts';
+
+const name = process.argv[2];
+if (!name) throw new Error('usage: tsx tools/dump-trace.ts <rom-name>');
+const machine = new Machine(romFor(name));
+machine.runFrame();
+machine.runFrame(); // settle: region state carries across frames
+for (const write of machine.runFrame({ trace: true }).writes ?? []) {
+  console.log(formatWrite(write));
+}
 ```
+
+```bash
+npx tsx tools/dump-trace.ts scroll-field > build/scroll-field.trace
+```
+
+**Do not reach for `node --experimental-strip-types -e`.** The `-e` form needs
+      `--input-type=module` to accept `import`, and this repo already has `tsx` wired up for
+      exactly this job.
       Write the answers down before writing any assertion:
       - the line the first `PF1` write of the scroll band lands on;
       - the first line whose *rendered* content is a scroll pattern rather than the top
@@ -1544,9 +1577,21 @@ needs no second routine, so nothing but `n` changes between the two boundaries i
 ;
 ; The visible region is 24 + 7 + 161 = 192 counted WSYNCs. The middle 7 are the
 ; boundary: three PosObjectX calls at two lines each, plus one line to absorb
-; the HMOVE comb. If the cost were anything other than 7 the WSYNC total would
-; still be 192 -- the counted loops guarantee that -- so the measurement is not
-; the total but WHICH lines carry RESP0/RESP1/RESBL and HMOVE in the trace.
+; the HMOVE comb.
+;
+; HOW THE 7 IS READ OUT, and why it is not the span of the RESPx writes. Each
+; PosObjectX call is `WSYNC / ... / RESPx / WSYNC / HMOVE`: the FIRST of its two
+; lines carries no traced write at all. Over three calls plus the comb line, the
+; first and last RESPx-or-HMOVE writes are six lines apart, not seven -- the
+; seventh line is at the FRONT, where nothing is written. Taking min..max over
+; the positioning writes therefore measures 6 and reads as falsifying 2n+1,
+; which would be a measurement artifact, not a result.
+;
+; The boundary is the gap between the two bands, so each band writes COLUBK on
+; its own first line to mark itself in the trace. Without those marks nothing in
+; the trace distinguishes a top-band line from a bottom-band line: both bands
+; emit only WSYNCs, and the graphics and colour registers are set once in
+; VBLANK. Cost = bottomColubkLine - topColubkLine - TOP_LINES.
 ;
 ; PosObjectX indexes HMP0,x and RESP0,x. x=0 is P0, x=1 is P1, and x=4 reaches
 ; HMBL/RESBL, so the ball uses the same routine with no second code path.
@@ -1590,7 +1635,7 @@ MainLoop
     ; expensive case, and the contrast is the point.
     lda #2
     sta VBLANK
-    lda #$21                    ; CTRLPF: BALL SIZE 2, reflect off
+    lda #$10                    ; CTRLPF: ball size 2 (D4-D5), REF off (D0)
     sta CTRLPF
     lda #$FF
     sta GRP0
@@ -1623,6 +1668,10 @@ MainLoop
     sta VBLANK
 
     ; --- top band: 24 lines ---
+    ; COLUBK marks this band's first line in the trace. It is written in the
+    ; horizontal blank the loop's first WSYNC ends, so it renders from that line.
+    lda #$C4
+    sta COLUBK
     ldx #TOP_LINES
 .top
     sta WSYNC
@@ -1642,6 +1691,8 @@ MainLoop
     sta WSYNC                   ; absorb the comb
 
     ; --- bottom band: 161 lines ---
+    lda #$04                    ; marks this band's first line in the trace
+    sta COLUBK
     ldx #BOTTOM_LINES
 .bottom
     sta WSYNC
@@ -1688,14 +1739,29 @@ PosObjectX subroutine
       the VBLANK count is `37 - 6` because three `PosObjectX` calls spend two lines each
       *inside* VBLANK, and getting that subtraction wrong is the most likely bug in the file.
 
-- [ ] **Step 4 — watch it fail, then pass.** `npm test -w @player1/emulator`. If VBLANK
+- [ ] **Step 4 — watch it fail, then pass.** `npx vitest run packages/emulator/test/kernel-fixtures.test.ts`. If VBLANK
       comes out at 43 or 31, the subtraction is wrong — fix the **fixture**, not the assertion.
 
-- [ ] **Step 5 — measure the boundary.** Dump the trace as in Task 6 and extract, for the
-      visible region only, every write whose register is `RESP0`, `RESP1`, `RESBL` or `HMOVE`.
-      Record the first and last such line. The boundary's cost is
-      `lastLine - firstLine + 1`, plus the comb-absorbing line if it falls after the last
-      HMOVE. Compare against `2 * 3 + 1 = 7`.
+- [ ] **Step 5 — measure the boundary.** `npx tsx tools/dump-trace.ts ball-and-paddles`.
+      The boundary's cost is the **gap between the bands**:
+
+      `cost = bottomColubkLine - topColubkLine - TOP_LINES`
+
+      where the two `COLUBK` lines come from the trace and `TOP_LINES` is 24. Predicted
+      `2 * 3 + 1 = 7`.
+
+      **Do not measure it as `max - min + 1` over the `RESP*`/`HMOVE` writes.** Each
+      `PosObjectX` call spends two lines and writes on the second, so that span is 6 — the
+      missing line is at the front, where the first call's opening `WSYNC` leaves no traced
+      write. Six would look like a refutation of `2n + 1` and would be an artifact of the
+      extraction. Record the `RESP*`/`HMOVE` line list anyway, in the commit message: it is
+      the evidence that the seven lines really are the three calls plus the comb, and not
+      seven lines of something else.
+
+      Note that the structural test and this one falsify together. If the boundary really
+      occupied 6 lines, the bottom band's 161 counted WSYNCs would end one line early and
+      `visibleLines` would be 191 — so Step 3 catches a wrong boundary even when this
+      extraction is what is wrong.
 
 - [ ] **Step 6 — assert it, and assert the n = 2 case beside it.** Add:
 
@@ -1704,9 +1770,11 @@ PosObjectX subroutine
   // which is <b-a+1> lines for n = 3. Predicted 2n + 1 = 7. <matched | did not>
   it('spends 2n + 1 visible lines repositioning n objects, at n = 3', () => { ... });
 ```
-      Then, in the same file, assert the same extraction over the **tank-arena** golden ROM
-      gives 5 for its n = 2 boundary. Two points on the line is what makes it a rule rather
-      than a coincidence, and the second point costs nothing — the ROM is already registered.
+      Then, in the same file, assert 5 for tank-arena's n = 2 boundary. The extraction there
+      is the band-gap one again but reads different marks: the HUD's last glyph line and the
+      top wall's first `PF0` line are both in the golden already, so the gap is
+      `firstWallPf0Line - lastGlyphLine - 1`. Two points on the line is what makes `2n + 1` a
+      rule rather than a coincidence, and the second point costs no new fixture.
 
 - [ ] **Step 7 — the known-positive.** `repositionLines` must reject as well as accept. Add a
       unit test in `packages/runtime/test/costs.test.ts` asserting `repositionLines(0) === 0` —
@@ -1740,13 +1808,25 @@ multi-digit scores.
 ; QUESTION: do NUSIZ hardware copies cost any additional scanlines or any
 ; additional TIA objects, compared with the same band drawing one copy?
 ;
-; Two formation rows, 8 lines each, from ONE player object: the first at
+; SECOND QUESTION, free from the same fixture: an 8-entry sprite table read by a
+; loop that writes GRP0 at the top of each iteration renders how many lines? If
+; correction 1 is right it renders SEVEN -- the loop's first pass primes, and its
+; last pass's write lands on a line the next region has already claimed. That is
+; the same entry-cost-1 shape scroll-field measures with PF1/PF2, on a different
+; register, which is exactly what would turn one measurement into a rule.
+;
+; Two formation row loops, 8 iterations each, from ONE player object: the first at
 ; NUSIZ0 = $03 (three copies, close) and the second at $06 (three copies,
 ; medium). Neither row repositions anything. If copies were not free, the trace
 ; would show extra RESP0 strobes inside the visible region, or the bands would
 ; not fit their counted WSYNCs.
 ;
-; Visible region: 8 + 8 + 8 + 8 + 160 = 192.
+; Visible region: 8 + 8 + 8 + 8 + 160 = 192 counted WSYNCs, so each row loop
+; OCCUPIES 8 lines whatever it renders. Occupancy and rendered span are
+; different numbers here, and keeping them apart is the point.
+;
+; PREDICTION, written before the run: row A occupies visible lines 8..15 and
+; renders on 9..15; row B occupies 24..31 and renders on 25..31. Seven each.
 ; ---------------------------------------------------------------------------
 
     processor 6502
@@ -1904,8 +1984,29 @@ AlienSprite
 
 - [ ] **Step 4 — watch it fail, then pass.**
 
-- [ ] **Step 5 — assert copies are free, in a way that can fail.** Two assertions over the
-      traced frame, both of which a wrong answer breaks:
+- [ ] **Step 5 — define the measurement before asserting it.** Add to the test file:
+
+```ts
+/**
+ * Visible lines on which GRP0 actually renders something.
+ *
+ * The LAST write to a register on a line is what renders, because every write
+ * in this fixture lands in horizontal blank. Row A's final pass writes sprite
+ * row 7 into line 16's blank and the following `lda #0 / sta GRP0` overwrites
+ * it in that same blank -- so line 16 renders nothing and must not be counted.
+ * Taking the last write per line is what makes that fall out instead of having
+ * to be special-cased.
+ */
+function renderedGrp0Lines(frame: FrameResult): number[] {
+  const lastPerLine = new Map<number, number>();
+  for (const w of frame.writes ?? []) {
+    if (registerName(w.register) === 'GRP0') lastPerLine.set(w.line, w.value);
+  }
+  return [...lastPerLine].filter(([, v]) => v !== 0).map(([line]) => line).sort((a, b) => a - b);
+}
+```
+
+- [ ] **Step 6 — assert, in a way that can fail.** Three assertions:
 
 ```ts
   it('draws three copies without repositioning inside the visible region', () => {
@@ -1913,25 +2014,38 @@ AlienSprite
     expect(visible.filter((w) => registerName(w.register) === 'RESP0')).toHaveLength(0);
   });
 
-  it('spends the same lines per formation row as a one-copy row would', () => {
-    // Row A and row B differ ONLY in NUSIZ0. Equal line spans is the measurement.
-    expect(rowSpan(frame, 'A')).toBe(8);
-    expect(rowSpan(frame, 'B')).toBe(8);
+  it('renders both formation rows over the same number of lines', () => {
+    // Row A and row B differ ONLY in NUSIZ0. If copies cost lines, they differ.
+    const [a, b] = splitIntoRuns(renderedGrp0Lines(frame));
+    expect(a.length).toBe(b.length);
+  });
+
+  // MEASURED <date>: seven, not eight. An 8-entry table read by a loop that
+  // writes at the top of each iteration renders 7 lines -- the same entry cost
+  // scroll-field measures on PF1/PF2, now confirmed on GRP0.
+  it('renders seven lines from an eight-entry sprite table', () => {
+    const [a, b] = splitIntoRuns(renderedGrp0Lines(frame));
+    expect([a.length, b.length]).toEqual([7, 7]);
   });
 ```
-      The first fails the moment a formation needs a strobe; the second fails if changing
-      `NUSIZ0` between rows perturbs either row's line count. Confirm the first can fail by
-      temporarily moving one `PosObjectX` call out of VBLANK and into the gap before row A,
-      seeing it go red, and reverting.
+      The first fails the moment a formation needs a strobe. The second fails if `NUSIZ0`
+      perturbs a row's line count — and it is the copies-are-free assertion, stated as a
+      comparison between the two rows rather than against a number, so it stays true whatever
+      the entry cost turns out to be. The third is the entry-cost measurement and is the one
+      allowed to carry a literal, because Step 5's dump produced it.
 
-- [ ] **Step 6 — record the second cost that is NOT measured here.** In the fixture's header
+      Confirm the first can fail by temporarily moving one `PosObjectX` call out of VBLANK
+      and into the gap before row A, seeing it go red, and reverting. Confirm the third can
+      fail by changing the table to 7 entries and seeing `[6, 6]`.
+
+- [ ] **Step 7 — record the second cost that is NOT measured here.** In the fixture's header
       and in Task 9's document, state explicitly that mid-line `RESPx` multiplexing was not
       measured and that its cost is therefore unknown. An unmeasured cost recorded as unknown
       is a fact; an unmeasured cost omitted becomes an assumed zero the selector will happily
       spend.
 
-- [ ] **Step 7 — commit,** stating that NUSIZ copies cost 0 lines and 0 additional objects,
-      and that multiplexing remains unmeasured.
+- [ ] **Step 8 — commit,** stating that NUSIZ copies cost 0 lines and 0 additional objects,
+      that an 8-entry table renders 7 lines, and that multiplexing remains unmeasured.
 
 ---
 
@@ -2028,7 +2142,7 @@ describe('catalog invariants', () => {
       `writes`, `entryLines: -1`) fed through the same validator, asserted to be rejected.
       Without it, all four tests above pass on an empty catalog.
 
-- [ ] **Step 2 — watch it fail.** `npm test -w @player1/runtime`. The validator does not
+- [ ] **Step 2 — watch it fail.** `npx vitest run packages/runtime/test/catalog.test.ts`. The validator does not
       exist yet; expect a module-not-found or a type error, then a real failure once the
       import resolves.
 
@@ -2081,7 +2195,7 @@ export interface TemplateEntry {
       Add `validateCatalog(entries): Diagnostic[]` implementing the four invariants. It
       returns diagnostics rather than throwing, so the test can feed it malformed data.
 
-- [ ] **Step 4 — run, commit.** `npm test -w @player1/runtime`, then commit.
+- [ ] **Step 4 — run, commit.** `npx vitest run packages/runtime`, then commit.
 
 ---
 
@@ -2407,14 +2521,30 @@ it('reproduces frame 0 of the golden trace', () => {
       the session log.
 
       If a difference is genuinely a plan-4 concern rather than a layout error, widen the
-      filter — but add a comment naming what was excluded and why, and list every exclusion in
-      the session log. A filter that quietly grows is how a golden stops meaning anything.
+      filter — but there is a floor, fixed now rather than argued about at 2am. **These writes
+      may never be excluded, because they are what encodes the ledger:**
+
+      - the band-boundary `RESP0`/`RESP1`/`HMOVE` writes — they place the 5-line transition;
+      - the wall `PF0`/`PF1`/`PF2` writes — they place the two 8-line runs;
+      - the HUD `GRP0`/`GRP1` writes — they place the 12-line glyph band.
+
+      Filter any of those and the test stops being able to falsify the 158, which is the only
+      reason this increment exists. If exact-value comparison stalls on something in that set,
+      **weaken the comparison rather than the filter**: assert the *line partition* — which
+      class of register writes appears on which lines — instead of the values. That is a
+      weaker claim and must be labelled as one in the test name and the session log, but it
+      still falsifies a wrong ledger, which excluding the write does not.
+
+      Every exclusion goes in a comment naming what and why, and in the session log. A filter
+      that quietly grows is how a golden stops meaning anything.
 
 - [ ] **Step 5 — the Stella script.** Add `scripts/stella.sh` (and note the Windows
       invocation in its header) that builds the ROM and opens it:
 
 ```sh
-node packages/cli/bin/p1.js build --static examples/tank-arena -o build/tank-arena.bin
+# The CLI's bin entry is packages/cli/dist/main.js, so the build has to run first.
+npm run build
+node packages/cli/dist/main.js build --static examples/tank-arena -o build/tank-arena.bin
 stella build/tank-arena.bin
 ```
       Document in `docs/testing.md` what a Stella run does and does not prove: it is a
