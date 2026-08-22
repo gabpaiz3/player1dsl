@@ -7,13 +7,13 @@
 
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { allocateRam, check } from '@player1dsl/compiler';
+import { allocateRam, buildLedger, check, formatLedger, layout } from '@player1dsl/compiler';
 import { type Diagnostic, format, formatDiagnostic, P1Error, parse } from '@player1dsl/parser';
 
 const USAGE = [
   'usage: p1 <command> [path]',
   '',
-  '  check <path>    parse, type-check, and report the RAM budget',
+  '  check <path>    parse, type-check, and report the RAM and scanline budgets',
   '  fmt <path>      rewrite the file in canonical form',
   '  fmt --check     report whether formatting would change anything',
 ].join('\n');
@@ -109,6 +109,13 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log(
       `  ${ram.used} bytes used, ${ram.stackReserved} reserved for the stack, ${ram.free} free`,
     );
+
+    // The ledger is a hard gate: buildLedger throws rather than returning a
+    // short frame, so reaching this print means the frame balances. The catch
+    // below already reports P1Error diagnostics and returns 1, so nothing new
+    // is needed here.
+    console.log('');
+    console.log(formatLedger(buildLedger(layout(ir.scene))));
     return 0;
   } catch (error) {
     if (isP1Error(error)) {
