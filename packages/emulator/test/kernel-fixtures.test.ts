@@ -110,3 +110,84 @@ describe('scroll-field entry costs', () => {
     expect(playfield.filter((w) => w.pixel >= 0)).toEqual([]);
   });
 });
+
+describe('ball-and-paddles (tests/fixtures/kernels/ball-and-paddles.asm)', () => {
+  it('runs a 262-line frame split 3/37/192/30', () => {
+    // The VBLANK count is `37 - 6`, because three PosObjectX calls spend two
+    // lines each INSIDE vblank. Getting that subtraction wrong is the most
+    // likely bug in the fixture, and this is what catches it.
+    const frame = frameOf('ball-and-paddles');
+    expect(frame.scanlines).toBe(262);
+    expect(frame.vsyncLines).toBe(3);
+    expect(frame.vblankLines).toBe(37);
+    expect(frame.visibleLines).toBe(192);
+    expect(frame.overscanLines).toBe(30);
+  });
+});
+
+/**
+ * The band gap: visible lines between the last line one band renders and the
+ * first line the next one does.
+ *
+ * This is the honest way to measure a band boundary, and the obvious way is
+ * wrong. Each PosObjectX call is `WSYNC / ... / RESPx / WSYNC / HMOVE`, so the
+ * FIRST of its two lines carries no traced write at all. Taking min..max over
+ * the RESPx and HMOVE writes therefore misses a line at the FRONT: it measures
+ * 6 for a three-object boundary and 4 for a two-object one, and would read as
+ * falsifying 2n + 1 when what is actually wrong is the extraction.
+ */
+function bandGap(lastLineAbove: number, firstLineBelow: number): number {
+  return firstLineBelow - lastLineAbove - 1;
+}
+
+/**
+ * The reposition rule, measured at two different values of n.
+ *
+ * MEASURED 2026-08-21:
+ *
+ *   n = 3  ball-and-paddles  top band renders 40..63, bottom band from 71  -> 7
+ *   n = 2  tank-arena        HUD renders 40..51, top wall from 57          -> 5
+ *
+ * Predicted 2n + 1 for both. Both matched. Two points is what makes it a rule
+ * rather than a coincidence fitted to one kernel, and the +1 -- the HMOVE comb,
+ * which is a constant -- is the part that would have shown up wrong first if the
+ * cost were really linear in n alone.
+ */
+describe('the reposition cost rule', () => {
+  it('spends 2n + 1 visible lines repositioning n objects, at n = 3', () => {
+    const frame = frameOf('ball-and-paddles');
+    const colubk = writesTo(frame, 'COLUBK').filter((w) => w.line >= 40);
+    expect(colubk.map((w) => w.value)).toEqual([0xc4, 0x04]); // the two band marks
+
+    const TOP_LINES = 24; // the fixture's declared top-band height
+    const [top, bottom] = colubk;
+    expect(bandGap((top?.line ?? 0) + TOP_LINES - 1, bottom?.line ?? 0)).toBe(7);
+  });
+
+  it('spends 2n + 1 visible lines repositioning n objects, at n = 2', () => {
+    // tank-arena's own boundary, read with the same formula and different marks:
+    // the HUD's last glyph write, and the top wall's first PF0 write.
+    const frame = frameOf('tank-arena');
+    const lastGlyph = writesTo(frame, 'GRP0')
+      .filter((w) => w.line >= 40 && w.line < 60)
+      .at(-1);
+    const firstWall = writesTo(frame, 'PF0').find((w) => w.line > (lastGlyph?.line ?? 0));
+    expect(lastGlyph, 'no HUD glyph writes found').toBeDefined();
+    expect(firstWall, 'no wall PF0 write found').toBeDefined();
+    expect(bandGap(lastGlyph?.line ?? 0, firstWall?.line ?? 0)).toBe(5);
+  });
+
+  it('does not measure the boundary as the span of its own writes', () => {
+    // The wrong extraction, asserted to be wrong, so nobody reintroduces it
+    // believing it agrees. min..max over the positioning writes is one short at
+    // both values of n, because the first line of the first call writes nothing.
+    const frame = frameOf('ball-and-paddles');
+    const moves = (frame.writes ?? []).filter(
+      (w) =>
+        w.line >= 40 && ['RESP0', 'RESP1', 'RESBL', 'HMOVE'].includes(registerName(w.register)),
+    );
+    const first = moves[0]?.line ?? 0;
+    const last = moves.at(-1)?.line ?? 0;
+    expect(last - first + 1).toBe(6);
+  });
+});
