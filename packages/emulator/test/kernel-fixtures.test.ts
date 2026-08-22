@@ -191,3 +191,90 @@ describe('the reposition cost rule', () => {
     expect(last - first + 1).toBe(6);
   });
 });
+
+describe('sprite-formation (tests/fixtures/kernels/sprite-formation.asm)', () => {
+  it('runs a 262-line frame split 3/37/192/30', () => {
+    // VBLANK is `37 - 2` here: one PosObjectX call, two lines. Same arithmetic
+    // trap as ball-and-paddles, one object instead of three.
+    const frame = frameOf('sprite-formation');
+    expect(frame.scanlines).toBe(262);
+    expect(frame.vsyncLines).toBe(3);
+    expect(frame.vblankLines).toBe(37);
+    expect(frame.visibleLines).toBe(192);
+    expect(frame.overscanLines).toBe(30);
+  });
+});
+
+/**
+ * Visible lines on which GRP0 actually renders something.
+ *
+ * The LAST write to a register on a line is what renders, because every write
+ * in this fixture lands in horizontal blank. Each row loop's final pass writes
+ * sprite row 7 into the NEXT line's blank, and the following `lda #0 / sta GRP0`
+ * overwrites it in that same blank -- so that line renders nothing and must not
+ * be counted. Taking the last write per line is what makes that fall out
+ * instead of having to be special-cased.
+ */
+function renderedGrp0Lines(frame: FrameResult): number[] {
+  const lastPerLine = new Map<number, number>();
+  for (const write of writesTo(frame, 'GRP0')) lastPerLine.set(write.line, write.value);
+  return [...lastPerLine]
+    .filter(([, value]) => value !== 0)
+    .map(([line]) => line)
+    .sort((a, b) => a - b);
+}
+
+/** Split a sorted line list into runs of consecutive lines. */
+function splitIntoRuns(lines: readonly number[]): number[][] {
+  const runs: number[][] = [];
+  for (const line of lines) {
+    const current = runs.at(-1);
+    if (current && line === (current.at(-1) ?? 0) + 1) current.push(line);
+    else runs.push([line]);
+  }
+  return runs;
+}
+
+/**
+ * MEASURED 2026-08-21 from build/sprite-formation.trace:
+ *
+ *   row A  NUSIZ0 $03, three close copies   occupies 48..55, renders 49..55
+ *   row B  NUSIZ0 $06, three medium copies  occupies 64..71, renders 65..71
+ *
+ * Two findings, and the second was not the question the fixture was written to
+ * ask:
+ *
+ * 1. NUSIZ hardware copies are FREE. Three copies cost zero additional
+ *    scanlines and zero additional TIA objects -- the only RESP0 strobe in the
+ *    ROM is in VBLANK, and the two rows differ in nothing but NUSIZ0.
+ * 2. An 8-entry sprite table renders SEVEN lines, not eight. The loop primes one
+ *    line ahead and its last write is overwritten in the same blank. That is the
+ *    entry-cost-1 shape again, now on GRP0 -- so the rule has been measured on
+ *    PF1/PF2 (scroll-field) and GRP0 (here) and in tank-arena's field kernel.
+ *
+ * NOT measured, and therefore NOT zero: mid-line RESPx multiplexing, the other
+ * way to draw a formation. Its cost is unknown. See docs/kernel-measurements.md.
+ */
+describe('sprite-formation copies and row spans', () => {
+  const frame = frameOf('sprite-formation');
+
+  it('draws three copies without repositioning inside the visible region', () => {
+    const visible = (frame.writes ?? []).filter((w) => w.line >= 40 && w.line < 232);
+    expect(visible.length).toBeGreaterThan(0); // the extraction found something
+    expect(visible.filter((w) => registerName(w.register) === 'RESP0')).toEqual([]);
+  });
+
+  it('renders both formation rows over the same number of lines', () => {
+    // The rows differ ONLY in NUSIZ0. If copies cost lines, they differ. Stated
+    // as a comparison rather than against a number, so it stays true whatever
+    // the entry cost turns out to be.
+    const [a, b] = splitIntoRuns(renderedGrp0Lines(frame));
+    expect(a, 'no formation rows found').toBeDefined();
+    expect(a?.length).toBe(b?.length);
+  });
+
+  it('renders seven lines from an eight-entry sprite table', () => {
+    const runs = splitIntoRuns(renderedGrp0Lines(frame));
+    expect(runs.map((run) => run.length)).toEqual([7, 7]);
+  });
+});

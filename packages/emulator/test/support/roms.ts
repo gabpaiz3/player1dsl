@@ -14,6 +14,7 @@ export const ROM_SOURCES: Readonly<Record<string, string>> = {
   'golden-late': 'tests/fixtures/timing/golden-late.asm',
   'scroll-field': 'tests/fixtures/kernels/scroll-field.asm',
   'ball-and-paddles': 'tests/fixtures/kernels/ball-and-paddles.asm',
+  'sprite-formation': 'tests/fixtures/kernels/sprite-formation.asm',
 };
 
 /**
