@@ -529,12 +529,13 @@ describe('bindObjects', () => {
 
   it('rejects a band needing more movable objects than the hardware has', () => {
     const scene = tankArena().scene;
+    // Biome forbids non-null assertions, and the guard earns its place anyway:
+    // if the example ever loses its actors this test would silently prove nothing.
+    const [tank0] = scene.actors;
+    if (!tank0) throw new Error('the example lost its actors; this test proves nothing');
     const crowded = {
       ...scene,
-      actors: [
-        ...scene.actors,
-        { ...scene.actors[0]!, name: 'tank2' },
-      ],
+      actors: [...scene.actors, { ...tank0, name: 'tank2' }],
     };
     expect(() => bindObjects(crowded)).toThrow(/E501/);
   });
@@ -1034,6 +1035,12 @@ export function buildLedger(ir: LayoutIr): Ledger {
   const remainders = groups.filter((g) => g.lines === 'remainder');
   const diagnostics: Diagnostic[] = [];
 
+  // A ledger with no row groups is a scene with no bands, which the checker
+  // rejects long before here. Fail loudly rather than reaching for a `!` that
+  // Biome forbids and that would hide the case if it ever became reachable.
+  const firstSpan = groups[0]?.span;
+  if (!firstSpan) throw new Error('buildLedger was given a layout with no row groups');
+
   if (remainders.length > 1) {
     for (const group of remainders.slice(1)) {
       diagnostics.push({
@@ -1057,7 +1064,7 @@ export function buildLedger(ir: LayoutIr): Ledger {
         message:
           `the visible region is ${fixed} scanlines, but NTSC has exactly ${NTSC_VISIBLE_LINES}: ` +
           `${fixed > NTSC_VISIBLE_LINES ? `${fixed - NTSC_VISIBLE_LINES} too many` : `${NTSC_VISIBLE_LINES - fixed} short`}`,
-        span: last?.span ?? groups[0]!.span,
+        span: last?.span ?? firstSpan,
         hint:
           'change a band height, or leave one band without a height so it takes ' +
           'whatever the others leave. Band transitions and template entry lines ' +
@@ -1107,7 +1114,7 @@ export function buildLedger(ir: LayoutIr): Ledger {
       {
         code: 'E503',
         message: `the ledger sums to ${total}, not ${NTSC_VISIBLE_LINES}`,
-        span: groups[0]!.span,
+        span: firstSpan,
       },
     ]);
   }
@@ -1132,10 +1139,10 @@ export function formatLedger(ledger: Ledger): string {
     row.note,
   ]);
   const widths = header.map((_, i) =>
-    Math.max(header[i]!.length, ...body.map((cells) => cells[i]!.length)),
+    Math.max(header[i]?.length ?? 0, ...body.map((cells) => cells[i]?.length ?? 0)),
   );
   const render = (cells: readonly string[]) =>
-    cells.map((cell, i) => cell.padEnd(widths[i]!)).join('  ').trimEnd();
+    cells.map((cell, i) => cell.padEnd(widths[i] ?? 0)).join('  ').trimEnd();
 
   return [
     render(header),
