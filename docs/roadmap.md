@@ -67,8 +67,15 @@ Step 3 runs as four plans, each producing working software on its own:
 |---|---|---|---|
 | [1](superpowers/plans/2026-08-19-golden-trace-harness.md) | 1a, 1b | Golden trace harness and comparator | **done** |
 | [2](superpowers/plans/2026-08-20-parser-and-game-ir.md) | 2, 3 | Parser, AST, `p1 fmt`, checker, game IR, RAM allocator | **done** |
-| 3 | 4, 4b, 5 | Layout IR, line ledger, kernel-shape fixtures, template catalog | to write |
+| [3](superpowers/plans/2026-08-21-layout-ir-and-template-catalog.md) | 4, 4b, 5, **5b** | Layout IR, line ledger, kernel-shape fixtures, template catalog, still-frame ROM | in progress: 4 and 4b done |
 | 4 | 6, 7 | Rule lowering, `p1 build` end to end | to write |
+
+Increment **5b** was added while plan 3 was being written, at the user's request: it makes
+`p1 build --static` emit a real 4 KiB ROM at the end of plan 3, so the compiler's output can
+be looked at in Stella rather than waiting for the end of plan 4. It also gives the line
+ledger its first falsifiable check — a test asserting `ledger.fieldLines === 158` only
+asserts that the compiler computes what the compiler computes, while a ROM built from that
+ledger and run in the emulator can actually be wrong.
 
 `docs/language-reference.md` is the next *document* but not the next *step*: writing the
 grammar before one ROM exists encodes assumptions the ROM will overturn. Step 3 produces the

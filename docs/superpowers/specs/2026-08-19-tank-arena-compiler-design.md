@@ -272,7 +272,7 @@ Each ends in something independently testable, following step 1's discipline.
 | 2 | Lexer, parser, AST, `p1 fmt` | `p1 fmt` round-trips `tank-arena.p1` |
 | 3 | Checker, game IR, RAM allocator | RAM map computed with the stack reserved; types and bounds checked; over-budget RAM is a compile error |
 | 4 | Layout IR + line ledger | `p1 check` prints the ledger and **fails** if it does not sum to 192 |
-| 4b | Kernel-shape fixtures | Three diagnostic kernels measured; the applicability vocabulary revised against what they need (see below) |
+| 4b | Kernel-shape fixtures | **Done 2026-08-21.** Three diagnostic kernels measured; the applicability vocabulary revised against them in [`docs/kernel-measurements.md`](../../kernel-measurements.md) |
 | 5 | Template catalog + selector | Selector matches declarations against declared conditions; a deliberately unsatisfiable band produces a diagnostic |
 | 6 | Rule lowering + instruction selection | VBLANK/overscan code generated from rules |
 | 7 | `p1 build` end to end | 4096 bytes; golden trace matches |
@@ -297,6 +297,31 @@ asks whether the vocabulary can state what each one needs:
 | `scroll-field` | playfield rewritten every line | Is "static playfield within the band" the right axis, or should it be "PF writes per line"? |
 | `ball-and-paddles` | two players + ball, no runs, no border | Does a band with zero `run` row groups work, and what does the ball object cost? |
 | `sprite-formation` | one player object multiplexed across a row | Does the vocabulary express multiplex separation and per-line reload budget at all? |
+
+> **Measured 2026-08-21 — results in [`docs/kernel-measurements.md`](../../kernel-measurements.md).**
+>
+> Seven of eight predictions matched. The eighth was **contradicted, usefully**: an 8-entry
+> sprite table renders **seven** lines, not eight, because the loop primes one line ahead and
+> its final write is overwritten in the next line's blank. That is the corrected entry-cost
+> rule appearing a third time — it has now been measured on `PF1`/`PF2`, on `GRP0`, and on
+> `GRP0`/`GRP1` — so one observation has become a rule.
+>
+> Two of the three questions above were answered differently from how they were asked:
+>
+> - `ball-and-paddles` was to ask "what does the ball object cost?". It costs exactly what a
+>   player costs, and by the same code: `HMP0` is `$20` and `HMBL` is `$24`, `RESP0` is `$10`
+>   and `RESBL` is `$14`, so `PosObjectX` positions the ball unchanged with `x = 4`. Nothing
+>   measured distinguishes them, so the catalog carries an object **count**, not an ownership
+>   model. A fixture that makes them differ would be the reason to add one.
+> - `sprite-formation` measured only the NUSIZ path. Multiplex separation and per-line reload
+>   budget remain **unmeasured**, and are recorded as such rather than omitted — an omitted
+>   cost becomes an assumed zero the selector will spend.
+>
+> One measurement METHOD was also wrong and is worth carrying forward: taking min..max over a
+> boundary's own `RESPx`/`HMOVE` writes measures one line short, because each `PosObjectX`
+> call writes nothing on the first of its two lines. It gives 6 at n = 3 and 4 at n = 2 — so
+> it looks self-consistent while falsifying a correct rule. Boundaries are measured as the gap
+> between bands instead.
 
 These are diagnostics: the step-2 timing fixtures are 40–90 lines each and this is the same
 scale. They produce measured numbers we own outright, and they run through our own
