@@ -33,9 +33,32 @@ and is what step 4 tests.
 | The `.p1` states game-layer intent only | No scanline counts, no timer values, no write ordering, no register names. Anything the source states is a claim the compiler never has to earn, and the four tricks the reference kernel encodes are exactly what needs earning. |
 | Raster kernels are templated; VBLANK/overscan logic is compiled | The raster tricks are hardware-shaped and measured; the rules are ordinary control flow. Synthesising raster code from a cycle model is the general solver [SPEC §6.1](../../SPEC.md) rejects on determinism grounds. |
 | Equivalence is judged on the TIA-write trace | Byte-identity would forbid the compiler from ever choosing a different-but-correct instruction sequence, which defeats the catalog. See [SPEC §11.1](../../SPEC.md). |
-| The colour clock is recorded but not asserted | Clock position is a function of instruction cycle counts. Asserting it would test transcription fidelity, not compilation. The deadline is what determines what appears on screen. |
+| The colour clock is recorded but not asserted — **amended 2026-08-21, see below** | Clock position is a function of instruction cycle counts. Asserting it would test transcription fidelity, not compilation. The deadline is what determines what appears on screen. |
 | The golden harness is built **first**, before any compiler code | It is the acceptance criterion made runnable. Built last, "equivalent" gets defined during codegen debugging, which is when the definition is least trustworthy. |
 | One catalog entry, general catalog interface | See above. The generality is real in the interfaces and untested in practice, and this document says so rather than implying coverage that does not exist. |
+
+> **Amendment, 2026-08-21 — the colour clock is asserted for one class of write.**
+> [Review 0.2 §1.1](../../spec-review-0.2.md) observes that the decision above is unsound
+> for beam-position-sensitive strobes: `RESP0`, `RESP1`, `RESM0`, `RESM1` and `RESBL` take
+> their effect from *where the beam is*, so a candidate ROM can match register, value,
+> scanline and deadline while placing an object somewhere else entirely. For those writes
+> the clock is not instruction-selection noise — it is the horizontal position.
+>
+> Writes are therefore classified into three timing classes rather than two:
+>
+> | Class | Registers | Asserted |
+> |---|---|---|
+> | `exact` | `RESP0`, `RESP1`, `RESM0`, `RESM1`, `RESBL` | the colour clock, exactly |
+> | `blank` | `HMOVE`, `RSYNC` | must land in horizontal blank; clock otherwise free |
+> | `deadline` | `PF0`–`PF2`, `GRP0`, `GRP1`, `COLU*`, everything else | must precede the register's first read pixel |
+>
+> `exact` is a **conservative over-constraint**, and knowingly so: final position is
+> `(coarse clock, HMPx fine value)`, so a different pair can encode the same *x*. Asserting
+> the clock rejects those alternative encodings — no false negatives, some false positives.
+> Object position tracking is the principled fix and is out of scope for step 3
+> ("What this step does not do", below); until it exists, `HMPx` values are already compared
+> for equality, so the pair pins position exactly for any ROM that positions the way the
+> reference does.
 
 ## The line ledger
 
@@ -56,7 +79,7 @@ comments — three of which are stale and still claim a 176-line field):
 | HUD band | band | 40–51 | 12 | authored: `band hud height 12` |
 | Band transition | transition | 52–56 | 5 | derived: `2n + 1` for `n = 2` repositioned objects |
 | Top wall | run | 57–64 | 8 | authored: this game's playfield shape |
-| Field setup | setup | 65 | 1 | derived: a region change after a loop exit has no horizontal blank |
+| Field setup | setup | 65 | 1 | template: the field kernel primes its per-line data one line ahead |
 | Field loop | loop | 66–223 | **158** | **solved: the remainder** |
 | Bottom wall | run | 224–231 | 8 | authored: this game's playfield shape |
 | **Visible total** | | | **192** | |
@@ -74,8 +97,11 @@ assumes a border — it assumes only that every visible line belongs to exactly 
 group with a known cost.
 
 The kinds in the table (`band`, `transition`, `run`, `setup`, `loop`) are the vocabulary;
-which ones appear, and how many, comes from the scene. Only `transition` and `setup` are
-compiler-derived. The rest come from the selected templates.
+which ones appear, and how many, comes from the scene. Every line *count* comes from
+template data; the only thing the compiler derives is **`n`**, the number of objects a band
+boundary has to reposition. (This sentence originally said `transition` and `setup` were
+compiler-derived; the 2026-08-21 correction above moves `setup` to the template, and `2`
+per object and `+1` for the comb were always properties of the positioning routine.)
 
 The compiler needs two cost rules, both already measured in step 1 and both belonging to
 the *template*, not to the compiler:
@@ -83,8 +109,30 @@ the *template*, not to the compiler:
 1. A band transition repositioning *n* objects costs `2n + 1` visible scanlines — two per
    object for `RESPx`, plus one to absorb the `HMOVE` comb on a line whose background can
    hide it.
-2. A region change immediately following a loop exit costs one line, because a loop falls
-   through mid-line and leaves no horizontal blank for the region's register writes.
+2. A loop template that primes its per-line data one line ahead charges **one entry
+   line**; a loop whose registers are set once before it runs charges **zero**.
+
+> **Correction, 2026-08-21 — rule 2 replaced, measured from the golden trace.** This
+> document originally stated rule 2 as *"a region change immediately following a loop exit
+> costs one line, because the loop falls through mid-line and leaves no horizontal blank."*
+> The reference ROM contains **two** region changes following a loop exit, and the trace
+> shows them costing different amounts:
+>
+> - top wall → field loop: **1** extra line (line 65),
+> - field loop → bottom wall: **0** extra lines — line 224 carries the bottom wall's setup
+>   writes *and* is its first rendered line.
+>
+> The general rule predicts 1 for both, so it is wrong. The discriminator is where a loop
+> writes its per-line registers. `two-sprite-static-field` writes `GRP0`/`GRP1` in the
+> horizontal blank at the *top* of each iteration, so its first iteration's data must
+> already exist and it renders lines `entry+1 … entry+N` — one entry line. `solid-run`
+> sets `PF0`/`PF1`/`PF2` once before the loop, valid from that same line, so it renders
+> `entry … entry+N-1` — zero.
+>
+> The arithmetic is unchanged (`158 = 192 − 12 − 5 − 8 − 1 − 8`); the *attribution* moves
+> from a compiler-derived rule to a declared template cost, which is where this document's
+> own `runtime` / `compiler` split says a measured number belongs. The open question below
+> asking whether that line is a template cost or a general rule is thereby answered.
 
 The source states none of this. It states a HUD height and an arena shape, which is
 intent a person genuinely holds.
@@ -310,9 +358,11 @@ comparator actually consults it.
   an open question with a scheduled answer rather than a deferred risk. What 4b cannot do
   is prove the vocabulary complete — only that it survives three shapes it was not designed
   for.
-- Whether the field-setup line (ledger row 4) is best modelled as a template entry cost or
-  as a general "region change after loop exit" rule in the layout IR. It is one line either
-  way for tank-arena; the second catalog entry will discriminate.
+- ~~Whether the field-setup line (ledger row 4) is best modelled as a template entry cost
+  or as a general "region change after loop exit" rule in the layout IR.~~ **Answered
+  2026-08-21: a template entry cost.** `solid-run` is the second catalog entry that was
+  expected to discriminate, and it is already in this ROM — it takes the same region change
+  after a loop exit and charges zero. See the correction under "The line ledger".
 - **Initial-state syntax.** The reference starts `score0 = 3`, `score1 = 5`, tanks at
   `(40, 120)` and `(110, 60)`. All four must be expressible or frame 0 of the trace
   diverges immediately. Actor positions have an obvious home (`at (40, 120)`, already in
