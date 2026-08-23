@@ -8,10 +8,12 @@
 
 import { type Diagnostic, P1Error, type Span } from '@player1dsl/parser';
 import {
-  entryById,
+  type BandRequirement,
   type ObjectBinding,
   type RowGroupKind,
   repositionLines,
+  selectTemplate,
+  type TemplateEntry,
   type TiaObject,
 } from '@player1dsl/runtime';
 import type { BandIr, PlayfieldIr, SceneIr } from './ir.ts';
@@ -94,16 +96,36 @@ export interface LayoutIr {
   readonly bindings: readonly ObjectBinding[];
 }
 
+/**
+ * Ask the catalog for a template, or fail with its diagnostic.
+ *
+ * The selector is the only thing that names a template id. Before this the ids
+ * were written here by hand, which meant the compiler and the catalog could
+ * disagree about what a region needs and nothing would notice.
+ */
+function pick(requirement: BandRequirement): TemplateEntry {
+  const result = selectTemplate(requirement);
+  if (!result.ok) throw new P1Error([result.diagnostic]);
+  return result.entry;
+}
+
 /** The row groups a band decomposes into, before the transition is prepended. */
-function decompose(band: BandIr, playfield: PlayfieldIr | undefined): RowGroup[] {
+function decompose(band: BandIr, playfield: PlayfieldIr | undefined, objects: number): RowGroup[] {
   // A band with an authored height and no playfield is a single glyph run.
   // `[wall][field][wall]` is what an ARENA game decomposes into; most genres
   // do not have it, and nothing below assumes a border exists.
   if (!playfield) {
+    const glyphs = pick({
+      band: band.name,
+      kind: 'glyphs',
+      objects,
+      copies: 'none',
+      span: band.span,
+    });
     return [
       {
         kind: 'glyphs',
-        template: 'bcd-score-band',
+        template: glyphs.id,
         lines: band.height ?? 0,
         band: band.name,
         source: 'authored',
@@ -113,9 +135,16 @@ function decompose(band: BandIr, playfield: PlayfieldIr | undefined): RowGroup[]
     ];
   }
 
-  const field = entryById('two-sprite-static-field');
-  const run = entryById('solid-run');
-  if (!field || !run) throw new Error('catalog is missing an entry the layout needs');
+  // Two selections inside ONE band: the walls are runs and the interior is a
+  // loop. Selection is per row group, not per band.
+  const field = pick({ band: band.name, kind: 'loop', objects, copies: 'none', span: band.span });
+  const run = pick({
+    band: band.name,
+    kind: 'run',
+    objects: 0, // a wall draws no movable object; the tanks are the field's
+    copies: 'none',
+    span: playfield.span,
+  });
 
   const wall = (): RowGroup => ({
     kind: 'run',
@@ -178,7 +207,7 @@ export function layout(scene: SceneIr): LayoutIr {
     }
 
     const playfield = scene.playfields.find((p) => p.band === band.name);
-    rowGroups.push(...decompose(band, playfield));
+    rowGroups.push(...decompose(band, playfield, mine.length));
     previous = mine;
   }
 
