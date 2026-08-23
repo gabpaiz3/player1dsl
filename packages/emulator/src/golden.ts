@@ -465,11 +465,6 @@ export function compareGolden(
         break;
       }
       if (!a || !b) break;
-      const positional = positionMismatch(a, b);
-      if (positional) {
-        mismatches.push({ frame: f, ...positional });
-        break; // one divergence per frame; everything after it is downstream noise
-      }
       if (
         a.line !== b.line ||
         a.endLine !== b.endLine ||
@@ -484,6 +479,16 @@ export function compareGolden(
             `${context(want.records, got.records, i)}`,
         });
         break; // one divergence per frame; everything after it is downstream noise
+      }
+
+      // AFTER equality, never before. positionMismatch only knows about pixels,
+      // so a record pair that has drifted to a different LINE would be reported
+      // as "strobed at pixel 46, expected 76" -- a position message for what is
+      // really a structural divergence, and the line shift would never be named.
+      const positional = positionMismatch(a, b);
+      if (positional) {
+        mismatches.push({ frame: f, ...positional });
+        break;
       }
     }
 

@@ -106,6 +106,27 @@ export interface LayoutIr {
 function pick(requirement: BandRequirement): TemplateEntry {
   const result = selectTemplate(requirement);
   if (!result.ok) throw new P1Error([result.diagnostic]);
+
+  // `exitLines` is real in the catalog and counts towards the selector's
+  // tie-break, but `decompose` below emits no exit row group, so those lines
+  // would never reach the ledger -- a non-zero one would change WHICH template
+  // wins and quietly produce a 191-line frame. That is this plan's own
+  // "an omitted cost becomes an assumed zero it will happily spend", turned on
+  // the compiler. All three entries measure 0 today, so refusing costs nothing
+  // now and fails loudly the day a fixture measures one.
+  if (result.entry.cost.exitLines !== 0) {
+    throw new P1Error([
+      {
+        code: 'E505',
+        message:
+          `template "${result.entry.id}" charges ${result.entry.cost.exitLines} exit ` +
+          `line${result.entry.cost.exitLines === 1 ? '' : 's'}, ` +
+          'which the ledger does not yet account for',
+        span: requirement.span,
+        hint: 'give decompose an exit row group before adding an entry that charges them',
+      },
+    ]);
+  }
   return result.entry;
 }
 

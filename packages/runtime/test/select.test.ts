@@ -1,7 +1,7 @@
 import type { Span } from '@player1dsl/parser';
 import { describe, expect, it } from 'vitest';
 import type { BandRequirement } from '../src/index.ts';
-import { selectTemplate } from '../src/index.ts';
+import { ENTRIES, selectTemplate } from '../src/index.ts';
 
 const SPAN: Span = { file: 'select.test.ts', line: 7, column: 3 };
 
@@ -44,11 +44,22 @@ describe('selectTemplate', () => {
   });
 
   // A selector whose result depends on array order changes its output when
-  // someone reorders entries.ts. Asking twice is not enough to prove
-  // determinism, but a filter with a total tie-break is what makes it true and
-  // this notices if the tie-break is ever dropped.
-  it('is deterministic', () => {
-    expect(selected(request())).toBe(selected(request()));
+  // someone reorders entries.ts. Asking twice would prove nothing -- the same
+  // input gives the same answer either way. Feeding the SAME entries in the
+  // opposite order is the assertion that actually notices a dropped tie-break.
+  it('does not depend on the order entries.ts lists its entries in', () => {
+    const reversed = [...ENTRIES].reverse();
+    for (const req of [
+      request(),
+      request({ kind: 'run', objects: 0 }),
+      request({ kind: 'glyphs' }),
+    ]) {
+      const forwards = selectTemplate(req);
+      const backwards = selectTemplate(req, reversed);
+      expect(forwards.ok && backwards.ok && backwards.entry.id).toBe(
+        forwards.ok ? forwards.entry.id : 'unreachable',
+      );
+    }
   });
 });
 
