@@ -39,6 +39,7 @@ and the setup code preceding a loop shares the line that loop's first WSYNC ends
 | `sprite-formation` | extra scanlines for three NUSIZ copies | 0 | **0** | matched |
 | `sprite-formation` | extra TIA objects for three NUSIZ copies | 0 | **0** | matched |
 | `sprite-formation` | lines rendered by an 8-entry sprite table | 8 | **7** | **contradicted** |
+| `tank-arena` | entry line charged to the score band | 0 | **0, but present** | **qualified** |
 
 Trace evidence for each row lives in the test comments in
 `packages/emulator/test/kernel-fixtures.test.ts`, next to the assertion it justifies.
@@ -83,6 +84,31 @@ distinguishes a top-band line from a bottom-band line, because both bands emit o
 
 The wrong extraction is now itself an assertion (`expect(last - first + 1).toBe(6)`), so
 nobody reintroduces it believing it agrees with the right one.
+
+### An entry line can hide inside an authored height
+
+Measured while building the catalog's `applies` fields, not by a fixture -- read straight out
+of `tests/goldens/tank-arena.trace` frame 0.
+
+`bcd-score-band` has the SAME loop shape as the field kernel. `.hudDigit` is
+`sta WSYNC / lda (digit0Ptr),y / sta GRP0 / ...`, so the line its setup runs on renders the
+previous region's content, exactly as `.scroll` and `.openField` do. The trace shows the HUD
+band as **3 blank lines (40-42), 8 glyph rows (43-50), 1 blank line (51)**.
+
+The reference kernel's own comment says `2 + 8 + 2 = HUD_LINES`. It is off by one in each
+direction: the priming line at 42 is counted as a glyph line and the trailing blank is
+counted twice. Both errors cancel, the band is 12 lines, and the frame total is right -- which
+is the defect class step 2 found in this same kernel, and the reason the ledger gates on the
+sum rather than on the author's arithmetic.
+
+**So `entryLines` does not follow from the loop shape.** The score band has the priming shape
+and costs **0**, because its entry line falls *inside* the authored height rather than being
+charged on top of it. The field's entry line falls *outside* the band's height and is charged.
+
+This is why `perLineData` is a property of the ENTRY describing its loop shape, and
+`entryLines` stays a separately measured number per entry. Deriving one from the other would
+have given the score band an entry line it does not have, a 193-line frame, and a build that
+fails on a scene that works.
 
 ## What each result forces on the vocabulary
 
@@ -135,7 +161,8 @@ not here, the measurement is missing — add the measurement, or leave the field
 | `cost.entryLines` | number | `scroll-field`, `sprite-formation`, tank-arena — three registers |
 | `cost.exitLines` | number | `scroll-field`'s bottom band: measured 0, and 0 is a measurement |
 | `applies.objects` | number | `bindObjects` must know how many the entry claims |
-| `applies.perLineData` | boolean | the entry-cost discriminator, measured above |
+| `applies.kinds` | `RowGroupKind[]` | structural vocabulary, no measured cost. Needed because `objects` and `perLineData` do NOT separate the HUD from the field -- both bind 2 objects and both prime a line ahead |
+| `perLineData` | boolean | the loop-shape fact, measured above. On the ENTRY, not in `applies`: a region cannot request it, and the score band shows `entryLines` does not follow from it |
 | `applies.copies` | `'none' \| 'hardware-nusiz' \| 'repositioned'` | `sprite-formation`; `repositioned` carries an unmeasured cost |
 | `writes[].register` | number | needed for the emitter/catalog agreement test |
 | `writes[].timing` | `'exact' \| 'blank' \| 'deadline'` | hardware fact; asserted against the emulator's table |

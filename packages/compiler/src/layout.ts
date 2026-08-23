@@ -10,6 +10,7 @@ import { type Diagnostic, P1Error, type Span } from '@player1dsl/parser';
 import {
   entryById,
   type ObjectBinding,
+  type RowGroupKind,
   repositionLines,
   type TiaObject,
 } from '@player1dsl/runtime';
@@ -65,7 +66,12 @@ export function bindObjects(scene: SceneIr): ObjectBinding[] {
   return bindings;
 }
 
-export type RowGroupKind = 'glyphs' | 'run' | 'entry' | 'loop' | 'transition';
+/**
+ * Re-exported from the runtime, which owns it: `selectTemplate` matches on it,
+ * and in 5b `emitRowGroup` switches on it. Kept exported here so the ledger and
+ * the CLI keep importing it from the layer that produces row groups.
+ */
+export type { RowGroupKind } from '@player1dsl/runtime';
 
 /** Where a row group's line count came from. Printed in the ledger report. */
 export type LineSource = 'authored' | 'template' | 'derived' | 'solved';
