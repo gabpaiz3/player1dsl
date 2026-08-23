@@ -113,6 +113,46 @@ export const FIRST_READ_PIXEL: Readonly<Record<number, number>> = {
 };
 
 /**
+ * When during a scanline a write must land for the picture to be right.
+ *
+ * Deliberately a second declaration of the same three names the runtime's
+ * catalog uses. What must NOT be duplicated is the register-to-class TABLE
+ * below -- that is the hardware fact, it lives here, and
+ * `packages/runtime/test/timing-agreement.test.ts` holds every template's
+ * declared class to it.
+ */
+export type TimingClass = 'exact' | 'blank' | 'deadline';
+
+/**
+ * Which registers' writes are sensitive to WHERE the beam is, not just when.
+ *
+ * `exact` is a deliberate OVER-constraint. A player's final position is the
+ * pair (coarse clock, HMPx fine value), so a different pair can encode the same
+ * x -- asserting the clock rejects those alternative encodings. No false
+ * negatives, some false positives on legal-but-different positioning. Object
+ * position tracking is the principled fix and is not in this increment.
+ *
+ * `blank` registers are not compared by position at all, only for landing in
+ * horizontal blank: HMOVE strobed in the visible region produces hardware
+ * behaviour this emulator does not model, so a ROM doing it is outside what any
+ * comparison here can honestly say anything about.
+ */
+export const WRITE_TIMING_CLASS: Readonly<Record<number, TimingClass>> = {
+  0x10: 'exact', // RESP0
+  0x11: 'exact', // RESP1
+  0x12: 'exact', // RESM0
+  0x13: 'exact', // RESM1
+  0x14: 'exact', // RESBL
+  0x2a: 'blank', // HMOVE -- must be strobed in horizontal blank
+  0x03: 'blank', // RSYNC
+};
+
+/** Every register not named above is `deadline`, which is the safe default. */
+export function timingClass(register: number): TimingClass {
+  return WRITE_TIMING_CLASS[register & 0x3f] ?? 'deadline';
+}
+
+/**
  * Conservative deadlines for the player graphics registers.
  *
  * GRP0/GRP1 are read wherever their object currently sits, which depends on

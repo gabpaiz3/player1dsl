@@ -19,6 +19,7 @@ import {
   registerName,
   TIA_WRITE_NAMES,
   type TiaWrite,
+  timingClass,
 } from './trace.ts';
 
 /** WSYNC is a strobe with no value; the frame's scanline structure covers it. */
@@ -315,8 +316,12 @@ export interface GoldenMismatch {
    * `structure` -- frame count or region split differs.
    * `record`    -- a (line, register, value) entry differs.
    * `deadline`  -- an actual write landed at or after its register's read pixel.
+   * `clock`     -- a beam-position-sensitive strobe landed at a different pixel,
+   *                so it means something different despite writing the same
+   *                value on the same line.
+   * `blank`     -- a strobe that must happen in horizontal blank did not.
    */
-  readonly kind: 'structure' | 'record' | 'deadline';
+  readonly kind: 'structure' | 'record' | 'deadline' | 'clock' | 'blank';
   readonly detail: string;
 }
 
@@ -363,6 +368,44 @@ function context(
     );
   }
   return lines.join('\n');
+}
+
+/**
+ * The rules that (line, register, value) equality cannot express.
+ *
+ * A strobe carries no value: RESP0 means "latch the player's position HERE",
+ * and what it means is entirely the beam position at that instant. Comparing
+ * only the triple says two ROMs are equivalent when one draws the player thirty
+ * clocks further right -- see tests/fixtures/timing/resp-base.asm and its twin.
+ *
+ * The pixel is compared rather than the colour clock because the golden format
+ * stores the pixel. That is exact for any strobe in the visible region, which
+ * is where coarse positioning happens. LIMITATION, deliberately recorded: two
+ * strobes at different clocks INSIDE horizontal blank both store -1 and compare
+ * equal here. Whether that hides a real position difference is unmeasured;
+ * docs/kernel-measurements.md carries it as an open item.
+ */
+function positionMismatch(a: GoldenRecord, b: GoldenRecord): Omit<GoldenMismatch, 'frame'> | null {
+  if (a.register !== b.register) return null; // the equality half reports this better
+
+  switch (timingClass(a.register)) {
+    case 'exact':
+      if (a.pixel === b.pixel) return null;
+      return {
+        kind: 'clock',
+        detail:
+          `${formatRecord(b)} strobed at pixel ${b.pixel}, expected ${a.pixel} -- ` +
+          `${registerName(a.register)} carries no value, so its position IS its meaning`,
+      };
+    case 'blank':
+      if (b.pixel < 0) return null;
+      return {
+        kind: 'blank',
+        detail: `${formatRecord(b)} left horizontal blank; ${registerName(a.register)} must be strobed inside it`,
+      };
+    default:
+      return null; // deadlines are checked after the stream comparison
+  }
 }
 
 export function compareGolden(
@@ -422,6 +465,11 @@ export function compareGolden(
         break;
       }
       if (!a || !b) break;
+      const positional = positionMismatch(a, b);
+      if (positional) {
+        mismatches.push({ frame: f, ...positional });
+        break; // one divergence per frame; everything after it is downstream noise
+      }
       if (
         a.line !== b.line ||
         a.endLine !== b.endLine ||

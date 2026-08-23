@@ -198,5 +198,10 @@ Carried forward. Nothing in this list may be treated as zero.
   `packages/compiler/src/ram.ts`. The deepest call chain only exists once rule lowering does.
 - **The 6532 timer's T.** `timing-fixtures.test.ts` still marks it PENDING a Stella reading.
   This is why the frame driver in increment 5b uses counted WSYNCs rather than `TIM64T`.
+- **Strobes inside horizontal blank.** The golden format stores the pixel, so the comparator's
+  new `exact` rule compares two RESPx strobes at different clocks inside blank as equal -- both
+  are pixel -1. Coarse positioning happens in the visible region, so nothing in this repo hits
+  it, but whether an in-blank clock difference moves an object is untested. Recording the
+  colour clock in the golden format is the fix, and it changes the file format.
 - **Per-object cost differences.** Ball, missile and player all cost 2 lines through
   `PosObjectX`; no fixture has tried to make them differ.
