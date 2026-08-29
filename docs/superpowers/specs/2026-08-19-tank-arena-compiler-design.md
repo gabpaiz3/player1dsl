@@ -228,10 +228,42 @@ sharply *through* the hardware — `HMP0` plus `RESP0`'s clock encodes `tank0X` 
 glyph bytes encode the score. So a movement bug, an off-by-one clamp, or a broken hit
 debounce all surface as trace divergence, **provided the input script drives those paths**.
 
+That proviso was load-bearing and went unchecked for three plans: the committed script drives
+neither the clamps nor a collision. See the correction under "The golden harness". A condition
+stated in a design and never asserted anywhere is indistinguishable from one that does not
+hold.
+
 Below that, instruction selection is genuinely free. The reference clamps with
 `ldx var / cpx #bound`; codegen picking `lda var / cmp #bound` produces an identical trace,
 because neither touches the TIA. That freedom is the point of the deadline-class
 comparison.
+
+**The cycle budget is not free, and is gated.** Rules run inside vertical blank: 37 lines is
+about 2812 cycles, of which positioning already spends 304. An untracked cycle cost has
+exactly the property the line ledger exists to prevent — it becomes an assumed zero the
+compiler will happily spend, and the symptom is a frame that grows past 262 lines for a
+reason nothing names.
+
+So `cycleCost()` computes the worst-case cost by **reading the emitted assembly** against a
+6502 cycle table, and the build fails with an `E7xx` naming the overrun when rules plus
+positioning exceed what vertical blank has. Reading the text rather than modelling it is the
+same arrangement `wsyncLines` uses in the emitter's tests: two independent routes to one
+number, so the generator cannot agree with itself.
+
+Worst-case is tractable because lowered rule code is straight-line with forward branches
+only — there are no loops to need a trip count. If a rule form ever introduces one, the
+cost function must fail loudly rather than guess, for the same reason the WSYNC counter
+throws on a loop idiom it cannot read.
+
+**The cycle table lives in `packages/runtime` and is held to the emulator's CPU by a test.**
+It must not be read *from* the emulator: the emulator is what the generated ROM is checked
+against, and a generator taking its cycle counts from its own checker could be wrong in both
+places at once and pass. This is the arrangement already used for the register equates and
+the write timing classes.
+
+**No operation IR.** Two rule forms do not justify one, and the abstraction it would buy —
+per-op measured costs — is a table that is not in doubt. If a third and fourth rule form
+arrive and the direct lowering starts repeating itself, that is when to reconsider.
 
 ## The golden harness
 
@@ -249,6 +281,22 @@ proves almost nothing.
 The score's 9→0 wrap needs seven separate contacts, which is too many frames to justify in
 the main golden; it gets its own focused test.
 
+> **Correction, 2026-08-29.** The script as committed does **none** of that. Measured from
+> the trace: `tank0X` travels 40 → 73 → 32 and `tank0Y` 120 → 87 → 128, so no tank comes
+> near `X_MIN 8`, `X_MAX 144`, `Y_MIN 12` or `Y_MAX 155`, and no clamp ever fires. The two
+> sprites miss contact by about a pixel on line 139, so `CXPPMM` never sets: `GRP0` on line
+> 43 is `$3c` — the glyph for 3 — in **all 90 frames**, which is the score never changing.
+>
+> The paragraph above described what the script was *for*, and nothing checked that the
+> committed artifact did it. Movement clamping is covered by
+> `packages/emulator/test/tank-arena-behaviour.test.ts`, so that half was caught by other
+> means; **collision and the `hitFlag` debounce are covered nowhere at all**, and they are
+> precisely what increment 6 implements.
+>
+> Plan 4 adjusts phases 2–4 so contact happens and regenerates the golden from the
+> reference ROM. Frame 0 is the idle baseline and does not move, so increment 5b's
+> static-build comparison keeps its target.
+
 **The golden trace**, `tests/goldens/tank-arena.trace`, generated from the **reference
 ROM** — so it is a golden of the hand-written artifact, not of the compiler's own output.
 Text, one record per write, with runs of identical `(register, value)` across consecutive
@@ -260,6 +308,31 @@ structure already captures it.
 `deadline(register)`, reusing the existing `findLateWrites` deadline table rather than
 inventing a second one. `GRP0`/`GRP1` keep their conservative pixel-0 bound and its two
 known-benign false positives until object position tracking exists.
+
+> **Correction, 2026-08-29: a scanline number is an equivalence property only where the
+> code that produced it is straight-line.**
+>
+> The visible region qualifies. Its landmarks — lines 40, 57, 65, 224, 232, 262 — are
+> byte-identical across all 90 frames, because the kernel is counted WSYNCs with no
+> data-dependent branch in it. That is where the ledger's claims live, and exact line
+> equality is what falsifies them.
+>
+> Vertical blank does not. The reference's own positioning lands on **line 5 in frames 0
+> and 40, and line 6 in frames 5, 20, 50 and 80** — it drifts with which joystick branches
+> ran. Asserting those line numbers would force a compiler to reproduce the reference's
+> branch structure and cycle counts, which is transcription rather than compilation. It is
+> the same argument this section already makes for the colour clock, one level up: a
+> vertical-blank line number is a function of instruction selection, in a region where
+> nothing is drawn.
+>
+> So the comparator asserts, in vertical blank, the **ordered sequence of
+> `(register, value, pixel)`** and not the line. `pixel` is retained and load-bearing: it is
+> what carries a `RESPx` strobe's meaning, and dropping it would let a ROM position a player
+> anywhere and still compare equal.
+>
+> This replaces increment 5b's test-level exclusion of everything before the first visible
+> line, which was recorded there as a static-build artifact. It is not one — it is
+> structural, and it applies to a fully dynamic build just as much.
 
 ## Increments
 
@@ -274,8 +347,18 @@ Each ends in something independently testable, following step 1's discipline.
 | 4 | Layout IR + line ledger | `p1 check` prints the ledger and **fails** if it does not sum to 192 |
 | 4b | Kernel-shape fixtures | **Done 2026-08-21.** Three diagnostic kernels measured; the applicability vocabulary revised against them in [`docs/kernel-measurements.md`](../../kernel-measurements.md) |
 | 5 | Template catalog + selector | Selector matches declarations against declared conditions; a deliberately unsatisfiable band produces a diagnostic |
-| 6 | Rule lowering + instruction selection | VBLANK/overscan code generated from rules |
-| 7 | `p1 build` end to end | 4096 bytes; golden trace matches |
+| 5b | Still-frame ROM | **Done 2026-08-29.** `p1 build --static` emits 4096 bytes; golden frame 0's visible region matches record for record. Added during planning at the user's request — see [`docs/roadmap.md`](../../roadmap.md) |
+| 6 | Rule lowering + instruction selection | VBLANK/overscan code generated from rules, with the cycle budget gated |
+| 6b | Measure what 6 and 7 spend | `DEFAULT_STACK_RESERVED` set from the generated code's deepest call chain; `TIM64T`'s T settled against Stella |
+| 7 | `p1 build` end to end | 4096 bytes; the full 90-frame golden matches |
+
+Increment **6b** exists for the same reason 4b did, and the argument has not changed: plan 4
+spends two constants nobody has measured. `DEFAULT_STACK_RESERVED = 16` is labelled a guess
+in `packages/compiler/src/ram.ts` and rule lowering is what finally makes the call chain
+real; `TIM64T`'s T is still marked PENDING in `timing-fixtures.test.ts`, which is why the
+frame driver counts WSYNCs, and the timer is the natural way to bound vertical-blank work
+once there is work to bound. Measuring in the increment that spends them is what 4b existed
+to prevent.
 
 Increment 4 is where the design holds or does not: the ledger is derived arithmetic that
 must independently land on 158.
@@ -373,9 +456,20 @@ comparator actually consults it.
 - The exact `.p1` surface for the arena playfield shape. The wall thickness must be
   readable from the declaration, since the ledger consumes it, but whether that is a
   pixel-art block, a named shape, or `border thickness 8` is not yet settled. Increment 2
-  decides it against what actually parses cleanly. Whatever it becomes, it must be a
+  decides it against what actually parses cleanly.
+  **Answered 2026-08-20:** `playfield border thickness 8, mode reflect, color walls`.
+  Thickness is in scanlines, because the ledger consumes it as a number. Whatever it becomes, it must be a
   property of *this game's playfield*, not a first-class band concept — see the row-group
   note above.
+- **Where `within field`'s bounds come from.** The reference clamps at `X_MIN 8`,
+  `X_MAX 144`, `Y_MIN 12`, `Y_MAX 155`, and those four numbers do not look tightly derived
+  from the band extent and the border thickness — there is slack in them. `within field`
+  names a band, so the compiler must produce them from the band, and getting any of the four
+  wrong diverges every later `RESPx` clock the moment a tank reaches that bound. If a clean
+  rule from band extent and border geometry lands on all four, the bounds stay derived. If
+  it does not, the honest answer is that they become **authored**, and that is a language
+  change with a `.p1` surface to design. This is an open question with a scheduled answer —
+  the first task of increment 6 — rather than a deferred risk, on 4b's pattern.
 - **What the applicability vocabulary becomes.** "Movable object count, static playfield
   within the band, maximum sprite height, supported strategies" is derived from exactly one
   kernel, and it is the interface every future genre must fit through. Increment 4b exists
@@ -383,6 +477,11 @@ comparator actually consults it.
   an open question with a scheduled answer rather than a deferred risk. What 4b cannot do
   is prove the vocabulary complete — only that it survives three shapes it was not designed
   for.
+  **Answered 2026-08-21.** See [`docs/kernel-measurements.md`](../../kernel-measurements.md).
+  The vocabulary gained `applies.kinds`, which the survey did not predict and which the
+  measurements forced: the score band and the field loop are identical in object count and
+  loop shape, so without it the selector's lowest-cost tie-break hands the field to the
+  score kernel.
 - ~~Whether the field-setup line (ledger row 4) is best modelled as a template entry cost
   or as a general "region change after loop exit" rule in the layout IR.~~ **Answered
   2026-08-21: a template entry cost.** `solid-run` is the second catalog entry that was
@@ -393,8 +492,15 @@ comparator actually consults it.
   diverges immediately. Actor positions have an obvious home (`at (40, 120)`, already in
   [SPEC §4.2](../../SPEC.md)); a non-zero starting score does not, and `score p0 start 3`
   is a guess until increment 2 parses it.
+  **Answered 2026-08-20:** `score p0 at (60, 2) digits 1 start 3 color hud` parses, and
+  increment 5b's ROM renders 3 and 5 from it.
 - **Frame count for the golden.** Unspecified here on purpose, but it must be a number
   before increment 1a, not during it: the tanks are 70px apart horizontally and 60
   vertically at 1px/frame, so directed contact needs roughly 60+ frames, and the count
   decides whether run-length collapsing is necessary or merely tidy. The implementation
   plan fixes it.
+  **Answered 2026-08-19: 90 frames after 2 settle frames**, and run-length collapsing is
+  necessary rather than tidy — collapsing per whole-scanline signature rather than per
+  register was measured as the difference between 33390 records and 6990. But see the
+  correction under "The golden harness": 90 frames of the *committed* script never reach a
+  bound and never make contact, so plan 4 revises the script rather than the count.
