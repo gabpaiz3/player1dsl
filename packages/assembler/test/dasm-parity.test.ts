@@ -8,13 +8,18 @@ import { assembleFile } from '../src/index.ts';
  * produce THE SAME BYTES DASM produces.
  *
  * DASM stays a dev-only cross-check and never becomes a runtime or CI
- * dependency -- the .bin files it produced are committed to build/ by the
- * existing build scripts, and these tests compare against them.
+ * dependency -- the build scripts leave its output in build/reference/ and
+ * these tests compare against it.
+ *
+ * build/reference/ rather than build/, because `p1 build` writes the ROM the
+ * COMPILER produced to build/<name>.bin. Sharing one name meant a compiler run
+ * replaced this baseline, and the parity test then reported our assembler
+ * disagreeing with DASM about bytes DASM never produced.
  */
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 
 function dasmOutput(name: string): Uint8Array | null {
-  const path = `${root}/build/${name}.bin`;
+  const path = `${root}/build/reference/${name}.bin`;
   return existsSync(path) ? new Uint8Array(readFileSync(path)) : null;
 }
 
@@ -49,7 +54,7 @@ describe('DASM parity', () => {
       if (!reference) {
         // DASM is a dev-only cross-check, not a CI dependency. Where it has not
         // been run, skip loudly rather than passing vacuously.
-        context.skip(`build/${name}.bin absent -- run sh tools/build-asm.sh first`);
+        context.skip(`build/reference/${name}.bin absent -- run sh tools/build-asm.sh first`);
         return;
       }
       const mine = ours(source);

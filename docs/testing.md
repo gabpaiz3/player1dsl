@@ -16,7 +16,7 @@ already provides everything used here.
 | `tsx` | Runs one-off TypeScript scripts (`npm run golden`) |
 | `biome` | Lint and format, gated in pre-commit |
 | `tsc --build` | Typecheck, gated in pre-commit |
-| DASM | **Dev-only** cross-check for assembler byte parity. Never a runtime or CI dependency; the parity test skips loudly without it. |
+| DASM | **Dev-only** cross-check for assembler byte parity. Never a runtime or CI dependency; the parity test skips loudly without it. Its output goes to `build/reference/`, kept apart from `build/<name>.bin` where `p1 build` writes the compiler's own ROM — one shared name meant a compiler run silently replaced the baseline. |
 | Stella | **Dev-only** reference emulator, used to validate our own emulator by agreement |
 
 Config is `vitest.config.ts` at the repository root; tests are discovered at
@@ -44,12 +44,27 @@ is testable without the layer above it.
 | `trace.test.ts` | 5 | TIA write tracing and late-write detection |
 | `golden.test.ts` | 26 | Controller injection, the golden trace format, and the comparator |
 | `tank-arena-behaviour.test.ts` | 3 | Movement clamping and the measured bound asymmetry |
+| `static-build.test.ts` | 7 | A compiler-emitted ROM against the hand-written reference: 4096 bytes, 262 lines 3/37/192/30, and golden frame 0's visible region record for record |
 
 ### Assembler — `packages/assembler/test/`
 
 | File | Tests | Covers |
 |---|---|---|
 | `dasm-parity.test.ts` | 6 | Byte-identical output to DASM on all six ROMs |
+| `source.test.ts` | 3 | `assembleSource` reaches the same bytes as assembling the same text from a file |
+
+### Kernel catalog and emitter — `packages/runtime/test/`
+
+| File | Tests | Covers |
+|---|---|---|
+| `catalog.test.ts` | 10 | The catalog's own invariants, fed deliberately malformed entries |
+| `entries.test.ts` | 10 | The three entries against the measurements that produced them |
+| `select.test.ts` | 9 | Selection, its tie-break, and the two ways a request goes unsatisfied |
+| `timing-agreement.test.ts` | 3 | Declared write timing against the emulator's hardware table |
+| `registers.test.ts` | 4 | The emitter's equates against that same table |
+| `frame.test.ts` | 8 | The NTSC frame driver, counted in WSYNCs |
+| `emit.test.ts` | 12 | Scanlines emitted against scanlines charged, and registers written against registers declared |
+| `font.test.ts` | 6 | The digit font against the glyph bytes the golden records |
 
 ### Compiler front end — `packages/parser/test/`, `packages/compiler/test/`
 
@@ -146,6 +161,26 @@ from a timer error, because the kernel exercises both. Two fixtures — `wsync-o
 `tank-arena-behaviour.test.ts` reads tank positions out of the TIA write trace rather than
 out of RAM, because the trace is what the compiler's output is judged on. Reach into
 internals only when the constant itself is the subject, and say so in a comment.
+
+## What a Stella run proves
+
+`sh scripts/stella.sh` builds `examples/tank-arena` from its `.p1` and opens the
+ROM in Stella. Two things come out of that, and neither is a test result:
+
+1. **A compatibility check against a second implementation.** Our emulator and
+   Stella agreeing that a ROM produces 262 scanlines is worth more than either
+   saying so alone. Where they disagree, one of them is wrong and the
+   disagreement is the finding — this is how the reference kernel's two timer
+   constants were both found to be off by one.
+2. **A human look at the picture.** No assertion here notices that an arena is
+   upside down, that a colour is unreadable, or that a sprite is one column left
+   of where it was meant to be. A person does.
+
+What it is **not** is the automated check. A green Stella run never substitutes
+for a red test, and nothing may be tuned until the picture looks right: if
+Stella and the tests disagree, one of them is measuring the wrong thing, and
+finding out which is the work. Stella is a **dev-only** dependency and is never
+required by CI.
 
 ## Goldens
 

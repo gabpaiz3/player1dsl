@@ -30,6 +30,8 @@ export const NTSC_OVERSCAN_LINES = 30;
 export const NTSC_FIRST_VISIBLE_LINE = NTSC_VSYNC_LINES + NTSC_VBLANK_LINES;
 
 export interface FrameOptions {
+  /** Zero-page reservations, as `name ds N` lines. */
+  readonly ram: readonly string[];
   /** Assembly lines run once at reset, after RAM and the TIA are cleared. */
   readonly init: readonly string[];
   /** Assembly lines for per-frame setup, run inside vertical blank. */
@@ -66,13 +68,14 @@ function wsyncLoop(count: number, label: string): string[] {
  * is, not how much of the file it covers.
  */
 export function emitFrame(options: FrameOptions): string[] {
-  const { init, setup, setupLines, kernel, data } = options;
+  const { ram, init, setup, setupLines, kernel, data } = options;
 
   const blankRemaining = NTSC_VBLANK_LINES - setupLines;
-  if (blankRemaining < 0) {
+  if (blankRemaining < 1) {
     throw new Error(
-      `setup spends ${setupLines} scanlines, but vertical blank is only ` +
-        `${NTSC_VBLANK_LINES} lines long`,
+      `setup spends ${setupLines} scanlines of the ${NTSC_VBLANK_LINES}-line vertical ` +
+        'blank, which leaves none for the WSYNC that must immediately precede the ' +
+        'VBLANK write',
     );
   }
 
@@ -85,6 +88,10 @@ export function emitFrame(options: FrameOptions): string[] {
     '    processor 6502',
     '',
     ...registerEquates(),
+    '',
+    '    seg.u variables',
+    '    org $80                 ; the stack grows down into the same 128 bytes',
+    ...ram,
     '',
     '    seg code',
     '    org $F000',
@@ -113,8 +120,15 @@ export function emitFrame(options: FrameOptions): string[] {
     '',
     `; --- vertical blank: ${NTSC_VBLANK_LINES} lines, ${setupLines} of them inside setup ---`,
     ...setup,
-    ...wsyncLoop(blankRemaining, '.vblank'),
-    '    lda #0',
+    '    lda #0                  ; survives the loop below; WSYNC does not touch A',
+    ...wsyncLoop(blankRemaining - 1, '.vblank'),
+    // The last vertical-blank WSYNC is emitted OUTSIDE the loop, with nothing
+    // between it and the VBLANK write. The visible kernel's first row group
+    // writes PF0, whose deadline is pixel 0, and the two cycles a `dex`/`bne`
+    // fall-through would spend here come straight out of that line's
+    // horizontal blank. The reference reaches its last write on this line at
+    // colour clock 66 of 68; there is no room to give away.
+    '    sta WSYNC',
     '    sta VBLANK              ; blanking off; the visible region starts here',
     '',
     `; --- visible: ${NTSC_VISIBLE_LINES} lines ---`,

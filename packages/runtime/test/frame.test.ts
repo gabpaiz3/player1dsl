@@ -14,6 +14,7 @@ function blankKernel(lines: number): string[] {
 
 function frame(overrides: Partial<Parameters<typeof emitFrame>[0]> = {}): string[] {
   return emitFrame({
+    ram: [],
     init: [],
     setup: [],
     setupLines: 0,
@@ -84,8 +85,21 @@ describe('emitFrame', () => {
     expect(() => frame({ setupLines: NTSC_VBLANK_LINES + 1 })).toThrow(/vertical blank/i);
   });
 
-  it('emits no vertical blank loop at all when setup fills it exactly', () => {
-    const exact = frame({ setupLines: NTSC_VBLANK_LINES });
-    expect(exact.join('\n')).not.toMatch(/ldx #0\b/);
+  // The last vertical-blank line is a bare WSYNC outside the loop, so a setup
+  // filling the budget exactly leaves nothing for it. Refusing beats emitting
+  // `ldx #0`, which a 6502 down-counter runs 256 times.
+  it('refuses a setup that leaves no line for the WSYNC before VBLANK', () => {
+    expect(() => frame({ setupLines: NTSC_VBLANK_LINES })).toThrow(/vertical blank/i);
+    expect(frame({ setupLines: NTSC_VBLANK_LINES - 1 }).join('\n')).not.toMatch(/ldx #0\b/);
+  });
+
+  // The reason that WSYNC sits outside the loop: the first visible line's
+  // writes include PF0, read at pixel 0, and a `dex`/`bne` fall-through in
+  // between spends two cycles of a blank the reference already fills to
+  // colour clock 66 of 68.
+  it('leaves nothing between the last vertical blank WSYNC and the VBLANK write', () => {
+    const lines = frame().map((l) => l.split(';')[0]?.trim() ?? '');
+    const write = lines.findIndex((l) => l === 'sta VBLANK');
+    expect(lines[write - 1]).toBe('sta WSYNC');
   });
 });

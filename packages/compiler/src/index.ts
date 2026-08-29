@@ -1,3 +1,4 @@
+export * from './build.ts';
 export { check } from './check.ts';
 export * from './ir.ts';
 export * from './layout.ts';

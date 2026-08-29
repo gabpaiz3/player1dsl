@@ -88,6 +88,15 @@ export interface RowGroup {
   readonly source: LineSource;
   readonly note: string;
   readonly span: Span;
+  /**
+   * The objects this row group repositions. Transitions only.
+   *
+   * Carried on the row group rather than re-derived by the emitter. Which
+   * objects a boundary moves is exactly the number the transition's line cost
+   * was computed from, and working it out a second time downstream is how the
+   * cost and the code come to disagree.
+   */
+  readonly moves?: readonly ObjectBinding[];
 }
 
 export interface LayoutIr {
@@ -213,8 +222,8 @@ export function layout(scene: SceneIr): LayoutIr {
     // A boundary costs scanlines only for objects that were already placed
     // somewhere else. The first band positions everything in VBLANK, where it
     // is free -- which is why no transition is charged before it.
-    const moved = mine.filter((b) => previous.some((p) => p.object === b.object)).length;
-    const lines = repositionLines(moved);
+    const moved = mine.filter((b) => previous.some((p) => p.object === b.object));
+    const lines = repositionLines(moved.length);
     if (lines > 0) {
       rowGroups.push({
         kind: 'transition',
@@ -222,8 +231,9 @@ export function layout(scene: SceneIr): LayoutIr {
         lines,
         band: band.name,
         source: 'derived',
-        note: `repositioning ${moved} object${moved === 1 ? '' : 's'} entering ${band.name}`,
+        note: `repositioning ${moved.length} object${moved.length === 1 ? '' : 's'} entering ${band.name}`,
         span: band.span,
+        moves: moved,
       });
     }
 
