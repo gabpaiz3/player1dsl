@@ -91,7 +91,20 @@ export interface TemplateEntry {
  * compiler derives only `count`.
  */
 export function repositionLines(count: number): number {
-  return count === 0 ? 0 : 2 * count + 1;
+  return count === 0 ? 0 : positionLines(count) + 1;
+}
+
+/**
+ * Scanlines the positioning routine itself spends for `count` objects.
+ *
+ * The two-per-object half of the measurement above, without the comb line.
+ * Vertical blank does not need it: the comb is 8 black pixels down the left of
+ * the line HMOVE was strobed on, and every line in vertical blank is already
+ * black. The reference spends 4 lines positioning in vertical blank and 5 at
+ * the visible band boundary, from the same routine.
+ */
+export function positionLines(count: number): number {
+  return 2 * count;
 }
 
 /**
