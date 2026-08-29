@@ -205,10 +205,9 @@ Carried forward. Nothing in this list may be treated as zero.
   colour clock in the golden format is the fix, and it changes the file format.
 - **Per-object cost differences.** Ball, missile and player all cost 2 lines through
   `PosObjectX`; no fixture has tried to make them differ.
-- **The compiler-built ROM's picture.** Increment 5b's static build reproduces golden frame 0's
-  visible region record for record -- but the golden was recorded from *this* emulator, so a
-  systematic error in our TIA model (playfield bit order, REF mirroring, sprite column
-  placement) is inherited by both sides and compares equal. Nothing and nobody has looked at
-  the picture: Stella is not installed here, so Task 16's step 6 was not done. This is the
-  precise class of defect a second implementation catches and ours cannot, and it is the
-  reason `docs/testing.md` calls a Stella run a compatibility check rather than a formality.
+- **Our TIA model's systematic errors.** Increment 5b's static build reproduces golden frame 0's
+  visible region record for record -- but the golden was recorded from *this* emulator, so an
+  error shared by the model and the golden (playfield bit order, REF mirroring, sprite column
+  placement) is inherited by both sides and compares equal. Record equality cannot see it; only
+  a second implementation or a human eye can. That is the reason `docs/testing.md` calls a
+  Stella run a compatibility check rather than a formality, and `scripts/stella.sh` exists.

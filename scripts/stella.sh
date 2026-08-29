@@ -3,11 +3,12 @@
 #
 #   sh scripts/stella.sh
 #   sh scripts/stella.sh examples/tank-arena          # any project directory
-#   STELLA="C:/Program Files/Stella/Stella.exe" sh scripts/stella.sh
+#   P1_EMULATOR="C:/path/to/Stella.exe" sh scripts/stella.sh
 #
-# WINDOWS: Stella is not on PATH after a default install. Set STELLA to the
-# executable, or run the two commands below by hand and open the .bin from
-# Stella's own file dialog.
+# WINDOWS: Stella is not on PATH after a default install, so the default below
+# is the documented install location from docs/roadmap.md -- the same
+# arrangement examples/tank-arena/reference/build.sh uses for DASM. Override
+# with P1_EMULATOR=... anywhere else.
 #
 # WHAT A STELLA RUN PROVES, and what it does not:
 #
@@ -27,7 +28,8 @@ cd "$(dirname "$0")/.."
 PROJECT="${1:-examples/tank-arena}"
 NAME=$(basename "$PROJECT")
 OUT="build/$NAME.bin"
-STELLA="${STELLA:-stella}"
+# P1_EMULATOR is the name SPEC 7 gives this, and what run.sh already honours.
+STELLA="${P1_EMULATOR:-C:/Users/gabpa/tools/stella/Stella-7.0c/Stella.exe}"
 
 # `tsc --build` emits declarations only, and each workspace package resolves to
 # its TypeScript source through its own `exports`. There is no runnable
@@ -35,10 +37,10 @@ STELLA="${STELLA:-stella}"
 # a devDependency for tools/gen-golden.ts.
 npx tsx packages/cli/src/main.ts build --static "$PROJECT" -o "$OUT"
 
-if ! command -v "$STELLA" >/dev/null 2>&1 && [ ! -x "$STELLA" ]; then
+if ! command -v "$STELLA" >/dev/null 2>&1 && [ ! -f "$STELLA" ]; then
   echo ""
-  echo "Stella not found. $OUT is built; open it by hand, or set STELLA." >&2
-  echo "  STELLA=/path/to/stella sh scripts/stella.sh" >&2
+  echo "Stella not found. $OUT is built; open it by hand, or set P1_EMULATOR." >&2
+  echo "  P1_EMULATOR=/path/to/stella sh scripts/stella.sh" >&2
   exit 127
 fi
 

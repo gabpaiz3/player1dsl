@@ -19,6 +19,7 @@ import {
   type SpriteDecl,
   type Stmt,
 } from '@player1dsl/parser';
+import { NTSC_VISIBLE_LINES } from '@player1dsl/runtime';
 import type {
   ActorIr,
   BandIr,
@@ -31,9 +32,17 @@ import type {
   WhenHitsIr,
 } from './ir.ts';
 
-/** The visible field, in pixels and scanlines. SPEC 3. */
+/**
+ * The visible field, in pixels and scanlines. SPEC 3.
+ *
+ * The scanline count comes from the runtime, which owns every measured number.
+ * A third copy of 192 -- one the checker bounds coordinates against, one the
+ * ledger gates on, one the frame driver counts down -- is three places to
+ * disagree, and the checker would be the one that accepts a y the ROM cannot
+ * draw.
+ */
 const VISIBLE_WIDTH = 160;
-const VISIBLE_HEIGHT = 192;
+const VISIBLE_HEIGHT = NTSC_VISIBLE_LINES;
 const BYTE_MAX = 255;
 
 class Checker {

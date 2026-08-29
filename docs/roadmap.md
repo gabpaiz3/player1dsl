@@ -67,8 +67,17 @@ Step 3 runs as four plans, each producing working software on its own:
 |---|---|---|---|
 | [1](superpowers/plans/2026-08-19-golden-trace-harness.md) | 1a, 1b | Golden trace harness and comparator | **done** |
 | [2](superpowers/plans/2026-08-20-parser-and-game-ir.md) | 2, 3 | Parser, AST, `p1 fmt`, checker, game IR, RAM allocator | **done** |
-| [3](superpowers/plans/2026-08-21-layout-ir-and-template-catalog.md) | 4, 4b, 5, **5b** | Layout IR, line ledger, kernel-shape fixtures, template catalog, still-frame ROM | in progress: 4 and 4b done |
+| [3](superpowers/plans/2026-08-21-layout-ir-and-template-catalog.md) | 4, 4b, 5, **5b** | Layout IR, line ledger, kernel-shape fixtures, template catalog, still-frame ROM | **done** |
 | 4 | 6, 7 | Rule lowering, `p1 build` end to end | to write |
+
+Plan 3's four increments, and what each left behind:
+
+| Increment | Deliverable | State |
+|---|---|---|
+| 4 | Layout IR, band decomposition, the line ledger and its hard gate, `p1 check`'s ledger report | **done** |
+| 4b | Three kernel-shape fixtures measured before the catalog vocabulary was committed | **done** |
+| 5 | The catalog as data — applicability, costs, declared writes — a selector, and timing classes in the comparator | **done** |
+| **5b** | `p1 build --static`: a 4096-byte ROM whose visible region matches golden frame 0 record for record | **done** |
 
 Increment **5b** was added while plan 3 was being written, at the user's request: it makes
 `p1 build --static` emit a real 4 KiB ROM at the end of plan 3, so the compiler's output can
@@ -76,6 +85,11 @@ be looked at in Stella rather than waiting for the end of plan 4. It also gives 
 ledger its first falsifiable check — a test asserting `ledger.fieldLines === 158` only
 asserts that the compiler computes what the compiler computes, while a ROM built from that
 ledger and run in the emulator can actually be wrong.
+
+It earned its place. The ROM matches golden frame 0's visible region record for record, and
+the two exclusions from that comparison — `CXCLR`, and vertical-blank line placement — are
+written down in `docs/session-logs/2026-08-29.md` with the reason for each. Shrinking that
+list is the first thing plan 4 should do.
 
 `docs/language-reference.md` is the next *document* but not the next *step*: writing the
 grammar before one ROM exists encodes assumptions the ROM will overturn. Step 3 produces the

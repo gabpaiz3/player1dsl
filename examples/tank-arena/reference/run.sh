@@ -8,6 +8,10 @@
 #
 #   sh examples/tank-arena/reference/run.sh
 #   P1_EMULATOR="/c/path/to/Stella.exe" sh examples/tank-arena/reference/run.sh
+#
+# Launches build/reference/tank-arena.bin -- DASM's output. build/tank-arena.bin
+# is where `p1 build` writes the COMPILER's ROM, and this script pointing there
+# would have launched the compiler's output while announcing the reference.
 set -eu
 
 EMU="${P1_EMULATOR:-C:/Users/gabpa/tools/stella/Stella-7.0c/Stella.exe}"
@@ -21,5 +25,5 @@ if [ ! -x "$EMU" ] && [ ! -f "$EMU" ]; then
   exit 1
 fi
 
-echo "launching: $EMU build/tank-arena.bin"
-exec "$EMU" build/tank-arena.bin
+echo "launching: $EMU build/reference/tank-arena.bin"
+exec "$EMU" build/reference/tank-arena.bin
