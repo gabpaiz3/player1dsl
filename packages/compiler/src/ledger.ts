@@ -9,11 +9,18 @@
  */
 
 import { type Diagnostic, P1Error } from '@player1dsl/parser';
+import { NTSC_FIRST_VISIBLE_LINE, NTSC_VISIBLE_LINES } from '@player1dsl/runtime';
 import type { LayoutIr, LineSource, RowGroupKind } from './layout.ts';
 
-/** SPEC 3: NTSC is 3 VSYNC + 37 VBLANK + 192 visible + 30 overscan. */
-export const NTSC_VISIBLE_LINES = 192;
-export const NTSC_FIRST_VISIBLE_LINE = 40;
+/**
+ * Re-exported, not redeclared.
+ *
+ * The frame driver counts these same numbers out in WSYNCs, so a second copy
+ * here would be two places to disagree -- and the disagreement would be a
+ * ledger that balances at 192 over a ROM that emits 191. The ledger exists to
+ * catch exactly that, so it must not be the thing that causes it.
+ */
+export { NTSC_FIRST_VISIBLE_LINE, NTSC_VISIBLE_LINES };
 
 export interface LedgerRow {
   readonly band: string;
