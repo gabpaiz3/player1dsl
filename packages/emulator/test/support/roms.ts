@@ -12,6 +12,11 @@ export const ROM_SOURCES: Readonly<Record<string, string>> = {
   'late-write': 'tests/fixtures/timing/late-write.asm',
   'golden-base': 'tests/fixtures/timing/golden-base.asm',
   'golden-late': 'tests/fixtures/timing/golden-late.asm',
+  'resp-base': 'tests/fixtures/timing/resp-base.asm',
+  'resp-shift': 'tests/fixtures/timing/resp-shift.asm',
+  'scroll-field': 'tests/fixtures/kernels/scroll-field.asm',
+  'ball-and-paddles': 'tests/fixtures/kernels/ball-and-paddles.asm',
+  'sprite-formation': 'tests/fixtures/kernels/sprite-formation.asm',
 };
 
 /**

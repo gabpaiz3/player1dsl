@@ -5,15 +5,22 @@
  * testable without spawning a process. `main.ts` is the thin shell that does.
  */
 
-import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
-import { allocateRam, check } from '@player1dsl/compiler';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join } from 'node:path';
+import {
+  allocateRam,
+  buildLedger,
+  buildStatic,
+  check,
+  formatLedger,
+  layout,
+} from '@player1dsl/compiler';
 import { type Diagnostic, format, formatDiagnostic, P1Error, parse } from '@player1dsl/parser';
 
 const USAGE = [
   'usage: p1 <command> [path]',
   '',
-  '  check <path>    parse, type-check, and report the RAM budget',
+  '  check <path>    parse, type-check, and report the RAM and scanline budgets',
   '  fmt <path>      rewrite the file in canonical form',
   '  fmt --check     report whether formatting would change anything',
 ].join('\n');
@@ -48,13 +55,21 @@ function resolveSource(path: string): string {
 
 export async function run(argv: readonly string[]): Promise<number> {
   const [command, ...rest] = argv;
-  if (command !== 'check' && command !== 'fmt') {
+  if (command !== 'check' && command !== 'fmt' && command !== 'build') {
     console.error(USAGE);
     return 2;
   }
 
   const checkOnly = rest.includes('--check');
-  const target = rest.find((a) => !a.startsWith('--'));
+  const outputAt = rest.findIndex((a) => a === '-o' || a === '--output');
+  const output = outputAt === -1 ? null : (rest[outputAt + 1] ?? null);
+  // `outputAt + 1` is the value of -o, not a positional. Guarded on -1, because
+  // an absent flag would otherwise make index 0 the excluded one and silently
+  // eat the path argument.
+  const positional = rest.filter(
+    (a, i) => !a.startsWith('-') && (outputAt === -1 || i !== outputAt + 1),
+  );
+  const target = positional[0];
   if (!target) {
     console.error(USAGE);
     return 2;
@@ -94,6 +109,31 @@ export async function run(argv: readonly string[]): Promise<number> {
     }
 
     const ir = check(program);
+
+    if (command === 'build') {
+      // `--static` is required rather than assumed. A build flag that defaults
+      // to the only thing implemented today silently becomes the default
+      // forever; naming it makes the arrival of dynamic builds an addition
+      // rather than a change of meaning.
+      if (!rest.includes('--static')) {
+        console.error('p1 build needs --static: nothing moves yet.');
+        console.error('Input, collisions and scoring arrive with the rule compiler in plan 4.');
+        return 2;
+      }
+
+      const { rom, ledger } = buildStatic(ir);
+      const out = output ?? join('build', `${basename(path).replace(/\.p1$/, '')}.bin`);
+      mkdirSync(dirname(out), { recursive: true });
+      writeFileSync(out, rom);
+
+      console.log(`${ir.title} -- ${ir.target} ${ir.cartridge}`);
+      console.log('');
+      console.log(formatLedger(ledger));
+      console.log('');
+      console.log(`wrote ${out}: ${rom.byteLength} bytes`);
+      return 0;
+    }
+
     const ram = allocateRam(ir.variables);
 
     console.log(`${ir.title} -- ${ir.target} ${ir.cartridge}`);
@@ -109,6 +149,13 @@ export async function run(argv: readonly string[]): Promise<number> {
     console.log(
       `  ${ram.used} bytes used, ${ram.stackReserved} reserved for the stack, ${ram.free} free`,
     );
+
+    // The ledger is a hard gate: buildLedger throws rather than returning a
+    // short frame, so reaching this print means the frame balances. The catch
+    // below already reports P1Error diagnostics and returns 1, so nothing new
+    // is needed here.
+    console.log('');
+    console.log(formatLedger(buildLedger(layout(ir.scene))));
     return 0;
   } catch (error) {
     if (isP1Error(error)) {

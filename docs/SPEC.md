@@ -357,6 +357,21 @@ p1 import-rom path/to/game.bin --assist llm --output recovered-game
 
 `p1 run` selects Stella from `P1_EMULATOR` or the platform configuration. It must accept an explicit emulator executable so no user-specific installation path is assumed.
 
+**Implemented today:** `p1 check`, `p1 fmt`, and `p1 build --static`.
+
+```text
+p1 build --static <path> [-o build/<name>.bin]
+```
+
+`--static` renders the scene's initial state and nothing else: no input, no collisions, no
+scoring. It is **required** rather than defaulted, because a build flag that defaults to the
+only mode implemented silently becomes the default forever; naming it makes dynamic builds an
+addition rather than a change of meaning. The command prints the line ledger alongside the
+byte count — a build that emits a ROM without saying how it spent 192 scanlines gives nobody
+anything to check it against.
+
+`scripts/stella.sh` builds and opens the result, honouring `P1_EMULATOR`.
+
 ### 7.1 Score display (early kernel)
 
 Score is a first-class display primitive, not a collection of ordinary actors. v0.1 ships a compact, low-resource `score` kernel that renders one or two fixed-width BCD scores in a small top band using player graphics and timing-compatible digit data. It reserves a documented scanline/cycle budget and exposes the trade-off in the report.
@@ -460,11 +475,12 @@ player1dsl/
 ├── packages/
 │   ├── emulator/                 # (exists) 6507 + TIA + RIOT, frame timing, TIA tracing
 │   ├── assembler/                # (exists) 6502 assembler, byte parity with DASM
-│   ├── cli/                      # (exists) p1 check and p1 fmt
+│   ├── cli/                      # (exists) p1 check, p1 fmt, p1 build --static
 │   ├── parser/                   # (exists) lexer, parser, formatter, AST, diagnostics
-│   ├── compiler/                 # (exists) checker, game IR, RAM allocator; the
-│   │                             #          planner and codegen are still to come
-│   ├── runtime/                  # 6502/TIA runtime and kernel templates
+│   ├── compiler/                 # (exists) checker, game IR, RAM allocator, layout IR,
+│   │                             #          line ledger, static build; rule lowering to come
+│   ├── runtime/                  # (exists) kernel template catalog, selector, emitter,
+│   │                             #          frame driver -- everything MEASURED lives here
 │   ├── rom-analysis/             # disassembly, tracing, evidence extraction
 │   ├── llm-assist/               # bounded prompts/schemas for recovery proposals
 │   └── vscode/                   # syntax, diagnostics, template commands
@@ -550,6 +566,29 @@ deliberately.
 6. **Advanced kernels:** scrolling/room templates, PAL/PAL60, advanced examples, hardware test guidance.
 
 ## 13. Confirmed implementation decisions
+
+### Diagnostic code ranges
+
+This spec previously defined only `E230`, in the §5.2 example. The ranges below were assigned
+as each layer acquired diagnostics, and are recorded here so the next layer does not collide
+with an existing one.
+
+| Range | Layer | Examples |
+|---|---|---|
+| `E0xx` | lexer | indentation, unterminated constructs |
+| `E1xx` | parser | unexpected token, repeated attribute |
+| `E2xx` | checker | undefined name, type mismatch, `E230` band feasibility |
+| `E3xx` | RAM allocator | out of zero page, stack reservation exceeded |
+| `E4xx` | CLI | ambiguous project path |
+| `E5xx` | layout and ledger | `E501` too few movable objects, `E502` two remainder bands, `E503` frame does not sum to 192, `E504` no lines left for the remainder band, `E505` unaccounted exit lines, `E506` glyphs in one band disagree about their top line |
+| `E6xx` | catalog and selector | `E601` no template applies, `E602` unmeasured copy strategy, `E610`–`E613` catalog validation |
+
+`E5xx` and `E6xx` are split because they fail for different reasons and send the reader to
+different places: an `E5xx` means the scene does not fit, and an `E6xx` means the catalog has
+nothing that can draw it — one is fixed by editing the `.p1`, the other by measuring a kernel
+and adding an entry.
+
+### Decisions
 
 - The compiler and development tools are TypeScript/Node.js; generated games are 6502/TIA ROMs.
 - v0.1 targets 4 KiB NTSC ROMs. F8 and PAL/PAL60 follow after the foundation is proven.

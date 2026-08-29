@@ -19,6 +19,7 @@ import {
   type SpriteDecl,
   type Stmt,
 } from '@player1dsl/parser';
+import { NTSC_VISIBLE_LINES } from '@player1dsl/runtime';
 import type {
   ActorIr,
   BandIr,
@@ -31,9 +32,17 @@ import type {
   WhenHitsIr,
 } from './ir.ts';
 
-/** The visible field, in pixels and scanlines. SPEC 3. */
+/**
+ * The visible field, in pixels and scanlines. SPEC 3.
+ *
+ * The scanline count comes from the runtime, which owns every measured number.
+ * A third copy of 192 -- one the checker bounds coordinates against, one the
+ * ledger gates on, one the frame driver counts down -- is three places to
+ * disagree, and the checker would be the one that accepts a y the ROM cannot
+ * draw.
+ */
 const VISIBLE_WIDTH = 160;
-const VISIBLE_HEIGHT = 192;
+const VISIBLE_HEIGHT = NTSC_VISIBLE_LINES;
 const BYTE_MAX = 255;
 
 class Checker {
@@ -208,7 +217,7 @@ class Checker {
     const playfields: PlayfieldIr[] = [];
 
     for (const band of decl.bands) {
-      bands.push({ name: band.name, height: band.height });
+      bands.push({ name: band.name, height: band.height, span: band.span });
       for (const item of band.items) {
         if (item.kind === 'actor')
           actors.push(this.collectActor(item, band.name, palette, spriteNames));
@@ -257,6 +266,7 @@ class Checker {
       y: decl.y,
       controls: decl.controls,
       band,
+      span: decl.span,
     };
   }
 
@@ -280,6 +290,7 @@ class Checker {
       start: decl.start,
       color: this.colour(decl.color, palette, decl.span),
       band,
+      span: decl.span,
     };
   }
 
@@ -297,6 +308,7 @@ class Checker {
       mode: decl.mode,
       color: this.colour(decl.color, palette, decl.span),
       band,
+      span: decl.span,
     };
   }
 

@@ -39,8 +39,25 @@ function loadSource(
 ): SourceLine[] {
   const resolved = resolve(path);
   if (seen.includes(resolved)) throw new Error(`circular include: ${resolved}`);
+  return expandText(readFileSync(resolved, 'utf8'), resolved, includeDirs, seen);
+}
+
+/**
+ * The same expansion, starting from text already in memory.
+ *
+ * `resolved` names where the text CAME from -- a real path for a file, a
+ * synthetic one for generated source. It is what `include` paths resolve
+ * relative to and what an AssemblyError reports, so generated assembly gets
+ * failures that point somewhere rather than at an empty string.
+ */
+function expandText(
+  source: string,
+  resolved: string,
+  includeDirs: readonly string[],
+  seen: string[] = [],
+): SourceLine[] {
   const out: SourceLine[] = [];
-  const raw = readFileSync(resolved, 'utf8').split(/\r?\n/);
+  const raw = source.split(/\r?\n/);
 
   raw.forEach((text, index) => {
     const include = /^\s*include\s+"([^"]+)"/i.exec(text);
@@ -222,8 +239,31 @@ function parseOperand(raw: string): Operand {
 
 const MAX_PASSES = 8;
 
+/**
+ * Assemble source text that is already in memory.
+ *
+ * `name` is the path the text is treated as living at: `include` resolves
+ * relative to its directory, and diagnostics quote it. Generated assembly has
+ * no file of its own, so the caller supplies a name saying where it came from.
+ *
+ * This exists because `buildStatic` emits assembly and has to assemble it
+ * without a round trip through the filesystem. A temp file would make the
+ * compiler's output depend on a writable directory, and would leave the source
+ * a failure refers to somewhere the failure cannot show you.
+ */
+export function assembleSource(
+  source: string,
+  name: string,
+  options: AssembleOptions = {},
+): AssembleResult {
+  return assembleLines(expandText(source, resolve(name), options.includeDirs ?? []));
+}
+
 export function assemble(path: string, options: AssembleOptions = {}): AssembleResult {
-  const lines = loadSource(path, options.includeDirs ?? []);
+  return assembleLines(loadSource(path, options.includeDirs ?? []));
+}
+
+function assembleLines(lines: SourceLine[]): AssembleResult {
   const symbols: Symbols = new Map();
   /** Instruction sizes by source index, refined across passes. */
   const sizes = new Map<number, number>();

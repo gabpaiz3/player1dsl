@@ -317,6 +317,67 @@ describe('golden comparison', () => {
     expect(mismatches[0]?.detail).toContain('PF0');
   });
 
+  /**
+   * Known-positive 3: the player MOVED and nothing the other two halves look at
+   * changed. resp-shift writes $00 to RESP0 on line 40 exactly as resp-base
+   * does, on the same line, at the same position in the stream, and RESP0 has
+   * no deadline to miss -- so both the equality half and the deadline half are
+   * silent by construction. Only a beam-position rule can see this.
+   *
+   * Until that rule exists this test fails, which is the point: it is review
+   * 0.2 section 1.1's complaint expressed as two ROMs.
+   */
+  it('catches a player moved without any written value changing', () => {
+    const mismatches = compareGolden(goldenFor('resp-base', 2), goldenFor('resp-shift', 2));
+    expect(mismatches.length).toBeGreaterThan(0);
+    expect(mismatches[0]?.kind).toBe('clock');
+    expect(mismatches[0]?.detail).toContain('RESP0');
+  });
+
+  /**
+   * ...and the pair really is identical everywhere else. Without this, the test
+   * above could be passing because the ROMs differ in some way nobody checked,
+   * and the new rule would be credited for a mismatch it did not find.
+   */
+  it('finds nothing else to complain about in the moved-player pair', () => {
+    const mismatches = compareGolden(goldenFor('resp-base', 2), goldenFor('resp-shift', 2));
+    expect(mismatches.every((m) => m.kind === 'clock')).toBe(true);
+    expect(compareGolden(goldenFor('resp-base', 2), goldenFor('resp-base', 2))).toEqual([]);
+  });
+
+  /**
+   * The `blank` half of the timing rules, which no ROM in this repo exercises:
+   * all 360 HMOVE writes in the tank-arena golden are already inside horizontal
+   * blank. That proves the rule causes no regression, NOT that it can fire --
+   * the same gap golden-late.asm exists to close for deadlines.
+   *
+   * golden.ts is pure, so this needs no ROM. HMOVE strobed in the visible
+   * region extends that line by 8 pixels and produces hardware behaviour this
+   * emulator does not model, so a comparison that ignored it would be reporting
+   * on a frame it cannot actually predict.
+   */
+  it('catches a blank-only strobe that left horizontal blank', () => {
+    const record = { line: 5, endLine: 5, register: 0x2a, value: 0x00 };
+    const frame = (pixel: number) => [
+      {
+        index: 0,
+        swcha: SWCHA_IDLE,
+        swchb: 0x3f,
+        scanlines: 262,
+        regions: [3, 37, 192, 30] as const,
+        records: [{ ...record, pixel }],
+      },
+    ];
+
+    const mismatches = compareGolden(frame(-1), frame(12));
+    expect(mismatches.map((m) => m.kind)).toEqual(['blank']);
+    expect(mismatches[0]?.detail).toContain('HMOVE');
+
+    // ...and the same pair, both in blank, is silent. Without this the test
+    // above would pass on a rule that flagged every HMOVE unconditionally.
+    expect(compareGolden(frame(-1), frame(-1))).toEqual([]);
+  });
+
   it('surrounds a record divergence with context from both sides', () => {
     // Record comparison is positional, so one missing write shifts every later
     // record. The detail string is the whole diagnostic a codegen divergence

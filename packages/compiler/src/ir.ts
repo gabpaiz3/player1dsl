@@ -7,6 +7,8 @@
  * leaked in" is the kind of property that erodes one convenient field at a time.
  */
 
+import type { Span } from '@player1dsl/parser';
+
 export type ValueType = 'byte' | 'bool';
 
 /** A named piece of state. Addresses are assigned later, by the RAM allocator. */
@@ -33,6 +35,11 @@ export interface ActorIr {
   readonly controls: string | null;
   /** The band this actor is declared in. */
   readonly band: string;
+  /**
+   * Where this was written. Not hardware detail -- a source location, so the
+   * layout layer can point a diagnostic at the construct that caused it.
+   */
+  readonly span: Span;
 }
 
 export interface ScoreIr {
@@ -43,6 +50,8 @@ export interface ScoreIr {
   readonly start: number;
   readonly color: number;
   readonly band: string;
+  /** Where this was written. See the note on ActorIr.span. */
+  readonly span: Span;
 }
 
 export interface PlayfieldIr {
@@ -52,12 +61,16 @@ export interface PlayfieldIr {
   readonly mode: 'reflect' | 'repeat' | 'asymmetric';
   readonly color: number;
   readonly band: string;
+  /** Where this was written. See the note on ActorIr.span. */
+  readonly span: Span;
 }
 
 export interface BandIr {
   readonly name: string;
   /** Authored height, or null when this band takes the remainder. */
   readonly height: number | null;
+  /** Where this was written. See the note on ActorIr.span. */
+  readonly span: Span;
 }
 
 export interface SceneIr {

@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { run } from '../src/index.ts';
 
@@ -72,5 +75,39 @@ describe('p1 fmt', () => {
 
     expect(code).toBe(0);
     expect(output).toContain('already formatted');
+  });
+});
+
+describe('p1 check: the line ledger', () => {
+  it('prints a balanced ledger for the example', async () => {
+    const io = capture();
+    const code = await run(['check', example]);
+    const output = io.out();
+    io.restore();
+
+    expect(code).toBe(0);
+    expect(output).toContain('192 of 192 visible scanlines');
+    // The field's 158 is the number the compiler had to earn; the source never
+    // states it. Seeing it in the report is the point of printing the ledger.
+    expect(output).toContain('158');
+    expect(output).toContain('solved');
+  });
+
+  // The gate, reached through the CLI rather than through buildLedger directly.
+  // A gate that only fires in a unit test is not known to reach the user.
+  it('exits 1 with E503 when the frame does not balance', async () => {
+    const source = readFileSync(example, 'utf8').replace('band field:', 'band field height 157:');
+    expect(source, 'the substitution found nothing').toContain('band field height 157');
+    const path = join(mkdtempSync(join(tmpdir(), 'p1-')), 'short.p1');
+    writeFileSync(path, source, 'utf8');
+
+    const io = capture();
+    const code = await run(['check', path]);
+    const errors = io.errors();
+    io.restore();
+
+    expect(code).toBe(1);
+    expect(errors).toContain('E503');
+    expect(errors).toContain('1 short');
   });
 });
