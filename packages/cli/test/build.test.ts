@@ -84,6 +84,33 @@ describe('p1 build --static', () => {
     expect(errors).toMatch(/plan 4/);
   });
 
+  // `check` and `build` each call layout -> buildLedger themselves. They cannot
+  // disagree today, because both are pure functions of the same scene -- but a
+  // build that normalised a row would start emitting a frame `check` never
+  // reported, and the ledger is the one artifact a human reads to believe the
+  // ROM. Cheap to hold, expensive to notice missing.
+  it('prints the same ledger as p1 check', async () => {
+    const checkIo = capture();
+    await run(['check', example]);
+    const checked = checkIo.out();
+    checkIo.restore();
+
+    const buildIo = capture();
+    await run(['build', '--static', example, '-o', join(scratch(), 'rom.bin')]);
+    const built = buildIo.out();
+    buildIo.restore();
+
+    const ledger = (text: string) =>
+      text.slice(text.indexOf('band'), text.indexOf('visible scanlines'));
+
+    // Assert the slice found something BEFORE comparing. Two empty strings are
+    // equal, so without this the comparison passes hardest when it has nothing
+    // to compare -- which is what the first version of this test did.
+    expect(ledger(built)).toContain('two-sprite-static-field');
+    expect(ledger(built)).toContain('158');
+    expect(ledger(built)).toBe(ledger(checked));
+  });
+
   it('defaults the output path to build/<name>.bin', async () => {
     const io = capture();
     const code = await run(['build', '--static', example]);
