@@ -73,10 +73,29 @@ the step. One rule:
 
 > A bus access lands on the instruction's final cycle.
 
-True for `lda`, `sta`, `bit` and their indexed forms, which is every access any ROM in this
-repository makes to the TIA. The documented exception is a read-modify-write's **read**, two
-cycles earlier than its write; no ROM here reads a TIA register with `inc`, and the exception
-is recorded rather than handled.
+From the 6502's documented cycle sequences, for every mode the positioning routine and the
+kernels use:
+
+| instruction | cycles | sequence | write on |
+|---|---|---|---|
+| `sta zp` | 3 | opcode, operand, **write** | 3 |
+| `sta zp,x` | 4 | opcode, operand, index add (dummy read), **write** | 4 |
+| `sta abs` | 4 | opcode, lo, hi, **write** | 4 |
+| `sta abs,x` | 5 | opcode, lo, hi, dummy read, **write** | 5 |
+
+`sta HMP0,x` and `sta RESP0,x` in `PosObjectX` are both `zp,x` — the whole object-position
+model calibrates on that one row, and being off by one cycle is three colour clocks. The row
+is asserted from the documented sequence here and **checked end to end by Part 3's Stella
+threshold**, which is the only thing in this repository that can catch it being wrong.
+
+`this.cycles` is final at access time, which the rule depends on: stores call
+`addrAbsoluteX(false)` and friends, so no page-cross penalty is added, and loads add theirs
+inside the addressing helper, before the access. The only `this.cycles +=` that runs after an
+access is the branch penalty, and no branch touches the bus.
+
+The documented exception is a read-modify-write's **read**, two cycles earlier than its write.
+No ROM here reads a TIA register with `inc`, and the exception is recorded rather than
+handled — `cycleCost`'s refusal to guess is the model.
 
 ### Blast radius, accepted before starting
 
@@ -95,6 +114,26 @@ is recorded rather than handled.
 
 Nothing here is tuned to make a number come out. The correction is applied first and whatever
 it produces is recorded.
+
+**Prediction, written before the recomputation.** The write lands *later* than clock 66, so if
+the hoist was justified by "this line has no horizontal blank left", the corrected number makes
+that case **stronger**. If it comes out the other way the prediction was wrong and that is the
+finding.
+
+### Part 0 lands alone
+
+Its own task, its own commit, its own gate, before a line of `objects.ts` exists. When the
+golden regenerates, every changed clock must have exactly one possible cause; landing object
+modelling in the same commit gives each of them two.
+
+The gate is specifically:
+
+- **`frame-timing.test.ts` and `kernel-fixtures.test.ts` must be UNCHANGED.** They assert
+  absolute scanline counts, and a timing correction that moves a scanline boundary is a bug
+  rather than a correction. This is the test that can catch a non-uniform shift.
+- `dasm-parity.test.ts` compares bytes and is untouched by construction.
+- `static-build.test.ts` compares two ROMs against each other. Both sides shift, so it must
+  still pass; if it does not, the correction is not uniform, which is the same finding.
 
 ## Part 1 — `packages/emulator/src/objects.ts`
 
@@ -155,10 +194,23 @@ in a way that measuring a sprite's left edge did not.
 
 **A separation sweep** finds the exact clock at which the latch flips from clear to set.
 
-**That threshold is checked in Stella.** One number, from a second implementation, on the one
-quantity everything else here rests on. If Stella and our model disagree about where the flip
-happens, our positioning offsets are wrong by the difference, and Part 1's table is corrected
-from the measurement.
+**And a second sweep against the playfield, which is the one that measures absolute
+position.** A P0-versus-P1 threshold measures the two objects' *relative* position: both are
+placed by the same routine, so a uniform offset error moves both and the flip lands at the
+same separation in our model and in Stella. Stella would agree with a model that is
+uniformly wrong — the same cancellation that made P0/P1-only not need Part 0, reappearing as
+a hole in the validation.
+
+So the second fixture collides P0 against the **playfield**, whose displayed position the beam
+fixes and no `RESPx` places: one playfield block at a known bit, P0 swept across its edge,
+`CXP0FB` read. That threshold is absolute, and a disagreement with Stella localises straight
+to the `RESPx` offset.
+
+**Both thresholds are checked in Stella.** One number each, from a second implementation, on
+the quantity everything else here rests on. If Stella and our model disagree, our positioning
+offsets are wrong by the difference and Part 1's table is corrected from the measurement.
+Without the playfield sweep, Part 3 would validate relative geometry only, and `bounds.ts`'s
+"assume zero" would stay an assumption wearing a measurement's clothes.
 
 `docs/kernel-measurements.md` gains the result, and `bounds.ts`'s "assume zero" note either
 becomes a measured zero or a measured correction.
@@ -182,7 +234,7 @@ Presence is not colour. The seam is left where the framebuffer would attach.
 | `packages/emulator/test/objects.test.ts` | Position arithmetic, `NUSIZ` widths and copies, `REFP`, `HMOVE`, in isolation |
 | `packages/emulator/test/collision.test.ts` | Latch bits OR'd out of a presence mask, including a known-positive per pair |
 | `packages/emulator/test/tia-fixtures.test.ts` | The fixture ROMs, prediction beside measurement |
-| Stella | The sweep's flip threshold, by eye |
+| Stella | Both flip thresholds -- P0 vs P1, and P0 vs the playfield -- by eye |
 
 Every existing test keeps running. `packages/emulator/test/static-build.test.ts` compares two
 ROMs against each other, so a uniform timing correction moves both sides and it must still
