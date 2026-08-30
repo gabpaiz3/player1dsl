@@ -274,6 +274,91 @@ It does mean `xMin`/`xMax` could be off by a fixed amount in the picture, which 
 class of defect [What is still unmeasured](#what-is-still-unmeasured) records as needing a
 second implementation or a human eye.
 
+## What the write-timing correction moved
+
+Increment 5c, Task 1. Until this correction every TIA write in this repository was applied,
+and recorded, at the beam position the instruction **started** on. A 6502 writes on its final
+cycle, so every write was early by the instruction's address work.
+
+### The defect, measured
+
+A probe ROM running stores immediately after `sta WSYNC`, so the beam starts at colour clock 0:
+
+| instruction | cycles | recorded before | true, and now |
+|---|---|---|---|
+| `sta zp` ×3 | 3 each | 0, 9, 18 | **6, 15, 24** |
+| `sta zp,x` ×2 | 4 each | 0, 12 | **9, 21** |
+
+`sta zp` spends two cycles on the opcode and operand and writes on the third; `sta zp,x` adds
+the index-add cycle. Six colour clocks and nine.
+
+### Why it mattered enough to fix before anything else
+
+An object's horizontal position is set by the beam at the `RESPx` strobe, and `PosObjectX`
+strobes with `sta RESP0,x` — the `zp,x` row. Every object was being placed **nine pixels**
+from where the hardware places it. For a P0-versus-P1 collision the error cancels, because
+both tanks are positioned by the same routine; against the playfield, whose position the beam
+fixes and no strobe places, it does not.
+
+### What changed in the golden, and what did not
+
+`tests/goldens/tank-arena.trace`, regenerated: 990 of 6990 records changed.
+
+| | |
+|---|---|
+| records whose `line`, `register` or `value` changed | **0** |
+| records whose pixel moved by 6 | 270 |
+| records whose pixel moved by 9 | 720 |
+
+Two shifts and no third, each exactly its addressing mode's address-work cost, and nothing
+about what the ROM *does* changed at all. The remaining ~6000 records are writes inside
+horizontal blank, whose pixel is -1 either way — which is the golden-format gap already
+recorded under [What is still unmeasured](#what-is-still-unmeasured): the format stores the
+pixel and not the colour clock, so an in-blank write cannot show that it moved.
+
+`frame-timing.test.ts` and `kernel-fixtures.test.ts` assert absolute scanline counts and are
+**unchanged**, which is what says the correction is uniform rather than a shift that ate a
+scanline boundary. `dasm-parity.test.ts` compares bytes and is untouched by construction.
+
+### The hoist argument survives, and it was the EMULATOR that had been wrong
+
+Increment 5b hoists the field band's colour writes onto the previous row group's setup line,
+and `packages/runtime/src/emit.ts` justifies it with a specific number: *"the reference
+reaches COLUP1 on the first visible line at colour clock 66, two cycles inside a 68-clock
+horizontal blank."*
+
+**Prediction, written before the recomputation:** the corrected write lands later than 66, so
+the case gets stronger.
+
+**Measured:**
+
+| write | pre-correction | corrected | hand-derived number in `emit.ts` |
+|---|---|---|---|
+| line 57 `COLUP1` | clock 60 | **66** | 66 |
+| line 65 `GRP0` | clock 69, pixel 1 | **75, pixel 7** | — |
+| line 65 `GRP1` | clock 78, pixel 10 | **84, pixel 16** | — |
+
+The prediction is right in direction and wrong in letter: the write moved later, from 60 to
+66, and 66 is *exactly* the number the emitter's comment already claimed. That comment was
+derived by hand from the reference kernel's instruction sequence, and the emulator had been
+disagreeing with it by six colour clocks in silence. The correction makes the two agree, and
+the hoist argument stops resting on a hand-derivation the model contradicted.
+
+The entry line's own case is unchanged in substance: line 65 spends its blank on PF0, PF1 and
+PF2 and reaches `GRP0` at pixel 7 — already past the end of horizontal blank, as before, only
+further past it. Two colour writes added there would land around pixel 22 to 34 rather than
+around 31. Same conclusion, better numbers.
+
+### Numbers elsewhere that this correction invalidated
+
+Marked rather than deleted, because a number that moved is evidence:
+
+- `docs/session-logs/2026-08-29.md`, first session, "Why the field's colour writes are hoisted":
+  GRP0 "landing at **pixel 1**" is pre-correction; it is pixel 7.
+- The same section's "they would land around pixel 31" is pre-correction; around 22 to 34.
+- `packages/emulator/test/trace.test.ts` pinned `GRP0@pixel1` and `GRP1@pixel10`; both moved
+  by six and the test carries the reason.
+
 ## What is still unmeasured
 
 Carried forward. Nothing in this list may be treated as zero.

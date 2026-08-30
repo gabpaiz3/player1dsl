@@ -62,20 +62,27 @@ describe('TIA write tracing', () => {
 
   /**
    * The conservative player check flags two GRP writes at the topWall -> field
-   * boundary. Both are benign: they clear GRP to zero at pixels 1 and 10, and
-   * both tanks sit at x=40 and x=110, so nothing was pending. They are late
-   * only against the pixel-0 lower bound that stands in for the object position
-   * tracking this tracer does not yet do.
+   * boundary. Both are benign: they clear GRP to zero, and both tanks sit at
+   * x=40 and x=110, so nothing was pending. They are late only against the
+   * pixel-0 lower bound that stands in for the object position tracking this
+   * tracer does not yet do.
    *
    * Asserted explicitly rather than ignored, so that if the count or position
    * changes, someone has to look at why.
+   *
+   * MOVED, 2026-08-29, by increment 5c's write-timing correction: these were
+   * pixels 1 and 10 while a TIA write was applied at the beam position the
+   * instruction STARTED on. Both are `sta zp`, whose write is on its third
+   * cycle, so both moved right by two cycles -- six colour clocks. Nothing
+   * about the ROM changed; the model stopped reporting the writes early. See
+   * docs/kernel-measurements.md, "What the write-timing correction moved".
    */
   it('flags only the two known-benign GRP clears under the conservative bound', () => {
     const frame = tracedFrame('tank-arena');
     const late = findLateWrites(frame.writes ?? [], { includePlayers: true });
     expect(late.map((w) => `${registerName(w.register)}@pixel${w.pixel}`)).toEqual([
-      'GRP0@pixel1',
-      'GRP1@pixel10',
+      'GRP0@pixel7',
+      'GRP1@pixel16',
     ]);
     expect(late.every((w) => w.value === 0)).toBe(true);
   });

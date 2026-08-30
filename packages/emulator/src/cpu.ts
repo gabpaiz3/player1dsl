@@ -33,6 +33,19 @@ export class Cpu {
   /** Cycles consumed by the most recent step(). */
   private cycles = 0;
 
+  /**
+   * Cycles the instruction currently executing will consume.
+   *
+   * FINAL at every bus access, which is what lets the machine advance the beam
+   * to the access's own cycle. Stores add no page-cross penalty -- they call
+   * `addrAbsoluteX(false)` and friends -- and loads add theirs inside the
+   * addressing helper, before the access. The only `this.cycles +=` that runs
+   * after an access is the branch penalty, and no branch touches the bus.
+   */
+  get pendingCycles(): number {
+    return this.cycles;
+  }
+
   constructor(private readonly bus: Bus) {}
 
   reset(): void {
