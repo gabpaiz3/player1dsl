@@ -56,15 +56,22 @@ interface Instruction {
  * The addressing mode an operand's SHAPE implies.
  *
  * Shape, not value: there is no symbol table here, and asking for one would make
- * the cost function depend on the assembler's placement decisions. Two rules
- * cover everything the lowerer emits, and both are chosen so a wrong guess costs
- * MORE rather than less:
+ * the cost function depend on the assembler's placement decisions. Two rules:
  *
- *   - An unindexed symbol is zero page. Every unindexed operand in lowered code
- *     is a TIA register ($00-$3F) or an allocated variable ($80-$FF).
  *   - An indexed symbol is absolute. Indexed reads in lowered code are graphics
- *     tables, which live in ROM; charging `abs,x` where the assembler picks
- *     `zp,x` over-estimates by one, which is the safe direction for a budget.
+ *     tables, which live in ROM. Where the assembler picks `zp,x` instead, this
+ *     over-estimates by one -- the safe direction for a budget.
+ *   - An unindexed symbol is zero page. This one is an ASSUMPTION, not a
+ *     worst case: `zp` is 3 cycles where `abs` is 4, so an unindexed operand
+ *     that turns out to be an absolute address is charged one cycle too FEW.
+ *
+ * The assumption holds for every unindexed operand a lowered rule can name --
+ * TIA registers are $00-$3F and allocated variables are $80-$FF, both zero page
+ * -- and `rules.ts` has to keep it true. The moment a rule emits an unindexed
+ * absolute operand (a lookup table read without an index, say), this function
+ * under-charges it and the vertical-blank budget passes a frame that overruns.
+ * The fix at that point is to pass `cycleCost` the allocated zero-page symbols
+ * and charge `abs` for everything else, rather than to widen the guess.
  */
 function classify(mnemonic: string, tail: string): { mode: Mode; operand: string } | null {
   const table = OPCODES[mnemonic];

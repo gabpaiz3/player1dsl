@@ -157,14 +157,14 @@ sits 3–4 units inside each, and not uniformly.
 - Produces: `interface MovementBounds { readonly xMin: number; readonly xMax: number; readonly yMin: number; readonly yMax: number }` and
   `movementBounds(input: BoundsInput): MovementBounds`.
 
-- [ ] **Step 1 — measure, before writing any assertion.** Write a throwaway probe that reads
+- [x] **Step 1 — measure, before writing any assertion.** Write a throwaway probe that reads
       `tests/goldens/tank-arena.trace` and, for the reference ROM driven to each bound by
       `Machine.runFrame`, records the resting `RESP0` clock and `HMP0` value. Compare against
       the tight geometry above. **Write the four numbers and the two derivations into
       `docs/kernel-measurements.md` under a new "Where a movement bound comes from" heading,
       predicted beside measured, before choosing.**
 
-- [ ] **Step 2 — choose, on this stated criterion.** If a single rule expressed in the band
+- [x] **Step 2 — choose, on this stated criterion.** If a single rule expressed in the band
       extent, the border thickness and the sprite size reproduces all four reference numbers,
       bounds stay **derived** and `movementBounds` implements that rule. If it does not —
       which the preliminary geometry suggests — bounds are **derived tight** (the sprite may
@@ -175,7 +175,7 @@ sits 3–4 units inside each, and not uniformly.
       change, and the trace cannot tell the two apart until a tank reaches a bound. Write the
       option down in the session log and leave it for plan 5.
 
-- [ ] **Step 3 — write the failing test.** In `packages/runtime/test/bounds.test.ts`:
+- [x] **Step 3 — write the failing test.** In `packages/runtime/test/bounds.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -224,9 +224,9 @@ describe('movementBounds', () => {
       with 8 / 144 / 12 / 155 and keep the two known-positives unchanged.** The test names do
       not move; only the numbers a measurement decided can.
 
-- [ ] **Step 4 — run it, watch it fail** with "movementBounds is not exported".
+- [x] **Step 4 — run it, watch it fail** with "movementBounds is not exported".
 
-- [ ] **Step 5 — implement `packages/runtime/src/bounds.ts`.**
+- [x] **Step 5 — implement `packages/runtime/src/bounds.ts`.**
 
 ```ts
 /**
@@ -282,9 +282,9 @@ export function movementBounds(input: BoundsInput): MovementBounds {
 }
 ```
 
-- [ ] **Step 6 — export it** from `packages/runtime/src/index.ts` and run the tests.
+- [x] **Step 6 — export it** from `packages/runtime/src/index.ts` and run the tests.
 
-- [ ] **Step 7 — commit.**
+- [x] **Step 7 — commit.**
 
 ```bash
 git add packages/runtime/src/bounds.ts packages/runtime/test/bounds.test.ts \
@@ -311,7 +311,7 @@ reads**, so the two must become one before Task 5.
 - Produces: `kernelScratch(objects: number): Variable[]` in `ram.ts`, returning the kernel's
   own working bytes as ordinary `Variable`s so one allocator sees everything.
 
-- [ ] **Step 1 — write the failing test.** In `packages/compiler/test/ram.test.ts`:
+- [x] **Step 1 — write the failing test.** In `packages/compiler/test/ram.test.ts`:
 
 ```ts
 // The kernel's working bytes are not declared by any source line, but they
@@ -333,9 +333,9 @@ it('gives the kernel one graphics byte per bound object and one shared counter',
 });
 ```
 
-- [ ] **Step 2 — run it, watch it fail** with "kernelScratch is not exported".
+- [x] **Step 2 — run it, watch it fail** with "kernelScratch is not exported".
 
-- [ ] **Step 3 — implement `kernelScratch` in `ram.ts`.**
+- [x] **Step 3 — implement `kernelScratch` in `ram.ts`.**
 
 ```ts
 /**
@@ -357,7 +357,7 @@ export function kernelScratch(objects: number): Variable[] {
 }
 ```
 
-- [ ] **Step 4 — rewrite `scratchFor` in `build.ts` to consume the RAM map.** Delete the
+- [x] **Step 4 — rewrite `scratchFor` in `build.ts` to consume the RAM map.** Delete the
       local `ram`/`init` construction and take addresses from `allocateRam`. The emitted
       assembly stops declaring `seg.u variables` per-name and emits equates instead:
 
@@ -374,15 +374,15 @@ function ramEquates(map: RamMap): string[] {
       doc comment to say so, and update `packages/runtime/test/frame.test.ts` only if it
       asserts on `ds`.
 
-- [ ] **Step 5 — the actor symbols change name.** `build.ts` used `tank0X`; the allocator
+- [x] **Step 5 — the actor symbols change name.** `build.ts` used `tank0X`; the allocator
       calls it `tank0_x`. Take the allocator's name everywhere, so the assembly a human reads
       and the RAM map `p1 check` prints use one spelling.
 
-- [ ] **Step 6 — run the whole suite.** `packages/emulator/test/static-build.test.ts` must
+- [x] **Step 6 — run the whole suite.** `packages/emulator/test/static-build.test.ts` must
       still pass: the ROM's *behaviour* has not changed, only which symbol table named its
       bytes. If frame 0 diverges, a byte moved — read the assembly, do not adjust the test.
 
-- [ ] **Step 7 — commit.**
+- [x] **Step 7 — commit.**
 
 ```bash
 git add packages/compiler/src/ram.ts packages/compiler/src/build.ts \
@@ -403,7 +403,7 @@ git commit -m "Task 2: one zero page, one allocator"
 - Produces: `BASE_CYCLES: readonly number[]` (256 entries, indexed by opcode byte) and
   `baseCycles(opcode: number): number`.
 
-- [ ] **Step 1 — export the emulator's table.** In `packages/emulator/src/cpu.ts`, change
+- [x] **Step 1 — export the emulator's table.** In `packages/emulator/src/cpu.ts`, change
       `const BASE_CYCLES` to `export const BASE_CYCLES` and add:
 
 ```ts
@@ -415,7 +415,7 @@ git commit -m "Task 2: one zero page, one allocator"
  */
 ```
 
-- [ ] **Step 2 — write the failing test.** In `packages/runtime/test/cycles.test.ts`:
+- [x] **Step 2 — write the failing test.** In `packages/runtime/test/cycles.test.ts`:
 
 ```ts
 import { BASE_CYCLES as EMULATOR_CYCLES } from '@player1dsl/emulator';
@@ -454,9 +454,9 @@ describe('the cost model and the CPU agree', () => {
 });
 ```
 
-- [ ] **Step 3 — run it, watch it fail.**
+- [x] **Step 3 — run it, watch it fail.**
 
-- [ ] **Step 4 — implement `packages/runtime/src/cycles.ts`.** Write the 256-entry table out
+- [x] **Step 4 — implement `packages/runtime/src/cycles.ts`.** Write the 256-entry table out
       independently from a 6502 reference — **do not copy it from `cpu.ts`**, or the test in
       Step 2 asserts that a copy is a copy. The header comment must say so:
 
@@ -484,7 +484,7 @@ export function baseCycles(opcode: number): number {
 }
 ```
 
-- [ ] **Step 5 — run the tests, export from `index.ts`, commit.**
+- [x] **Step 5 — run the tests, export from `index.ts`, commit.**
 
 ```bash
 git add packages/runtime/src/cycles.ts packages/runtime/test/cycles.test.ts \
@@ -503,7 +503,7 @@ git commit -m "Task 3: a cycle table written twice, so agreeing means something"
 **Interfaces:**
 - Produces: `cycleCost(lines: readonly string[]): number` — worst-case CPU cycles.
 
-- [ ] **Step 1 — write the failing test.**
+- [x] **Step 1 — write the failing test.**
 
 ```ts
 describe('cycleCost', () => {
@@ -544,9 +544,9 @@ describe('cycleCost', () => {
 });
 ```
 
-- [ ] **Step 2 — run, watch all six fail.**
+- [x] **Step 2 — run, watch all six fail.**
 
-- [ ] **Step 3 — implement.** Append to `cycles.ts`:
+- [x] **Step 3 — implement.** Append to `cycles.ts`:
 
 ```ts
 /** Modes whose indexed read can cross a page and cost one more cycle. */
@@ -618,7 +618,7 @@ export function cycleCost(lines: readonly string[]): number {
       dependency; add `{ "path": "../assembler" }` to `packages/runtime/tsconfig.json`. It does
       not violate the split — the assembler is not the checker.
 
-- [ ] **Step 4 — run, all pass. Commit.**
+- [x] **Step 4 — run, all pass. Commit.**
 
 ```bash
 git add packages/runtime/src/cycles.ts packages/runtime/test/cycles.test.ts \
