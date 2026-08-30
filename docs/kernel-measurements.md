@@ -185,6 +185,95 @@ immediately. Now that the measurements exist, each is decided on the evidence:
 Two adopted, one narrowed by evidence, one deferred with the hole marked, one already
 covered, one out of scope. Deferring is a legitimate answer; deferring silently is not.
 
+## Where a movement bound comes from
+
+Plan 4's Task 1: measure before spending. `within field` has to lower to four constants, and
+the reference kernel already carries four. The question is whether those four are DERIVED
+from the arena's geometry -- in which case the compiler computes them -- or hand-chosen, in
+which case it must not pretend otherwise.
+
+### Method
+
+`tools/probe-bounds.ts` (throwaway, not committed) holds one joystick direction on the
+reference ROM for 200 frames and reads the resting `tank0X`/`tank0Y` out of RIOT RAM, plus
+the `RESP0` colour clock and `HMP0` value the trace records for that frame. Two hundred
+frames is far more than the 137 a full traverse needs, so a resting value is a clamp rather
+than a snapshot mid-travel.
+
+### Predicted, from geometry
+
+The arena is a `border` playfield of one PF0 block: PF0 D4 alone, `$10`, which is 4 screen
+pixels, mirrored under REF to pixels 156-159. The sprite is 8x8. The ledger renders the field
+loop on frame lines 66-223.
+
+The loop counts DOWN and primes one line ahead, so a sprite whose top row is computed at
+counter N appears on line N-1; reading `emitLoop` gives the first rendered line as
+`fieldFirstLine + (lines + 1) - y`, which is `fieldLastLine + 2 - y` = `225 - y`. That
+constant is DERIVED here rather than measured, from the emitter's own text.
+
+| Bound | Derivation | Predicted |
+|---|---|---|
+| `xMin` | sprite's left column clears the left wall: `wallPixels` | **4** |
+| `xMax` | right column clears the mirrored wall: `160 - wallPixels - spriteWidth` | **148** |
+| `yMax` | top row lands on the field's first line: `counterOrigin - fieldFirstLine` | **159** |
+| `yMin` | bottom row lands on its last: `counterOrigin - fieldLastLine + spriteHeight - 1` | **9** |
+
+### Measured, from the reference ROM
+
+| Held | Rests at | `RESP0` clock | `HMP0` | Constant it clamps against |
+|---|---|---|---|---|
+| left | `tank0X` = **7** | 60 | `$F0` | `X_MIN` 8 |
+| right | `tank0X` = **144** | 195 | `$D0` | `X_MAX` 144 |
+| down | `tank0Y` = **11** | 90 | `$C0` | `Y_MIN` 12 |
+| up | `tank0Y` = **155** | 90 | `$C0` | `Y_MAX` 155 |
+
+A resting value is not the constant. The clamp is **asymmetric**, and reading the source says
+why: a lower bound is `cpx #MIN / bcc skip`, which skips only when ALREADY below, so the
+tank decrements off the constant and rests one below it. An upper bound is `cpx #MAX / bcs
+skip`, which skips at or above, so the tank rests exactly on it.
+`packages/emulator/test/tank-arena-behaviour.test.ts` pins both.
+
+### Verdict: hand-chosen, and the compiler derives tight instead
+
+| | left | right | bottom | top |
+|---|---|---|---|---|
+| tight | 4 | 148 | 9 | 159 |
+| reference | 8 | 144 | 12 | 155 |
+| margin | 4 | 4 | 3 | 4 |
+
+The margins are **not uniform** -- 3 at the bottom, 4 everywhere else -- so no single rule in
+the band extent, the border thickness and the sprite size reproduces all four. Task 1's stated
+criterion therefore selects its second branch: `movementBounds` derives the **tight** bound,
+the sprite may not overlap the wall, and the reference's extra margin is recorded here as a
+hand-chosen value the compiler does not reproduce.
+
+Two consequences, both deliberate:
+
+- **The asymmetry belongs to lowering, not to the numbers.** `movementBounds` returns the four
+  constants; the `cpx / bcc` shape that makes a lower bound rest one below is what `rules.ts`
+  emits. Baking the off-by-one into the constants would give four numbers whose meaning
+  depended on which side of the axis they sat on.
+- **A compiled ROM will clamp 3-4 pixels wider than the reference.** Nothing observes that
+  today -- the committed input script visits `tank0X` 32..73 and `tank0Y` 87..128, so no
+  clamp fires in any of the 90 golden frames. It will be observable the moment plan 4's
+  Task 8 replaces the script with one that reaches a bound, and at that point the divergence
+  is a KNOWN one with a reason, not a mystery.
+
+### Not measured: whether `x` is exactly the sprite's leftmost screen pixel
+
+`PosObjectX` divides by 15 and strobes `RESPx` at the beam, and a `RESPx` strobe takes effect
+some clocks after the write. Whether the sprite's leftmost column lands on screen pixel `x`
+or on `x + k` for a small fixed `k` is **not** something this repo can measure: our TIA model
+does not render pixels and does not track object positions at all
+(`packages/emulator/src/tia.ts` returns 0 for every read). The tight bounds above assume
+`k = 0`.
+
+This does not change the verdict -- the reference's margins are non-uniform for any `k`,
+because a constant offset shifts both horizontal bounds the same way and neither vertical one.
+It does mean `xMin`/`xMax` could be off by a fixed amount in the picture, which is exactly the
+class of defect [What is still unmeasured](#what-is-still-unmeasured) records as needing a
+second implementation or a human eye.
+
 ## What is still unmeasured
 
 Carried forward. Nothing in this list may be treated as zero.

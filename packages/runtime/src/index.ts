@@ -1,3 +1,4 @@
+export * from './bounds.ts';
 export * from './catalog.ts';
 export * from './emit.ts';
 export * from './entries.ts';
