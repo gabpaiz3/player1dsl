@@ -2698,7 +2698,7 @@ frame 33 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px82
   262 VSYNC $02
 frame 34 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -2714,19 +2714,21 @@ frame 34 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -2774,7 +2776,7 @@ frame 34 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 35 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -2790,19 +2792,21 @@ frame 35 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -2850,7 +2854,7 @@ frame 35 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 36 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -2866,19 +2870,21 @@ frame 36 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -2926,7 +2932,7 @@ frame 36 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 37 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -2942,19 +2948,21 @@ frame 37 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3002,7 +3010,7 @@ frame 37 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 38 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3018,19 +3026,21 @@ frame 38 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3078,7 +3088,7 @@ frame 38 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 39 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3094,19 +3104,21 @@ frame 39 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3154,7 +3166,7 @@ frame 39 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 40 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3170,19 +3182,21 @@ frame 40 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3230,7 +3244,7 @@ frame 40 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 41 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3246,19 +3260,21 @@ frame 41 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3306,7 +3322,7 @@ frame 41 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 42 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3322,19 +3338,21 @@ frame 42 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3382,7 +3400,7 @@ frame 42 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 43 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3398,19 +3416,21 @@ frame 43 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3458,7 +3478,7 @@ frame 43 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 44 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3474,19 +3494,21 @@ frame 44 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3534,7 +3556,7 @@ frame 44 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 45 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3550,19 +3572,21 @@ frame 45 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3610,7 +3634,7 @@ frame 45 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 46 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3626,19 +3650,21 @@ frame 46 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3686,7 +3712,7 @@ frame 46 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 47 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3702,19 +3728,21 @@ frame 47 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3762,7 +3790,7 @@ frame 47 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 48 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3778,19 +3806,21 @@ frame 48 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3838,7 +3868,7 @@ frame 48 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 49 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3854,19 +3884,21 @@ frame 49 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3914,7 +3946,7 @@ frame 49 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 50 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -3930,19 +3962,21 @@ frame 50 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -3990,7 +4024,7 @@ frame 50 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 51 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -4006,19 +4040,21 @@ frame 51 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4058,7 +4094,7 @@ frame 51 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $00 px16
+  232 CXCLR $01 px16
   262 VSYNC $02
 frame 52 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
@@ -4074,19 +4110,21 @@ frame 52 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4150,19 +4188,21 @@ frame 53 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4226,19 +4266,21 @@ frame 54 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4302,19 +4344,21 @@ frame 55 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4380,19 +4424,21 @@ frame 56 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4460,19 +4506,21 @@ frame 57 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4540,19 +4588,21 @@ frame 58 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4620,19 +4670,21 @@ frame 59 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4700,19 +4752,21 @@ frame 60 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4780,19 +4834,21 @@ frame 61 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4860,19 +4916,21 @@ frame 62 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -4940,19 +4998,21 @@ frame 63 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5020,19 +5080,21 @@ frame 64 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5100,19 +5162,21 @@ frame 65 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5180,19 +5244,21 @@ frame 66 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5260,19 +5326,21 @@ frame 67 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5340,19 +5408,21 @@ frame 68 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5420,19 +5490,21 @@ frame 69 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5500,19 +5572,21 @@ frame 70 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5580,19 +5654,21 @@ frame 71 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5660,19 +5736,21 @@ frame 72 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5740,19 +5818,21 @@ frame 73 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5820,19 +5900,21 @@ frame 74 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5900,19 +5982,21 @@ frame 75 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -5980,19 +6064,21 @@ frame 76 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6060,19 +6146,21 @@ frame 77 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6140,19 +6228,21 @@ frame 78 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6220,19 +6310,21 @@ frame 79 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6300,19 +6392,21 @@ frame 80 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6380,19 +6474,21 @@ frame 81 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6460,19 +6556,21 @@ frame 82 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6540,19 +6638,21 @@ frame 83 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6620,19 +6720,21 @@ frame 84 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6700,19 +6802,21 @@ frame 85 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6780,19 +6884,21 @@ frame 86 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6860,19 +6966,21 @@ frame 87 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -6940,19 +7048,21 @@ frame 88 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
@@ -7020,19 +7130,21 @@ frame 89 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $3c
+  43 GRP0 $0c
   43 GRP1 $7e
-  44 GRP0 $66
+  44 GRP0 $1c
   44 GRP1 $60
-  45 GRP0 $06
+  45 GRP0 $3c
   45 GRP1 $60
-  46 GRP0 $1c
+  46 GRP0 $6c
   46 GRP1 $7c
-  47..48 GRP0 $06
-  47..48 GRP1 $06
-  49 GRP0 $66
+  47 GRP0 $7e
+  47 GRP1 $06
+  48 GRP0 $0c
+  48 GRP1 $06
+  49 GRP0 $0c
   49 GRP1 $66
-  50 GRP0 $3c
+  50 GRP0 $0c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
