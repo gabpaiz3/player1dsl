@@ -1,5 +1,5 @@
 export { Bus } from './bus.ts';
-export { Cpu } from './cpu.ts';
+export { BASE_CYCLES, Cpu } from './cpu.ts';
 export * from './golden.ts';
 export type { FrameResult } from './machine.ts';
 export { Machine } from './machine.ts';
