@@ -34,6 +34,7 @@ import {
 import type { ActorIr, GameIr, SceneIr, ScoreIr, SpriteIr } from './ir.ts';
 import { type LayoutIr, layout, type RowGroup } from './layout.ts';
 import { buildLedger, type Ledger, type LedgerRow } from './ledger.ts';
+import { allocateRam, kernelScratch, type RamMap } from './ram.ts';
 
 export interface StaticBuild {
   /** Exactly 4096 bytes: a 4 KiB unbanked cartridge image. */
@@ -84,35 +85,55 @@ function gfxSymbol(index: number): string {
 
 const SCRATCH = 'lineTmp';
 
-interface Scratch {
-  readonly ram: string[];
-  readonly init: Store[];
+/**
+ * The zero page this build uses: declared variables and kernel scratch together.
+ *
+ * ONE allocator. The kernel's working bytes -- the graphics byte computed a line
+ * ahead, the loop's parked counter -- are not declared by any source line, but
+ * they compete for the same 128 bytes as the ones that are. A second allocator
+ * would be a second answer to "which byte is free", and the symptom is a sprite
+ * whose graphics change when a rule fires.
+ *
+ * Exported because `p1 check` prints a RAM map, and a map that omitted the
+ * kernel's bytes would report free space the build has already spent.
+ */
+export function allocateGameRam(game: GameIr, objects: number): RamMap {
+  return allocateRam([...game.variables, ...kernelScratch(objects)]);
+}
+
+/** The widest band's object count: how many graphics bytes the kernel needs. */
+export function kernelObjects(ir: LayoutIr, scene: SceneIr): number {
+  return Math.max(
+    ...scene.bands.map((band) => ir.bindings.filter((b) => b.band === band.name).length),
+  );
 }
 
 /**
- * The zero page a static build needs, and its initial contents.
+ * Zero-page equates, from the one allocator that assigned them.
  *
- * Deliberately separate from `allocateRam`, which assigns the variables the
- * .p1 DECLARES. These are the kernel's own working bytes -- an actor's live
- * position, the graphics byte computed one line ahead -- which no source line
- * asked for. Plan 4 has to unify the two, because a rule that moves an actor
- * writes the same byte the kernel reads.
+ * Equates rather than `ds` reservations: `ds` makes the assembler the allocator,
+ * and then two things assign addresses. The allocator decides, and the assembly
+ * says what it decided.
  */
-function scratchFor(scene: SceneIr, objects: number): Scratch {
-  const ram: string[] = [];
-  const init: Store[] = [];
+function ramEquates(map: RamMap): string[] {
+  return [...map.slots].map(
+    ([name, address]) => `${name.padEnd(16)}= $${address.toString(16).toUpperCase()}`,
+  );
+}
 
-  for (const actor of scene.actors) {
-    const name = symbol(actor.name);
-    ram.push(`${`${name}X`.padEnd(12)}ds 1`, `${`${name}Y`.padEnd(12)}ds 1`);
-    init.push([`${name}X`, actor.x], [`${name}Y`, actor.y]);
-  }
-  for (let i = 0; i < objects; i += 1) {
-    ram.push(`${gfxSymbol(i).padEnd(12)}ds 1`);
-  }
-  ram.push(`${SCRATCH.padEnd(12)}ds 1        ; the field loop parks its counter here`);
-
-  return { ram, init };
+/**
+ * The actor positions a static build writes once at reset.
+ *
+ * Only the actors. Scores are baked into the glyph pointers a static build
+ * computes at assembly time, and the collision debounce has nothing to debounce
+ * until rules exist -- writing either here would be initialising state no
+ * emitted instruction reads.
+ */
+function initialPositions(scene: SceneIr): Store[] {
+  return scene.actors.flatMap((actor): Store[] => [
+    [`${actor.name}_x`, actor.x],
+    [`${actor.name}_y`, actor.y],
+  ]);
 }
 
 /** The objects one glyph row group draws: one digit per score in the band. */
@@ -142,7 +163,7 @@ function fieldObjects(
       color: actor.color,
       table: spriteLabel(sprite.name),
       height: sprite.height,
-      y: `${symbol(actor.name)}Y`,
+      y: `${actor.name}_y`,
       gfx: gfxSymbol(i),
     };
   });
@@ -193,7 +214,7 @@ function codeFor(
   if (group.kind === 'transition') {
     const moves = (group.moves ?? []).map((binding) => ({
       object: binding.object,
-      x: `${symbol(binding.holder)}X`,
+      x: `${binding.holder}_x`,
     }));
     return { hoist: [], setup: [], body: emitTransition({ moves, visible: true }) };
   }
@@ -247,10 +268,8 @@ export function buildStatic(game: GameIr): StaticBuild {
     );
   }
 
-  const objects = Math.max(
-    ...scene.bands.map((band) => ir.bindings.filter((b) => b.band === band.name).length),
-  );
-  const scratch = scratchFor(scene, objects);
+  const objects = kernelObjects(ir, scene);
+  const ram = allocateGameRam(game, objects);
 
   const codes = ir.rowGroups.map((group, i) => {
     const row = ledger.rows[i];
@@ -287,7 +306,12 @@ export function buildStatic(game: GameIr): StaticBuild {
   });
 
   const playfield = scene.playfields[0];
-  const init = emitInit(scene, playfield?.color ?? 0, playfield?.mode ?? 'reflect', scratch.init);
+  const init = emitInit(
+    scene,
+    playfield?.color ?? 0,
+    playfield?.mode ?? 'reflect',
+    initialPositions(scene),
+  );
 
   const data = [
     '',
@@ -308,7 +332,7 @@ export function buildStatic(game: GameIr): StaticBuild {
   ];
 
   const source = emitFrame({
-    ram: scratch.ram,
+    ram: ramEquates(ram),
     init,
     setup,
     setupLines: positionLines(firstBindings.length),
