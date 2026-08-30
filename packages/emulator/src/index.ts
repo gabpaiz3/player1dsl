@@ -3,6 +3,8 @@ export { BASE_CYCLES, Cpu } from './cpu.ts';
 export * from './golden.ts';
 export type { FrameResult } from './machine.ts';
 export { Machine } from './machine.ts';
+export type { MovableName } from './objects.ts';
+export { Objects, Present } from './objects.ts';
 export { RIOT, Riot, SWCHA_IDLE, SWCHB_IDLE } from './riot.ts';
 export type { ScanlineRecord } from './tia.ts';
 export {
