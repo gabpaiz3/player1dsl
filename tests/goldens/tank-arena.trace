@@ -8,9 +8,11 @@
 # visible writes and checked against the register deadline, never for equality.
 frame 0 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -36,9 +38,11 @@ frame 0 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $28
   53 HMP0 $c0 px19
   53 RESP0 $c0 px31
   54 HMOVE $c0
+  54 HMCLR $6e
   55 HMP1 $10 px94
   55 RESP1 $10 px106
   56 HMOVE $10
@@ -88,9 +92,11 @@ frame 0 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 1 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -116,9 +122,11 @@ frame 1 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $28
   53 HMP0 $c0 px19
   53 RESP0 $c0 px31
   54 HMOVE $c0
+  54 HMCLR $6e
   55 HMP1 $10 px94
   55 RESP1 $10 px106
   56 HMOVE $10
@@ -168,9 +176,11 @@ frame 1 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 2 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -196,9 +206,11 @@ frame 2 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $28
   53 HMP0 $c0 px19
   53 RESP0 $c0 px31
   54 HMOVE $c0
+  54 HMCLR $6e
   55 HMP1 $10 px94
   55 RESP1 $10 px106
   56 HMOVE $10
@@ -248,9 +260,11 @@ frame 2 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 3 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -276,9 +290,11 @@ frame 3 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $28
   53 HMP0 $c0 px19
   53 RESP0 $c0 px31
   54 HMOVE $c0
+  54 HMCLR $6e
   55 HMP1 $10 px94
   55 RESP1 $10 px106
   56 HMOVE $10
@@ -328,9 +344,11 @@ frame 3 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 4 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -356,9 +374,11 @@ frame 4 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $29
   53 HMP0 $b0 px19
   53 RESP0 $b0 px31
   54 HMOVE $b0
+  54 HMCLR $6d
   55 HMP1 $20 px94
   55 RESP1 $20 px106
   56 HMOVE $20
@@ -408,9 +428,11 @@ frame 4 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 5 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -436,9 +458,11 @@ frame 5 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2a
   53 HMP0 $a0 px19
   53 RESP0 $a0 px31
   54 HMOVE $a0
+  54 HMCLR $6c
   55 HMP1 $30 px94
   55 RESP1 $30 px106
   56 HMOVE $30
@@ -488,9 +512,11 @@ frame 5 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 6 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -516,9 +542,11 @@ frame 6 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2b
   53 HMP0 $90 px19
   53 RESP0 $90 px31
   54 HMOVE $90
+  54 HMCLR $6b
   55 HMP1 $40 px94
   55 RESP1 $40 px106
   56 HMOVE $40
@@ -568,9 +596,11 @@ frame 6 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 7 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -596,9 +626,11 @@ frame 7 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2c
   53 HMP0 $80 px19
   53 RESP0 $80 px31
   54 HMOVE $80
+  54 HMCLR $6a
   55 HMP1 $50 px94
   55 RESP1 $50 px106
   56 HMOVE $50
@@ -648,9 +680,11 @@ frame 7 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 8 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -676,9 +710,11 @@ frame 8 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2d
   53 HMP0 $60 px34
   53 RESP0 $60 px46
   54 HMOVE $60
+  54 HMCLR $69
   55 HMP1 $60 px94
   55 RESP1 $60 px106
   56 HMOVE $60
@@ -728,9 +764,11 @@ frame 8 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 9 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -756,9 +794,11 @@ frame 9 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2e
   53 HMP0 $50 px34
   53 RESP0 $50 px46
   54 HMOVE $50
+  54 HMCLR $68
   55 HMP1 $80 px79
   55 RESP1 $80 px91
   56 HMOVE $80
@@ -808,9 +848,11 @@ frame 9 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 10 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -836,9 +878,11 @@ frame 10 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2f
   53 HMP0 $40 px34
   53 RESP0 $40 px46
   54 HMOVE $40
+  54 HMCLR $67
   55 HMP1 $90 px79
   55 RESP1 $90 px91
   56 HMOVE $90
@@ -888,9 +932,11 @@ frame 10 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 11 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -916,9 +962,11 @@ frame 11 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $30
   53 HMP0 $30 px34
   53 RESP0 $30 px46
   54 HMOVE $30
+  54 HMCLR $66
   55 HMP1 $a0 px79
   55 RESP1 $a0 px91
   56 HMOVE $a0
@@ -968,9 +1016,11 @@ frame 11 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 12 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -996,9 +1046,11 @@ frame 12 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $31
   53 HMP0 $20 px34
   53 RESP0 $20 px46
   54 HMOVE $20
+  54 HMCLR $65
   55 HMP1 $b0 px79
   55 RESP1 $b0 px91
   56 HMOVE $b0
@@ -1048,9 +1100,11 @@ frame 12 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 13 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1076,9 +1130,11 @@ frame 13 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $32
   53 HMP0 $10 px34
   53 RESP0 $10 px46
   54 HMOVE $10
+  54 HMCLR $64
   55 HMP1 $c0 px79
   55 RESP1 $c0 px91
   56 HMOVE $c0
@@ -1128,9 +1184,11 @@ frame 13 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 14 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1156,9 +1214,11 @@ frame 14 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $33
   53 HMP0 $00 px34
   53 RESP0 $00 px46
   54 HMOVE $00
+  54 HMCLR $63
   55 HMP1 $d0 px79
   55 RESP1 $d0 px91
   56 HMOVE $d0
@@ -1208,9 +1268,11 @@ frame 14 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 15 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1236,9 +1298,11 @@ frame 15 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $34
   53 HMP0 $f0 px34
   53 RESP0 $f0 px46
   54 HMOVE $f0
+  54 HMCLR $62
   55 HMP1 $e0 px79
   55 RESP1 $e0 px91
   56 HMOVE $e0
@@ -1288,9 +1352,11 @@ frame 15 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 16 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1316,9 +1382,11 @@ frame 16 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $35
   53 HMP0 $e0 px34
   53 RESP0 $e0 px46
   54 HMOVE $e0
+  54 HMCLR $61
   55 HMP1 $f0 px79
   55 RESP1 $f0 px91
   56 HMOVE $f0
@@ -1368,9 +1436,11 @@ frame 16 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 17 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1396,9 +1466,11 @@ frame 17 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $36
   53 HMP0 $d0 px34
   53 RESP0 $d0 px46
   54 HMOVE $d0
+  54 HMCLR $60
   55 HMP1 $00 px79
   55 RESP1 $00 px91
   56 HMOVE $00
@@ -1448,9 +1520,11 @@ frame 17 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 18 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1476,9 +1550,11 @@ frame 18 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $37
   53 HMP0 $c0 px34
   53 RESP0 $c0 px46
   54 HMOVE $c0
+  54 HMCLR $5f
   55 HMP1 $10 px79
   55 RESP1 $10 px91
   56 HMOVE $10
@@ -1528,9 +1604,11 @@ frame 18 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 19 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1556,9 +1634,11 @@ frame 19 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $38
   53 HMP0 $b0 px34
   53 RESP0 $b0 px46
   54 HMOVE $b0
+  54 HMCLR $5e
   55 HMP1 $20 px79
   55 RESP1 $20 px91
   56 HMOVE $20
@@ -1608,9 +1688,11 @@ frame 19 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 20 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1636,9 +1718,11 @@ frame 20 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $39
   53 HMP0 $a0 px34
   53 RESP0 $a0 px46
   54 HMOVE $a0
+  54 HMCLR $5d
   55 HMP1 $30 px79
   55 RESP1 $30 px91
   56 HMOVE $30
@@ -1688,9 +1772,11 @@ frame 20 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 21 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1716,9 +1802,11 @@ frame 21 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3a
   53 HMP0 $90 px34
   53 RESP0 $90 px46
   54 HMOVE $90
+  54 HMCLR $5c
   55 HMP1 $40 px79
   55 RESP1 $40 px91
   56 HMOVE $40
@@ -1768,9 +1856,11 @@ frame 21 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 22 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1796,9 +1886,11 @@ frame 22 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3b
   53 HMP0 $80 px34
   53 RESP0 $80 px46
   54 HMOVE $80
+  54 HMCLR $5b
   55 HMP1 $50 px79
   55 RESP1 $50 px91
   56 HMOVE $50
@@ -1848,9 +1940,11 @@ frame 22 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 23 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1876,9 +1970,11 @@ frame 23 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3c
   53 HMP0 $60 px49
   53 RESP0 $60 px61
   54 HMOVE $60
+  54 HMCLR $5a
   55 HMP1 $60 px79
   55 RESP1 $60 px91
   56 HMOVE $60
@@ -1928,9 +2024,11 @@ frame 23 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 24 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -1956,9 +2054,11 @@ frame 24 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3d
   53 HMP0 $50 px49
   53 RESP0 $50 px61
   54 HMOVE $50
+  54 HMCLR $59
   55 HMP1 $80 px64
   55 RESP1 $80 px76
   56 HMOVE $80
@@ -2008,9 +2108,11 @@ frame 24 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 25 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2036,9 +2138,11 @@ frame 25 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3e
   53 HMP0 $40 px49
   53 RESP0 $40 px61
   54 HMOVE $40
+  54 HMCLR $58
   55 HMP1 $90 px64
   55 RESP1 $90 px76
   56 HMOVE $90
@@ -2088,9 +2192,11 @@ frame 25 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 26 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2116,9 +2222,11 @@ frame 26 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3f
   53 HMP0 $30 px49
   53 RESP0 $30 px61
   54 HMOVE $30
+  54 HMCLR $57
   55 HMP1 $a0 px64
   55 RESP1 $a0 px76
   56 HMOVE $a0
@@ -2168,9 +2276,11 @@ frame 26 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 27 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2196,9 +2306,11 @@ frame 27 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $40
   53 HMP0 $20 px49
   53 RESP0 $20 px61
   54 HMOVE $20
+  54 HMCLR $56
   55 HMP1 $b0 px64
   55 RESP1 $b0 px76
   56 HMOVE $b0
@@ -2248,9 +2360,11 @@ frame 27 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 28 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2276,9 +2390,11 @@ frame 28 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $41
   53 HMP0 $10 px49
   53 RESP0 $10 px61
   54 HMOVE $10
+  54 HMCLR $55
   55 HMP1 $c0 px64
   55 RESP1 $c0 px76
   56 HMOVE $c0
@@ -2328,9 +2444,11 @@ frame 28 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 29 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2356,9 +2474,11 @@ frame 29 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $42
   53 HMP0 $00 px49
   53 RESP0 $00 px61
   54 HMOVE $00
+  54 HMCLR $54
   55 HMP1 $d0 px64
   55 RESP1 $d0 px76
   56 HMOVE $d0
@@ -2406,9 +2526,11 @@ frame 29 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 30 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2434,9 +2556,11 @@ frame 30 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $43
   53 HMP0 $f0 px49
   53 RESP0 $f0 px61
   54 HMOVE $f0
+  54 HMCLR $53
   55 HMP1 $e0 px64
   55 RESP1 $e0 px76
   56 HMOVE $e0
@@ -2482,9 +2606,11 @@ frame 30 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 31 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2510,9 +2636,11 @@ frame 31 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $44
   53 HMP0 $e0 px49
   53 RESP0 $e0 px61
   54 HMOVE $e0
+  54 HMCLR $52
   55 HMP1 $f0 px64
   55 RESP1 $f0 px76
   56 HMOVE $f0
@@ -2558,9 +2686,11 @@ frame 31 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 32 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2586,9 +2716,11 @@ frame 32 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $45
   53 HMP0 $d0 px49
   53 RESP0 $d0 px61
   54 HMOVE $d0
+  54 HMCLR $51
   55 HMP1 $00 px64
   55 RESP1 $00 px76
   56 HMOVE $00
@@ -2634,9 +2766,11 @@ frame 32 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 33 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2662,9 +2796,11 @@ frame 33 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $46
   53 HMP0 $c0 px49
   53 RESP0 $c0 px61
   54 HMOVE $c0
+  54 HMCLR $50
   55 HMP1 $10 px64
   55 RESP1 $10 px76
   56 HMOVE $10
@@ -2698,13 +2834,15 @@ frame 33 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $01 px82
+  232 CXCLR $00 px16
   262 VSYNC $02
 frame 34 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2714,27 +2852,27 @@ frame 34 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $0c
+  43 GRP0 $3c
   43 GRP1 $7e
-  44 GRP0 $1c
+  44 GRP0 $66
   44 GRP1 $60
-  45 GRP0 $3c
+  45 GRP0 $06
   45 GRP1 $60
-  46 GRP0 $6c
+  46 GRP0 $1c
   46 GRP1 $7c
-  47 GRP0 $7e
-  47 GRP1 $06
-  48 GRP0 $0c
-  48 GRP1 $06
-  49 GRP0 $0c
+  47..48 GRP0 $06
+  47..48 GRP1 $06
+  49 GRP0 $66
   49 GRP1 $66
-  50 GRP0 $0c
+  50 GRP0 $3c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $47
   53 HMP0 $b0 px49
   53 RESP0 $b0 px61
   54 HMOVE $b0
+  54 HMCLR $4f
   55 HMP1 $20 px64
   55 RESP1 $20 px76
   56 HMOVE $20
@@ -2776,13 +2914,15 @@ frame 34 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $01 px16
+  232 CXCLR $00 px16
   262 VSYNC $02
 frame 35 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2792,27 +2932,27 @@ frame 35 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   40 PF2 $00
   40 COLUP0 $0e
   40 COLUP1 $0e
-  43 GRP0 $0c
+  43 GRP0 $3c
   43 GRP1 $7e
-  44 GRP0 $1c
+  44 GRP0 $66
   44 GRP1 $60
-  45 GRP0 $3c
+  45 GRP0 $06
   45 GRP1 $60
-  46 GRP0 $6c
+  46 GRP0 $1c
   46 GRP1 $7c
-  47 GRP0 $7e
-  47 GRP1 $06
-  48 GRP0 $0c
-  48 GRP1 $06
-  49 GRP0 $0c
+  47..48 GRP0 $06
+  47..48 GRP1 $06
+  49 GRP0 $66
   49 GRP1 $66
-  50 GRP0 $0c
+  50 GRP0 $3c
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $48
   53 HMP0 $a0 px49
   53 RESP0 $a0 px61
   54 HMOVE $a0
+  54 HMCLR $4e
   55 HMP1 $30 px64
   55 RESP1 $30 px76
   56 HMOVE $30
@@ -2854,13 +2994,15 @@ frame 35 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $01 px16
+  232 CXCLR $01 px82
   262 VSYNC $02
 frame 36 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -2888,9 +3030,11 @@ frame 36 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -2936,9 +3080,11 @@ frame 36 swcha=$5a swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 37 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -2966,9 +3112,11 @@ frame 37 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3014,9 +3162,11 @@ frame 37 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 38 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3044,9 +3194,11 @@ frame 38 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3092,9 +3244,11 @@ frame 38 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 39 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3122,9 +3276,11 @@ frame 39 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3170,9 +3326,11 @@ frame 39 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 40 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3200,9 +3358,11 @@ frame 40 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3248,9 +3408,11 @@ frame 40 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 41 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3278,9 +3440,11 @@ frame 41 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3326,9 +3490,11 @@ frame 41 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 42 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3356,9 +3522,11 @@ frame 42 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3404,9 +3572,11 @@ frame 42 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 43 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3434,9 +3604,11 @@ frame 43 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3482,9 +3654,11 @@ frame 43 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 44 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3512,9 +3686,11 @@ frame 44 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3560,9 +3736,11 @@ frame 44 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 45 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3590,9 +3768,11 @@ frame 45 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3638,9 +3818,11 @@ frame 45 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 46 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3668,9 +3850,11 @@ frame 46 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3716,9 +3900,11 @@ frame 46 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 47 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3746,9 +3932,11 @@ frame 47 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3794,9 +3982,11 @@ frame 47 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 48 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  4 HMCLR $3c px127
   5 HMP0 $60 px49
   5 RESP0 $60 px61
   6 HMOVE $60
+  6 HMCLR $5c
   7 HMP1 $40 px79
   7 RESP1 $40 px91
   8 HMOVE $40
@@ -3824,9 +4014,11 @@ frame 48 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $49
   53 HMP0 $90 px49
   53 RESP0 $90 px61
   54 HMOVE $90
+  54 HMCLR $4d
   55 HMP1 $40 px64
   55 RESP1 $40 px76
   56 HMOVE $40
@@ -3872,9 +4064,11 @@ frame 48 swcha=$ff swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 49 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -3902,9 +4096,11 @@ frame 49 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $48
   53 HMP0 $a0 px49
   53 RESP0 $a0 px61
   54 HMOVE $a0
+  54 HMCLR $4e
   55 HMP1 $30 px64
   55 RESP1 $30 px76
   56 HMOVE $30
@@ -3950,9 +4146,11 @@ frame 49 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 50 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -3980,9 +4178,11 @@ frame 50 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $47
   53 HMP0 $b0 px49
   53 RESP0 $b0 px61
   54 HMOVE $b0
+  54 HMCLR $4f
   55 HMP1 $20 px64
   55 RESP1 $20 px76
   56 HMOVE $20
@@ -4024,13 +4224,15 @@ frame 50 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $01 px16
+  232 CXCLR $00 px16
   262 VSYNC $02
 frame 51 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4058,9 +4260,11 @@ frame 51 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $46
   53 HMP0 $c0 px49
   53 RESP0 $c0 px61
   54 HMOVE $c0
+  54 HMCLR $50
   55 HMP1 $10 px64
   55 RESP1 $10 px76
   56 HMOVE $10
@@ -4094,13 +4298,15 @@ frame 51 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   224 PF1 $ff
   224 PF2 $ff
   232 VBLANK $02
-  232 CXCLR $01 px16
+  232 CXCLR $00 px16
   262 VSYNC $02
 frame 52 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4128,9 +4334,11 @@ frame 52 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $45
   53 HMP0 $d0 px49
   53 RESP0 $d0 px61
   54 HMOVE $d0
+  54 HMCLR $51
   55 HMP1 $00 px64
   55 RESP1 $00 px76
   56 HMOVE $00
@@ -4176,9 +4384,11 @@ frame 52 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 53 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4206,9 +4416,11 @@ frame 53 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $44
   53 HMP0 $e0 px49
   53 RESP0 $e0 px61
   54 HMOVE $e0
+  54 HMCLR $52
   55 HMP1 $f0 px64
   55 RESP1 $f0 px76
   56 HMOVE $f0
@@ -4254,9 +4466,11 @@ frame 53 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 54 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4284,9 +4498,11 @@ frame 54 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $43
   53 HMP0 $f0 px49
   53 RESP0 $f0 px61
   54 HMOVE $f0
+  54 HMCLR $53
   55 HMP1 $e0 px64
   55 RESP1 $e0 px76
   56 HMOVE $e0
@@ -4332,9 +4548,11 @@ frame 54 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 55 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4362,9 +4580,11 @@ frame 55 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $42
   53 HMP0 $00 px49
   53 RESP0 $00 px61
   54 HMOVE $00
+  54 HMCLR $54
   55 HMP1 $d0 px64
   55 RESP1 $d0 px76
   56 HMOVE $d0
@@ -4412,9 +4632,11 @@ frame 55 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 56 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4442,9 +4664,11 @@ frame 56 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $41
   53 HMP0 $10 px49
   53 RESP0 $10 px61
   54 HMOVE $10
+  54 HMCLR $55
   55 HMP1 $c0 px64
   55 RESP1 $c0 px76
   56 HMOVE $c0
@@ -4494,9 +4718,11 @@ frame 56 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 57 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4524,9 +4750,11 @@ frame 57 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $40
   53 HMP0 $20 px49
   53 RESP0 $20 px61
   54 HMOVE $20
+  54 HMCLR $56
   55 HMP1 $b0 px64
   55 RESP1 $b0 px76
   56 HMOVE $b0
@@ -4576,9 +4804,11 @@ frame 57 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 58 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4606,9 +4836,11 @@ frame 58 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3f
   53 HMP0 $30 px49
   53 RESP0 $30 px61
   54 HMOVE $30
+  54 HMCLR $57
   55 HMP1 $a0 px64
   55 RESP1 $a0 px76
   56 HMOVE $a0
@@ -4658,9 +4890,11 @@ frame 58 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 59 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4688,9 +4922,11 @@ frame 59 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3e
   53 HMP0 $40 px49
   53 RESP0 $40 px61
   54 HMOVE $40
+  54 HMCLR $58
   55 HMP1 $90 px64
   55 RESP1 $90 px76
   56 HMOVE $90
@@ -4740,9 +4976,11 @@ frame 59 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 60 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4770,9 +5008,11 @@ frame 60 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3d
   53 HMP0 $50 px49
   53 RESP0 $50 px61
   54 HMOVE $50
+  54 HMCLR $59
   55 HMP1 $80 px64
   55 RESP1 $80 px76
   56 HMOVE $80
@@ -4822,9 +5062,11 @@ frame 60 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 61 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4852,9 +5094,11 @@ frame 61 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3c
   53 HMP0 $60 px49
   53 RESP0 $60 px61
   54 HMOVE $60
+  54 HMCLR $5a
   55 HMP1 $60 px79
   55 RESP1 $60 px91
   56 HMOVE $60
@@ -4904,9 +5148,11 @@ frame 61 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 62 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -4934,9 +5180,11 @@ frame 62 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3b
   53 HMP0 $80 px34
   53 RESP0 $80 px46
   54 HMOVE $80
+  54 HMCLR $5b
   55 HMP1 $50 px79
   55 RESP1 $50 px91
   56 HMOVE $50
@@ -4986,9 +5234,11 @@ frame 62 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 63 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5016,9 +5266,11 @@ frame 63 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $3a
   53 HMP0 $90 px34
   53 RESP0 $90 px46
   54 HMOVE $90
+  54 HMCLR $5c
   55 HMP1 $40 px79
   55 RESP1 $40 px91
   56 HMOVE $40
@@ -5068,9 +5320,11 @@ frame 63 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 64 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5098,9 +5352,11 @@ frame 64 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $39
   53 HMP0 $a0 px34
   53 RESP0 $a0 px46
   54 HMOVE $a0
+  54 HMCLR $5d
   55 HMP1 $30 px79
   55 RESP1 $30 px91
   56 HMOVE $30
@@ -5150,9 +5406,11 @@ frame 64 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 65 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5180,9 +5438,11 @@ frame 65 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $38
   53 HMP0 $b0 px34
   53 RESP0 $b0 px46
   54 HMOVE $b0
+  54 HMCLR $5e
   55 HMP1 $20 px79
   55 RESP1 $20 px91
   56 HMOVE $20
@@ -5232,9 +5492,11 @@ frame 65 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 66 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5262,9 +5524,11 @@ frame 66 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $37
   53 HMP0 $c0 px34
   53 RESP0 $c0 px46
   54 HMOVE $c0
+  54 HMCLR $5f
   55 HMP1 $10 px79
   55 RESP1 $10 px91
   56 HMOVE $10
@@ -5314,9 +5578,11 @@ frame 66 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 67 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5344,9 +5610,11 @@ frame 67 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $36
   53 HMP0 $d0 px34
   53 RESP0 $d0 px46
   54 HMOVE $d0
+  54 HMCLR $60
   55 HMP1 $00 px79
   55 RESP1 $00 px91
   56 HMOVE $00
@@ -5396,9 +5664,11 @@ frame 67 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 68 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5426,9 +5696,11 @@ frame 68 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $35
   53 HMP0 $e0 px34
   53 RESP0 $e0 px46
   54 HMOVE $e0
+  54 HMCLR $61
   55 HMP1 $f0 px79
   55 RESP1 $f0 px91
   56 HMOVE $f0
@@ -5478,9 +5750,11 @@ frame 68 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 69 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5508,9 +5782,11 @@ frame 69 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $34
   53 HMP0 $f0 px34
   53 RESP0 $f0 px46
   54 HMOVE $f0
+  54 HMCLR $62
   55 HMP1 $e0 px79
   55 RESP1 $e0 px91
   56 HMOVE $e0
@@ -5560,9 +5836,11 @@ frame 69 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 70 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5590,9 +5868,11 @@ frame 70 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $33
   53 HMP0 $00 px34
   53 RESP0 $00 px46
   54 HMOVE $00
+  54 HMCLR $63
   55 HMP1 $d0 px79
   55 RESP1 $d0 px91
   56 HMOVE $d0
@@ -5642,9 +5922,11 @@ frame 70 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 71 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5672,9 +5954,11 @@ frame 71 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $32
   53 HMP0 $10 px34
   53 RESP0 $10 px46
   54 HMOVE $10
+  54 HMCLR $64
   55 HMP1 $c0 px79
   55 RESP1 $c0 px91
   56 HMOVE $c0
@@ -5724,9 +6008,11 @@ frame 71 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 72 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5754,9 +6040,11 @@ frame 72 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $31
   53 HMP0 $20 px34
   53 RESP0 $20 px46
   54 HMOVE $20
+  54 HMCLR $65
   55 HMP1 $b0 px79
   55 RESP1 $b0 px91
   56 HMOVE $b0
@@ -5806,9 +6094,11 @@ frame 72 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 73 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5836,9 +6126,11 @@ frame 73 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $30
   53 HMP0 $30 px34
   53 RESP0 $30 px46
   54 HMOVE $30
+  54 HMCLR $66
   55 HMP1 $a0 px79
   55 RESP1 $a0 px91
   56 HMOVE $a0
@@ -5888,9 +6180,11 @@ frame 73 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 74 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -5918,9 +6212,11 @@ frame 74 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2f
   53 HMP0 $40 px34
   53 RESP0 $40 px46
   54 HMOVE $40
+  54 HMCLR $67
   55 HMP1 $90 px79
   55 RESP1 $90 px91
   56 HMOVE $90
@@ -5970,9 +6266,11 @@ frame 74 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 75 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6000,9 +6298,11 @@ frame 75 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2e
   53 HMP0 $50 px34
   53 RESP0 $50 px46
   54 HMOVE $50
+  54 HMCLR $68
   55 HMP1 $80 px79
   55 RESP1 $80 px91
   56 HMOVE $80
@@ -6052,9 +6352,11 @@ frame 75 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 76 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6082,9 +6384,11 @@ frame 76 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2d
   53 HMP0 $60 px34
   53 RESP0 $60 px46
   54 HMOVE $60
+  54 HMCLR $69
   55 HMP1 $60 px94
   55 RESP1 $60 px106
   56 HMOVE $60
@@ -6134,9 +6438,11 @@ frame 76 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 77 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6164,9 +6470,11 @@ frame 77 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2c
   53 HMP0 $80 px19
   53 RESP0 $80 px31
   54 HMOVE $80
+  54 HMCLR $6a
   55 HMP1 $50 px94
   55 RESP1 $50 px106
   56 HMOVE $50
@@ -6216,9 +6524,11 @@ frame 77 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 78 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6246,9 +6556,11 @@ frame 78 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2b
   53 HMP0 $90 px19
   53 RESP0 $90 px31
   54 HMOVE $90
+  54 HMCLR $6b
   55 HMP1 $40 px94
   55 RESP1 $40 px106
   56 HMOVE $40
@@ -6298,9 +6610,11 @@ frame 78 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 79 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6328,9 +6642,11 @@ frame 79 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $2a
   53 HMP0 $a0 px19
   53 RESP0 $a0 px31
   54 HMOVE $a0
+  54 HMCLR $6c
   55 HMP1 $30 px94
   55 RESP1 $30 px106
   56 HMOVE $30
@@ -6380,9 +6696,11 @@ frame 79 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 80 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6410,9 +6728,11 @@ frame 80 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $29
   53 HMP0 $b0 px19
   53 RESP0 $b0 px31
   54 HMOVE $b0
+  54 HMCLR $6d
   55 HMP1 $20 px94
   55 RESP1 $20 px106
   56 HMOVE $20
@@ -6462,9 +6782,11 @@ frame 80 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 81 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6492,9 +6814,11 @@ frame 81 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $28
   53 HMP0 $c0 px19
   53 RESP0 $c0 px31
   54 HMOVE $c0
+  54 HMCLR $6e
   55 HMP1 $10 px94
   55 RESP1 $10 px106
   56 HMOVE $10
@@ -6544,9 +6868,11 @@ frame 81 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 82 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6574,9 +6900,11 @@ frame 82 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $27
   53 HMP0 $d0 px19
   53 RESP0 $d0 px31
   54 HMOVE $d0
+  54 HMCLR $6f
   55 HMP1 $00 px94
   55 RESP1 $00 px106
   56 HMOVE $00
@@ -6626,9 +6954,11 @@ frame 82 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 83 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6656,9 +6986,11 @@ frame 83 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $26
   53 HMP0 $e0 px19
   53 RESP0 $e0 px31
   54 HMOVE $e0
+  54 HMCLR $70
   55 HMP1 $f0 px94
   55 RESP1 $f0 px106
   56 HMOVE $f0
@@ -6708,9 +7040,11 @@ frame 83 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 84 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6738,9 +7072,11 @@ frame 84 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $25
   53 HMP0 $f0 px19
   53 RESP0 $f0 px31
   54 HMOVE $f0
+  54 HMCLR $71
   55 HMP1 $e0 px94
   55 RESP1 $e0 px106
   56 HMOVE $e0
@@ -6790,9 +7126,11 @@ frame 84 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 85 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6820,9 +7158,11 @@ frame 85 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $24
   53 HMP0 $00 px19
   53 RESP0 $00 px31
   54 HMOVE $00
+  54 HMCLR $72
   55 HMP1 $d0 px94
   55 RESP1 $d0 px106
   56 HMOVE $d0
@@ -6872,9 +7212,11 @@ frame 85 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 86 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6902,9 +7244,11 @@ frame 86 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $23
   53 HMP0 $10 px19
   53 RESP0 $10 px31
   54 HMOVE $10
+  54 HMCLR $73
   55 HMP1 $c0 px94
   55 RESP1 $c0 px106
   56 HMOVE $c0
@@ -6954,9 +7298,11 @@ frame 86 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 87 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -6984,9 +7330,11 @@ frame 87 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $22
   53 HMP0 $20 px19
   53 RESP0 $20 px31
   54 HMOVE $20
+  54 HMCLR $74
   55 HMP1 $b0 px94
   55 RESP1 $b0 px106
   56 HMOVE $b0
@@ -7036,9 +7384,11 @@ frame 87 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 88 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -7066,9 +7416,11 @@ frame 88 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $21
   53 HMP0 $30 px19
   53 RESP0 $30 px31
   54 HMOVE $30
+  54 HMCLR $75
   55 HMP1 $a0 px94
   55 RESP1 $a0 px106
   56 HMOVE $a0
@@ -7118,9 +7470,11 @@ frame 88 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   262 VSYNC $02
 frame 89 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   3 VSYNC $00
+  5 HMCLR $3c px31
   6 HMP0 $60 px49
   6 RESP0 $60 px61
   7 HMOVE $60
+  7 HMCLR $5c
   8 HMP1 $40 px79
   8 RESP1 $40 px91
   9 HMOVE $40
@@ -7148,9 +7502,11 @@ frame 89 swcha=$a5 swchb=$3f lines=262 regions=3/37/192/30
   50 GRP1 $3c
   51 GRP0 $00
   51 GRP1 $00
+  52 HMCLR $20
   53 HMP0 $40 px19
   53 RESP0 $40 px31
   54 HMOVE $40
+  54 HMCLR $76
   55 HMP1 $90 px94
   55 RESP1 $90 px106
   56 HMOVE $90
