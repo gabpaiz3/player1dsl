@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { movementBounds } from '../src/index.ts';
+import { movementBounds, POSITIONING_OFFSET } from '../src/index.ts';
 
 // The arena as tank-arena declares it: a 4-pixel side wall from one playfield
 // block, a field rendering frame lines 66-223, and an 8x8 sprite.
@@ -14,10 +14,20 @@ const ARENA = {
 } as const;
 
 describe('movementBounds', () => {
+  /**
+   * In AUTHORED coordinates. The rendered bound is the wall's edge -- 4 and 148
+   * -- and the sprite renders POSITIONING_OFFSET pixels right of its authored
+   * x, so the authored bound is each of those shifted back by three.
+   *
+   * MOVED, 2026-08-30. These were 4 and 148 while this file assumed an authored
+   * x renders on screen pixel x. tests/fixtures/tia/collide-playfield.asm
+   * measured the offset and Stella confirmed it; the y bounds are untouched
+   * because vertical placement is a loop counter and no strobe is involved.
+   */
   it('keeps the sprite clear of the side walls', () => {
     const b = movementBounds(ARENA);
-    expect(b.xMin).toBe(4);
-    expect(b.xMax).toBe(148);
+    expect(b.xMin).toBe(4 - POSITIONING_OFFSET);
+    expect(b.xMax).toBe(148 - POSITIONING_OFFSET);
   });
 
   it('keeps the sprite inside the field the ledger allotted', () => {
@@ -35,7 +45,14 @@ describe('movementBounds', () => {
 
   it('narrows as the wall thickens', () => {
     const thick = movementBounds({ ...ARENA, wallPixels: 8 });
-    expect(thick.xMin).toBe(8);
+    expect(thick.xMin).toBe(8 - POSITIONING_OFFSET);
+  });
+
+  // The offset is a MEASUREMENT, so a test that read it back from the same
+  // constant would prove nothing. This pins the number itself, and it is the
+  // line a future measurement has to argue with.
+  it('applies the three-pixel positioning offset the playfield sweep measured', () => {
+    expect(POSITIONING_OFFSET).toBe(3);
   });
 
   /**

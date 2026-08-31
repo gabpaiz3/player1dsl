@@ -13,6 +13,9 @@
  * and a margin that differs on one side of one axis is not a rule that any
  * geometry produces. Reproducing it would be transcription.
  *
+ * The POSITIONING OFFSET below is measured, and it is what closed the "assume
+ * zero" note this file used to carry.
+ *
  * The clamp's ASYMMETRY is not here either. A lower bound rests one below its
  * constant and an upper bound rests exactly on it, because of the `cpx / bcc`
  * versus `cpx / bcs` shape the lowering emits. That belongs to rules.ts: four
@@ -49,6 +52,22 @@ export interface MovementBounds {
 /** The pixels one playfield bit covers on screen. 40 bits across 160 pixels. */
 export const PLAYFIELD_BIT_PIXELS = 4;
 
+/**
+ * Screen pixels between an object's AUTHORED x and where it renders.
+ *
+ * MEASURED, and it was three rather than the zero this file used to assume.
+ * `tests/fixtures/tia/collide-playfield.asm` sweeps a single-pixel player
+ * across a playfield block whose position the beam fixes, and Stella put the
+ * flip three pixels earlier than a zero offset predicts. See
+ * docs/kernel-measurements.md, "Where a RESPx strobe puts an object".
+ *
+ * It is a property of `PosObjectX` -- the strobe and the HMOVE that follows it,
+ * measured together -- so it belongs beside the bounds that are expressed in
+ * authored coordinates. Every object the compiler places goes through that
+ * routine.
+ */
+export const POSITIONING_OFFSET = 3;
+
 export function movementBounds(input: BoundsInput): MovementBounds {
   const { wallPixels, spriteWidth, spriteHeight, counterOrigin } = input;
   const { fieldFirstLine, fieldLastLine } = input;
@@ -56,8 +75,11 @@ export function movementBounds(input: BoundsInput): MovementBounds {
   // Horizontal: the sprite starts at x and ends at x + width - 1. Under REF the
   // right wall mirrors the left, so the playfield is 160 pixels wide with a
   // wall at each end.
-  const xMin = wallPixels;
-  const xMax = 160 - wallPixels - spriteWidth;
+  // In AUTHORED coordinates, which are what a rule clamps. The sprite renders
+  // POSITIONING_OFFSET pixels right of its authored x, so the authored bound is
+  // the rendered bound shifted back by it.
+  const xMin = wallPixels - POSITIONING_OFFSET;
+  const xMax = 160 - wallPixels - spriteWidth - POSITIONING_OFFSET;
 
   // Vertical, in loop-counter terms, which run OPPOSITE to screen lines: a
   // larger y is higher up. The top row renders at counterOrigin - y, and the

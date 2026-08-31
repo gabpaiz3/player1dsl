@@ -1,6 +1,7 @@
+import { assembleSource } from '@player1dsl/assembler';
 import { describe, expect, it } from 'vitest';
 import { Machine } from '../src/index.ts';
-import { romFor } from './support/roms.ts';
+import { fixtureSource, romFor } from './support/roms.ts';
 
 const COLUBK = 0x09;
 const RED = 0x44;
@@ -52,10 +53,15 @@ describe('HMOVE applies every horizontal-motion register, not just the last', ()
   });
 
   it('displaces P0 by its own fine adjustment a second time', () => {
-    // P0 authored at 44 with a fine adjustment of -8 (right 8): the coarse
-    // strobe lands it at 36, the first HMOVE takes it to 44, and the second
-    // call's HMOVE takes it to 52. P1 is positioned last and gets exactly one.
-    expect(positions('double-hmove')).toEqual([52, 55]);
+    // P0 authored at 44 with a fine adjustment of -8 (right 8): the first
+    // HMOVE lands it where an authored 44 belongs, and the second call's HMOVE
+    // takes it eight further. P1 is positioned last and gets exactly one.
+    //
+    // Both carry the +3 that collide-playfield.asm measured, which is why these
+    // are 55 and 58 rather than 52 and 55. A uniform offset cannot change this
+    // fixture's verdict -- that is exactly why it needed the playfield sweep
+    // beside it.
+    expect(positions('double-hmove')).toEqual([55, 58]);
   });
 
   /**
@@ -67,8 +73,8 @@ describe('HMOVE applies every horizontal-motion register, not just the last', ()
     expect(verdict('double-hmove-cleared')).toBe(BLACK);
   });
 
-  it('puts P0 exactly where it was authored once HMCLR is strobed', () => {
-    expect(positions('double-hmove-cleared')).toEqual([44, 55]);
+  it('displaces P0 only once when HMCLR is strobed', () => {
+    expect(positions('double-hmove-cleared')).toEqual([47, 58]);
   });
 
   // Both fixtures are whole NTSC frames, so a structural mistake in either
@@ -95,5 +101,59 @@ describe('HMOVE applies every horizontal-motion register, not just the last', ()
       const [p0, p1] = positions(name);
       expect([name, verdict(name) === RED]).toEqual([name, Math.abs(p1 - p0) < 8]);
     }
+  });
+});
+
+/**
+ * Where a RESP0 strobe actually puts P0, measured ABSOLUTELY.
+ *
+ * A single lit player column is swept across a playfield block at pixels 0-3.
+ * The playfield's position is fixed by the beam and no strobe places it, which
+ * is what makes this different from double-hmove.asm above: that one measures a
+ * SEPARATION between two objects the same routine placed, so a strobe delay
+ * that was uniformly wrong would move both and the flip would land in the same
+ * place anyway.
+ *
+ * MEASURED IN STELLA, 2026-08-30, and it contradicted the model:
+ *
+ *   authored x = 0   RED    (P0 is inside the block)
+ *   authored x = 1   black
+ *   authored x = 2   black
+ *   authored x = 3   black
+ *
+ * A strobe delay of 5 puts the flip at 4. Stella put it at 1, so an authored x
+ * renders three pixels to the right of x, and `Objects.PLAYER_STROBE_DELAY` is
+ * 8. `packages/runtime/src/bounds.ts` carries the same three pixels, and used
+ * to assume they were zero.
+ */
+describe('collide-playfield: where a RESP0 strobe puts P0', () => {
+  /** Assemble the fixture with a given authored x and report the latch. */
+  function latchedAt(x: number): boolean {
+    const source = fixtureSource('collide-playfield').replace(
+      'P0_X        = 0',
+      `P0_X        = ${x}`,
+    );
+    const { rom } = assembleSource(source, 'tests/fixtures/tia/collide-playfield.asm', {
+      includeDirs: ['kernels/include'],
+    });
+    const machine = new Machine(rom);
+    machine.runFrame();
+    machine.runFrame();
+    const frame = machine.runFrame({ trace: true });
+    return (frame.writes ?? []).filter((w) => w.register === COLUBK).at(-1)?.value === RED;
+  }
+
+  it('flips at an authored x of 1, which is where Stella flips', () => {
+    const flip = [0, 1, 2, 3, 4, 5, 6, 7].find((x) => !latchedAt(x));
+    expect(flip).toBe(1);
+  });
+
+  /**
+   * The guard that makes the number above mean anything. A sweep whose every
+   * value gives the same answer has measured nothing, and a fixture that never
+   * latched at all would report a flip of 0 and pass.
+   */
+  it('is not degenerate: the sweep both sets and clears the latch', () => {
+    expect([latchedAt(0), latchedAt(6)]).toEqual([true, false]);
   });
 });

@@ -49,15 +49,32 @@ export class Objects {
   /**
    * Where a RESPx strobe puts an object, relative to the beam.
    *
-   * PARAMETERS, not constants. `tests/fixtures/tia/` measures them and Stella
-   * checks the result; these values are the documented starting point and lose
-   * to any measurement that disagrees. `packages/runtime/src/bounds.ts` assumes
-   * the player delay makes an authored x land on screen pixel x, which is the
-   * assumption those fixtures exist to test.
+   * PARAMETERS, not constants, and the player's is MEASURED.
+   *
+   * `tests/fixtures/tia/collide-playfield.asm` sweeps a single-pixel P0 across
+   * a playfield block at pixels 0-3 -- the playfield's position is fixed by the
+   * beam and no strobe places it, so the sweep measures position ABSOLUTELY
+   * where a player-versus-player sweep only measures a separation. Stella put
+   * the flip at an authored x of 1; a delay of 5 puts it at 4. The measurement
+   * won, and 8 is what reproduces every one of Stella's four data points.
+   *
+   * See docs/kernel-measurements.md, "Where a RESPx strobe puts an object".
+   *
+   * WHAT THE SWEEP CANNOT SAY: it measures the strobe and the HMOVE that
+   * follows it as one composite, because `PosObjectX` always does both. The
+   * three pixels could belong to either. Isolating them needs a fixture that
+   * strobes RESPx and never strobes HMOVE, which nothing here has yet.
+   *
+   * The missile and ball delays, and both hblank positions, are NOT measured.
+   * They are carried by the same correction on the assumption that the
+   * mechanism is shared, and that assumption is untested.
    */
-  static readonly PLAYER_STROBE_DELAY = 5;
-  static readonly MISSILE_STROBE_DELAY = 4;
+  static readonly PLAYER_STROBE_DELAY = 8;
+  /** UNMEASURED. Shifted with the player's, on an untested assumption. */
+  static readonly MISSILE_STROBE_DELAY = 7;
+  /** UNMEASURED. */
   static readonly PLAYER_HBLANK_POSITION = 3;
+  /** UNMEASURED. */
   static readonly MISSILE_HBLANK_POSITION = 2;
 
   // Positions, in visible pixels, of each object's first copy.

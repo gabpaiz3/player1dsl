@@ -268,10 +268,16 @@ does not render pixels and does not track object positions at all
 (`packages/emulator/src/tia.ts` returns 0 for every read). The tight bounds above assume
 `k = 0`.
 
-**Partly answered, 2026-08-30.** [One HMOVE moves every object](#one-hmove-moves-every-object)
-measured that an authored x lands on screen pixel x only for the object positioned LAST;
-every earlier object is displaced by its own fine adjustment a second time. Whether the
-last one lands exactly on x is still open, and needs a fixture collided against the playfield.
+**ANSWERED, 2026-08-30, and the answer was not zero.**
+[One HMOVE moves every object](#one-hmove-moves-every-object) found that every object but the
+last was displaced twice, and `PosObjectX` now strobes HMCLR so it is not.
+[Where a RESPx strobe puts an object](#where-a-respx-strobe-puts-an-object) then measured what
+remained: an authored x renders at **x + 3**. `bounds.ts` carries that as
+`POSITIONING_OFFSET` and no longer assumes it is zero, so `xMin` and `xMax` below are 1 and
+145 rather than 4 and 148, and the reference's margins are 7/1/2/4.
+
+The paragraph below is kept as written because the argument it makes does not depend on the
+offset:
 
 This does not change the verdict -- the reference's margins are non-uniform for any `k`,
 because a constant offset shifts both horizontal bounds the same way and neither vertical one.
@@ -460,6 +466,95 @@ it cancels out of the overlap arithmetic and Stella would agree with a model who
 uniformly wrong. `packages/runtime/src/bounds.ts` still assumes the delay is such that
 authored x is screen pixel x, and a fixture collided against the **playfield** — whose
 position the beam fixes and no strobe places — is what would settle it.
+
+## Where a RESPx strobe puts an object
+
+Increment 5c. **The measurement that contradicted the model**, and the one that closed
+`bounds.ts`'s longest-standing assumption.
+
+### Question
+
+`packages/runtime/src/bounds.ts` derived its movement bounds from the assumption that an
+object authored at x lands on screen pixel x, and said so in a note headed "Not measured".
+Does it?
+
+### Why this fixture and not the other one
+
+[One HMOVE moves every object](#one-hmove-moves-every-object) collides P0 against P1. Both are
+placed by the same routine, so a strobe delay that was uniformly wrong would move both and the
+flip would land at the same separation regardless — **Stella would agree with a model that is
+uniformly wrong.** That fixture measures a separation, not a position.
+
+`tests/fixtures/tia/collide-playfield.asm` collides P0 against a **playfield** block, whose
+position the beam fixes and no strobe places. That is absolute.
+
+### Setup
+
+One playfield block lit — PF0 D4, screen pixels 0–3 — and `GRP0 = $80`, so P0 is a single lit
+column. `CXP0FB` D7 is read in overscan and the background painted red on contact. P0's
+authored x is swept.
+
+### Prediction, written before the run
+
+If an authored x lands on screen pixel x, the single column touches the block for x = 0, 1, 2,
+3 and misses from 4. **Flip at 4.** Any other flip f says the true landing pixel is x + (4 − f).
+
+### Measured
+
+| authored x | our model, delay 5 | **Stella 7.0** |
+|---|---|---|
+| 0 | red | **red** |
+| 1 | red | **black** |
+| 2 | red | **black** |
+| 3 | red | **black** |
+| 4 | black | black |
+
+**Flip at 1, not 4.** The prediction was wrong by three pixels, and the model was wrong with
+it.
+
+### Verdict
+
+An object authored at x renders at **x + 3**. `Objects.PLAYER_STROBE_DELAY` is **8**, not the
+5 the documented starting point suggested, and 8 reproduces every one of Stella's data points.
+
+The design said these offsets are *"parameters measured by fixtures, not constants asserted
+from a datasheet"*, and *"these values are the documented starting point and lose to any
+measurement that disagrees"*. This is that clause being spent.
+
+### What it cost
+
+**`bounds.ts` stops assuming.** The rendered bound is still the wall's edge, but the bounds a
+rule clamps are in AUTHORED coordinates, so each horizontal bound moves back by three:
+
+| | before | after |
+|---|---|---|
+| `xMin` | 4 | **1** |
+| `xMax` | 148 | **145** |
+| `yMin`, `yMax` | 9, 159 | unchanged |
+
+The vertical bounds do not move: vertical placement is a loop counter and no strobe is
+involved. `POSITIONING_OFFSET` is now a named constant in `bounds.ts` with this measurement
+behind it.
+
+Worth noting where that leaves the reference kernel's hand-chosen `X_MAX` of 144: the derived
+tight bound is now **145**, one away, where before it was 148. The margins recorded under
+[Where a movement bound comes from](#where-a-movement-bound-comes-from) are 7/1/2/4 rather
+than 4/4/3/4 — still not uniform, so that section's verdict of "hand-chosen" stands.
+
+**The golden did not change.** A uniform offset shifts both tanks equally, so tank-versus-tank
+contact is unaffected, and the script never brings a tank near a wall. Predicted before
+regenerating, and confirmed: `tests/goldens/tank-arena.trace` is byte-identical across the
+correction.
+
+### What the sweep cannot say
+
+It measures the strobe **and** the HMOVE that follows it as one composite, because
+`PosObjectX` always does both. The three pixels could belong to either. Separating them needs
+a fixture that strobes `RESPx` and never strobes `HMOVE`, and nothing here has one yet.
+
+`MISSILE_STROBE_DELAY`, `PLAYER_HBLANK_POSITION` and `MISSILE_HBLANK_POSITION` are **not
+measured**. They are shifted by the same three pixels on the assumption that the mechanism is
+shared, and that assumption is untested. Each is labelled UNMEASURED in `objects.ts`.
 
 ## What is still unmeasured
 
