@@ -17,6 +17,8 @@ export const ROM_SOURCES: Readonly<Record<string, string>> = {
   'scroll-field': 'tests/fixtures/kernels/scroll-field.asm',
   'ball-and-paddles': 'tests/fixtures/kernels/ball-and-paddles.asm',
   'sprite-formation': 'tests/fixtures/kernels/sprite-formation.asm',
+  'double-hmove': 'tests/fixtures/tia/double-hmove.asm',
+  'double-hmove-cleared': 'tests/fixtures/tia/double-hmove-cleared.asm',
 };
 
 /**

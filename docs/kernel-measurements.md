@@ -268,6 +268,11 @@ does not render pixels and does not track object positions at all
 (`packages/emulator/src/tia.ts` returns 0 for every read). The tight bounds above assume
 `k = 0`.
 
+**Partly answered, 2026-08-30.** [One HMOVE moves every object](#one-hmove-moves-every-object)
+measured that an authored x lands on screen pixel x only for the object positioned LAST;
+every earlier object is displaced by its own fine adjustment a second time. Whether the
+last one lands exactly on x is still open, and needs a fixture collided against the playfield.
+
 This does not change the verdict -- the reference's margins are non-uniform for any `k`,
 because a constant offset shifts both horizontal bounds the same way and neither vertical one.
 It does mean `xMin`/`xMax` could be off by a fixed amount in the picture, which is exactly the
@@ -358,6 +363,103 @@ Marked rather than deleted, because a number that moved is evidence:
 - The same section's "they would land around pixel 31" is pre-correction; around 22 to 34.
 - `packages/emulator/test/trace.test.ts` pinned `GRP0@pixel1` and `GRP1@pixel10`; both moved
   by six and the test carries the reason.
+
+## One HMOVE moves every object
+
+Increment 5c. The first measurement in this repository where **Stella settled a question our
+own emulator could not**, and it found a defect in the hand-written kernel.
+
+### Question
+
+`PosObjectX` ends `sta WSYNC / sta HMOVE / rts`, and both the reference kernel and the
+compiler's `positioningRoutine()` call it once per object with **no `HMCLR` between the
+calls**. A `HMOVE` strobe applies every `HMxx` register that is currently set. So does the
+second call's `HMOVE` re-apply the first object's fine adjustment, displacing P0 twice?
+
+### Fixtures
+
+`tests/fixtures/tia/double-hmove.asm` and its control `double-hmove-cleared.asm`, identical
+but for one `sta HMCLR` between the two positioning calls.
+
+Both position P0 at an authored x of 44 and P1 at 55, both 8 pixels wide and solid, then read
+`CXPPMM` in overscan and paint the **background** red on contact and black otherwise.
+
+A whole-screen colour, deliberately. An earlier attempt to settle object placement by
+measuring a sprite's left edge off a screenshot was abandoned: locating the emulator's window
+reliably enough to calibrate against turned out to be a screen-scraping problem, and a
+measurement whose error bars come from window management is not a measurement. A screen that
+is entirely one colour is not that kind of measurement.
+
+### Prediction, written before the run
+
+x = 44 divides as 15·2 remainder 14, so the coarse strobe lands P0 at pixel 36 and its fine
+adjustment is `$80` — signed −8, which moves it **right** by 8. x = 55 divides as 15·3
+remainder 10: coarse 51, fine `$C0`, right by 4.
+
+| | P0 | P1 | gap | `CXPPMM` | screen |
+|---|---|---|---|---|---|
+| if `HMOVE` moves only the object just positioned | 44 (covers 44–51) | 55 (55–62) | 3 clear pixels | clear | **black** |
+| if `HMOVE` moves every object with a non-zero `HMxx` | 52 (52–59) | 55 (55–62) | overlap of 5 | set | **red** |
+
+P1 is positioned last and gets exactly one adjustment either way, which is what makes the
+difference attributable to P0 alone.
+
+### Measured
+
+| | our emulator | **Stella 7.0** |
+|---|---|---|
+| `double-hmove` | red, P0 at 52 | **red**, and one *merged* white bar rather than two |
+| `double-hmove-cleared` | black, P0 at 44 | **black**, and two clearly separated white bars |
+
+**Verdict: one `HMOVE` moves every object.** Both implementations agree, on both fixtures,
+and the control fires — which is what says the pair can report black at all. Without the
+control, a red result would be indistinguishable from a fixture that is always red.
+
+Stella's picture corroborates the colour independently: merged versus separated bars is the
+overlap, visible directly, in a model that renders pixels where ours does not.
+
+### What it costs
+
+**The reference kernel displaces every object but the last.** `tank0` authored at x = 70 in
+the golden's frame 33 renders at pixel **74** — its own `$C0` fine adjustment applied a second
+time. `tank1`, positioned last, renders at 80 as authored.
+
+That is a latent defect in `examples/tank-arena/reference/tank-arena.asm`, and
+`packages/runtime/src/emit.ts`'s `positioningRoutine()` is a copy of it, so **the compiler
+inherits it**. A scene with three objects would displace the first by twice its adjustment and
+the second by once.
+
+It is also why the two tanks touch at all. See below.
+
+### And it is why the golden's tanks collide
+
+The design's correction of 2026-08-29 derived, geometrically, that *"the two sprites miss
+contact by about a pixel on line 139, so `CXPPMM` never sets"*. Measured against a machine
+that can see a collision:
+
+| frame | tank0 | tank1 | `score0` | `hitFlag` |
+|---|---|---|---|---|
+| 0–32 | (40,120) → (70,90) | (110,60) → (80,90) | 3 | 0 |
+| **33** | (70,90) | (80,90) | **4** | 1 |
+| 52 | (69,91) | (81,89) | 4 | 0 |
+
+They contact at frame 33 and separate at 52, and **the score increments exactly once across
+19 frames of contact** — the `hitFlag` debounce, which the correction said was "covered
+nowhere at all", working.
+
+The authored gap is 10 pixels and the sprites are 8 wide, so on the arithmetic the correction
+used they should indeed miss. They touch because P0 is displaced to 74 and covers 74–81 while
+P1 covers 80–87. The correction's geometry was right; its premise — that an authored x is
+where the object lands — was not.
+
+### Still open
+
+Whether an authored x lands on screen pixel x for the **last-positioned** object. The
+fixtures above measure a RELATIVE displacement: both players carry the same strobe delay, so
+it cancels out of the overlap arithmetic and Stella would agree with a model whose delay was
+uniformly wrong. `packages/runtime/src/bounds.ts` still assumes the delay is such that
+authored x is screen pixel x, and a fixture collided against the **playfield** — whose
+position the beam fixes and no strobe places — is what would settle it.
 
 ## What is still unmeasured
 
