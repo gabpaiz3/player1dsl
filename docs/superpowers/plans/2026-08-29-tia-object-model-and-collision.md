@@ -4,6 +4,13 @@
 > (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
 > checkbox (`- [ ]`) syntax for tracking.
 
+**Status: complete, 2026-08-30.** See [`docs/session-logs/2026-08-30.md`](../../session-logs/2026-08-30.md).
+Tasks 4 and 5 were executed in the other order and merged: Stella adjudicated the HMOVE
+question first, at the user's direction, because everything else rested on it. The
+`collide-players` fixture the plan named was replaced by `double-hmove` and its control, which
+answer a sharper question; `collide-playfield` is as planned and is the one that measures
+absolute position.
+
 **Goal:** `packages/emulator` tracks all six TIA objects at colour-clock resolution and serves
 real values from all eight collision registers, so increment 6's `when tank0 hits tank1` has
 something that can falsify it.
@@ -88,7 +95,7 @@ golden regenerates, every changed clock must have exactly one possible cause.
 - Produces: `Bus.onTiaAccess: (() => void) | undefined` — called immediately before an access
   that decodes to the TIA, and at no other time.
 
-- [ ] **Step 1 — write the failing test.** Create `packages/emulator/test/write-timing.test.ts`:
+- [x] **Step 1 — write the failing test.** Create `packages/emulator/test/write-timing.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -158,7 +165,7 @@ describe('a bus access lands on the instruction final cycle', () => {
 });
 ```
 
-- [ ] **Step 2 — run it, watch all three fail.**
+- [x] **Step 2 — run it, watch all three fail.**
 
 ```bash
 npx vitest run packages/emulator/test/write-timing.test.ts
@@ -166,7 +173,7 @@ npx vitest run packages/emulator/test/write-timing.test.ts
 
 Expected: `[0, 9, 18]` where `[6, 15, 24]` was asserted.
 
-- [ ] **Step 3 — expose the CPU's cycle count.** In `packages/emulator/src/cpu.ts`, beside
+- [x] **Step 3 — expose the CPU's cycle count.** In `packages/emulator/src/cpu.ts`, beside
       `private cycles = 0`:
 
 ```ts
@@ -184,7 +191,7 @@ Expected: `[0, 9, 18]` where `[6, 15, 24]` was asserted.
   }
 ```
 
-- [ ] **Step 4 — give the bus a sync hook.** In `packages/emulator/src/bus.ts`, add the field
+- [x] **Step 4 — give the bus a sync hook.** In `packages/emulator/src/bus.ts`, add the field
       and call it on both TIA paths:
 
 ```ts
@@ -214,7 +221,7 @@ Expected: `[0, 9, 18]` where `[6, 15, 24]` was asserted.
       return;
 ```
 
-- [ ] **Step 5 — drive it from the machine.** In `packages/emulator/src/machine.ts`, inside
+- [x] **Step 5 — drive it from the machine.** In `packages/emulator/src/machine.ts`, inside
       `runFrame`, before the `try`:
 
 ```ts
@@ -250,9 +257,9 @@ Expected: `[0, 9, 18]` where `[6, 15, 24]` was asserted.
       this.bus.onTiaAccess = undefined;
 ```
 
-- [ ] **Step 6 — run the new test.** All three pass.
+- [x] **Step 6 — run the new test.** All three pass.
 
-- [ ] **Step 7 — run the gate, and read what moved.**
+- [x] **Step 7 — run the gate, and read what moved.**
 
 ```bash
 npm run check
@@ -267,7 +274,7 @@ npm run check
       has not been regenerated yet, so failures there are expected at this step and are the
       next one's input.
 
-- [ ] **Step 8 — regenerate the golden and read the diff.**
+- [x] **Step 8 — regenerate the golden and read the diff.**
 
 ```bash
 npm run golden
@@ -282,7 +289,7 @@ git diff --stat tests/goldens/tank-arena.trace
 git diff tests/goldens/tank-arena.trace | grep '^[-+]' | head -40
 ```
 
-- [ ] **Step 9 — recompute the hoist argument, prediction first.** The spec predicts the
+- [x] **Step 9 — recompute the hoist argument, prediction first.** The spec predicts the
       corrected number makes increment 5b's hoist case STRONGER. Read the regenerated golden
       for the reference's `COLUP1` write on line 57 and its `PF0`/`GRP0` writes on line 65,
       and write predicted-beside-measured into `docs/kernel-measurements.md` under a new
@@ -297,7 +304,7 @@ git diff tests/goldens/tank-arena.trace | grep '^[-+]' | head -40
       rather than deleting them — a number that moved is evidence, and deleting it loses the
       finding.
 
-- [ ] **Step 10 — commit, alone.**
+- [x] **Step 10 — commit, alone.**
 
 ```bash
 git add packages/emulator/src/cpu.ts packages/emulator/src/bus.ts \
@@ -322,7 +329,7 @@ git push
   `applyHmove()`, and `presenceAt(pixel: number): number`.
 - Consumes: nothing from Task 1.
 
-- [ ] **Step 1 — write the failing test.** Create `packages/emulator/test/objects.test.ts`:
+- [x] **Step 1 — write the failing test.** Create `packages/emulator/test/objects.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -453,9 +460,9 @@ describe('HMOVE', () => {
 });
 ```
 
-- [ ] **Step 2 — run it, watch it fail** with "Objects is not exported".
+- [x] **Step 2 — run it, watch it fail** with "Objects is not exported".
 
-- [ ] **Step 3 — implement `packages/emulator/src/objects.ts`.**
+- [x] **Step 3 — implement `packages/emulator/src/objects.ts`.**
 
 ```ts
 /**
@@ -652,11 +659,11 @@ export class Objects {
 }
 ```
 
-- [ ] **Step 4 — export and run.** Add `export { Objects, Present } from './objects.ts';` and
+- [x] **Step 4 — export and run.** Add `export { Objects, Present } from './objects.ts';` and
       `export type { MovableName } from './objects.ts';` to `packages/emulator/src/index.ts`.
       All fifteen tests pass.
 
-- [ ] **Step 5 — commit.**
+- [x] **Step 5 — commit.**
 
 ```bash
 git add packages/emulator/src/objects.ts packages/emulator/test/objects.test.ts \
@@ -678,7 +685,7 @@ git commit -m "Task 2: what the TIA draws, as state plus one query"
 - Produces: `TIA.CXM0P`…`TIA.CXPPMM` read addresses, `Tia.objects: Objects`,
   `Tia.collisions: Readonly<Uint8Array>` (8 entries, indexed by read address).
 
-- [ ] **Step 1 — write the failing test.** Create
+- [x] **Step 1 — write the failing test.** Create
       `packages/emulator/test/collision.test.ts`:
 
 ```ts
@@ -769,9 +776,9 @@ describe('collision latches', () => {
 });
 ```
 
-- [ ] **Step 2 — run it, watch it fail** with "objects is not a property of Tia".
+- [x] **Step 2 — run it, watch it fail** with "objects is not a property of Tia".
 
-- [ ] **Step 3 — implement.** In `packages/emulator/src/tia.ts`:
+- [x] **Step 3 — implement.** In `packages/emulator/src/tia.ts`:
 
       Add to the `TIA` constant, after `CXCLR`:
 
@@ -943,15 +950,15 @@ const LATCHES: readonly (readonly [number, number, number, number])[] = [
   }
 ```
 
-- [ ] **Step 4 — export `CX`** from `packages/emulator/src/index.ts`, alongside `TIA`.
+- [x] **Step 4 — export `CX`** from `packages/emulator/src/index.ts`, alongside `TIA`.
 
-- [ ] **Step 5 — run the whole suite.** All seven new tests pass, and **every existing test
+- [x] **Step 5 — run the whole suite.** All seven new tests pass, and **every existing test
       still passes**. `golden.test.ts` and `static-build.test.ts` are the ones to watch: the
       reference ROM now reads a real `CXPPMM`, so if the two tanks touch in any of the 90
       frames, the score changes and the trace changes with it. That is a real finding either
       way — record which happened for the session log.
 
-- [ ] **Step 6 — commit.**
+- [x] **Step 6 — commit.**
 
 ```bash
 git add packages/emulator/src/tia.ts packages/emulator/test/collision.test.ts \
@@ -977,7 +984,7 @@ it is not, and takes the separation from a byte at a fixed ROM offset so the tes
 without reassembling by hand. A whole-screen colour flip is chosen deliberately: it survives
 being read off a Stella screenshot in a way that measuring a sprite's left edge did not.
 
-- [ ] **Step 1 — write `tests/fixtures/tia/collide-players.asm`.** Header states the QUESTION
+- [x] **Step 1 — write `tests/fixtures/tia/collide-players.asm`.** Header states the QUESTION
       and the PREDICTION before the numbers are known:
 
 ```
@@ -997,7 +1004,7 @@ being read off a Stella screenshot in a way that measuring a sprite's left edge 
       lines with `GRP0`/`GRP1` held; in overscan `bit CXPPMM`, `bpl .clear`, load red,
       `.clear` load black, `sta COLUBK`, `sta CXCLR`.
 
-- [ ] **Step 2 — write `tests/fixtures/tia/collide-playfield.asm`.**
+- [x] **Step 2 — write `tests/fixtures/tia/collide-playfield.asm`.**
 
 ```
 ; QUESTION: at what colour clock does a RESP0 strobe put P0's first pixel?
@@ -1010,14 +1017,14 @@ being read off a Stella screenshot in a way that measuring a sprite's left edge 
 ; depends on.
 ```
 
-- [ ] **Step 3 — register both fixtures** in `packages/emulator/test/support/roms.ts`:
+- [x] **Step 3 — register both fixtures** in `packages/emulator/test/support/roms.ts`:
 
 ```ts
   'collide-players': 'tests/fixtures/tia/collide-players.asm',
   'collide-playfield': 'tests/fixtures/tia/collide-playfield.asm',
 ```
 
-- [ ] **Step 4 — write the sweep test.** `packages/emulator/test/tia-fixtures.test.ts`:
+- [x] **Step 4 — write the sweep test.** `packages/emulator/test/tia-fixtures.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -1098,11 +1105,11 @@ export function fixtureSource(name: string): string {
       wrong and that is the finding** — write both numbers into the measurements document and
       do not adjust the fixture to make the prediction come true.
 
-- [ ] **Step 5 — record both thresholds** in `docs/kernel-measurements.md`, under "Where a
+- [x] **Step 5 — record both thresholds** in `docs/kernel-measurements.md`, under "Where a
       RESPx strobe puts an object", predicted beside measured, in the shape the existing
       Results table uses.
 
-- [ ] **Step 6 — commit.**
+- [x] **Step 6 — commit.**
 
 ```bash
 git add tests/fixtures/tia packages/emulator/test/tia-fixtures.test.ts \
@@ -1119,31 +1126,31 @@ git commit -m "Task 4: two sweeps, one relative and one absolute"
 - Modify: `packages/runtime/src/bounds.ts` (only if the measurement disagrees)
 - Modify: `scripts/stella.sh` (accept a raw `.bin`)
 
-- [ ] **Step 1 — build both fixtures at their threshold separation and one either side.**
+- [x] **Step 1 — build both fixtures at their threshold separation and one either side.**
       Six ROMs: `flip - 1`, `flip`, `flip + 1` for each fixture, written to `build/fixtures/`.
 
-- [ ] **Step 2 — open each in Stella and record the background colour.** Our model says the
+- [x] **Step 2 — open each in Stella and record the background colour.** Our model says the
       screen is red below the flip and black at or above it. Stella is a second implementation
       and this is the only check in the repository that can catch a wrong `RESPx` delay.
 
-- [ ] **Step 3 — if Stella disagrees, correct the parameters, not the tests.**
+- [x] **Step 3 — if Stella disagrees, correct the parameters, not the tests.**
       `Objects.PLAYER_STROBE_DELAY` and its three neighbours move by the difference Stella
       shows. Then rerun everything: the sweep test's asserted flip clock changes with them,
       and that is the measurement winning over the datasheet, which is the arrangement the
       spec asked for.
 
-- [ ] **Step 4 — settle `bounds.ts`'s open assumption.** `docs/kernel-measurements.md` records
+- [x] **Step 4 — settle `bounds.ts`'s open assumption.** `docs/kernel-measurements.md` records
       under "Not measured" that the tight bounds assume an authored x lands on screen pixel x.
       Replace that paragraph with the measurement — either a measured zero, or a correction to
       `movementBounds` with the offset applied and `bounds.test.ts` updated to match.
 
-- [ ] **Step 5 — regenerate the golden if anything moved, and run the gate.**
+- [x] **Step 5 — regenerate the golden if anything moved, and run the gate.**
 
 ```bash
 npm run golden && npm run check
 ```
 
-- [ ] **Step 6 — commit and push.**
+- [x] **Step 6 — commit and push.**
 
 ```bash
 git add -A
@@ -1155,7 +1162,7 @@ git push
 
 ## Task 6: Write the session log
 
-- [ ] **Step 1 — append to `docs/session-logs/2026-08-29.md`**, in the shape the two existing
+- [x] **Step 1 — append to `docs/session-logs/2026-08-29.md`**, in the shape the two existing
       sections use: what happened, decisions with rationale, findings that contradicted a
       prediction, what Stella showed, what is still unmeasured.
 
@@ -1167,7 +1174,7 @@ git push
       - What did Stella say about the two thresholds, and did `PLAYER_STROBE_DELAY` move?
       - Is `bounds.ts` still assuming, or measuring?
 
-- [ ] **Step 2 — commit and push.**
+- [x] **Step 2 — commit and push.**
 
 ```bash
 git add docs/session-logs/2026-08-29.md
