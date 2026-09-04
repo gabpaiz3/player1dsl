@@ -625,3 +625,1147 @@ git add packages/runtime/src/cycles.ts packages/runtime/test/cycles.test.ts \
         packages/runtime/tsconfig.json
 git commit -m "Task 4: cost the code by reading it, and refuse what it cannot read"
 ```
+
+---
+
+## Increment 6 continued — Tasks 5 to 12
+
+**Written 2026-09-04**, after increment 5c landed. Three of this plan's premises changed and
+the tasks below are written against the new ones:
+
+- **Collision is verifiable now.** `packages/emulator/src/tia.ts` latches all fifteen
+  collision bits, so `rules-behaviour.test.ts` — which Task 12 writes — can exist.
+- **The committed input script already makes contact.** Measured: frame 35, `score0` 3 → 4,
+  the debounce firing once across 15 frames. Task 11's job shrinks to reaching a **bound**.
+- **The compiler's bounds and the reference's no longer agree on any axis.** `movementBounds`
+  derives 1 / 145 / 9 / 159 in authored coordinates; the reference clamps at 8 / 144 / 12 /
+  155. **Decision, 2026-09-04:** the compiler emits the derived bound, the golden's
+  bound-reaching frames are a documented known difference named where the filter is applied,
+  and clamping is verified against the COMPILED ROM by its own behaviour test. Adding a `.p1`
+  surface for bounds stays deferred to plan 5; editing the reference to match the compiler was
+  rejected as the compiler grading its own homework.
+
+### Additional file structure
+
+| File | Responsibility |
+|---|---|
+| `packages/compiler/src/rules.ts` (create) | Game IR rules to assembly: movement, collision, scoring |
+| `packages/runtime/src/collisions.ts` (create) | Which `CX` register and bit report a pair of TIA objects |
+| `packages/runtime/src/emit.ts` (modify) | Glyph band reads through a pointer; the pointer rebuild |
+| `packages/compiler/src/build.ts` (modify) | `build(game, { static })`; rules into vertical blank; the cycle gate |
+| `packages/cli/src/index.ts` (modify) | `p1 build` without `--static` |
+| `packages/emulator/src/golden.ts` (modify) | Region-aware comparison |
+| `tests/goldens/tank-arena.input.json` (modify) | A phase that reaches a bound |
+| `packages/emulator/test/rules-behaviour.test.ts` (create) | Clamp, collision, debounce, score wrap, against the compiled ROM |
+| `tests/fixtures/timing/stack-depth.asm` (create) | 6b: the deepest call chain, measured |
+
+---
+
+### Task 5: Movement lowering, and the clamp asymmetry
+
+**Files:**
+- Create: `packages/compiler/src/rules.ts`
+- Create: `packages/compiler/test/rules.test.ts`
+- Modify: `packages/compiler/src/index.ts`
+
+**Interfaces:**
+- Consumes: `MoveRule` from `ir.ts`; `MovementBounds` from `@player1dsl/runtime`.
+- Produces: `lowerMove(rule: MoveRule, bounds: MovementBounds, label: string): string[]`.
+
+- [ ] **Step 1 — write the failing test.** In `packages/compiler/test/rules.test.ts`:
+
+```ts
+import { movementBounds } from '@player1dsl/runtime';
+import { describe, expect, it } from 'vitest';
+import type { MoveRule } from '../src/index.ts';
+import { lowerMove } from '../src/index.ts';
+
+const ARENA = {
+  wallPixels: 4,
+  spriteWidth: 8,
+  spriteHeight: 8,
+  fieldFirstLine: 66,
+  fieldLastLine: 223,
+  counterOrigin: 225,
+} as const;
+
+const RULE: MoveRule = {
+  kind: 'move',
+  actor: 'tank0',
+  control: 'joystick1',
+  speed: 1,
+  within: 'field',
+};
+
+const text = (lines: readonly string[]) => lines.join('\n');
+
+describe('lowerMove', () => {
+  it('reads the joystick and moves the actor on all four directions', () => {
+    const code = text(lowerMove(RULE, movementBounds(ARENA), '.m0'));
+    expect(code).toContain('lda SWCHA');
+    expect(code).toContain('dec tank0_x');
+    expect(code).toContain('inc tank0_x');
+    expect(code).toContain('dec tank0_y');
+    expect(code).toContain('inc tank0_y');
+  });
+
+  /**
+   * THE assertion this task exists for. `cpx #C / bcc skip / dec` skips only
+   * when ALREADY below C, so the actor decrements off C and comes to rest at
+   * C - 1. To rest at xMin the constant must be xMin + 1. The upper form
+   * `cpx #C / bcs skip / inc` skips at or above C, so it rests exactly on C.
+   *
+   * packages/emulator/test/tank-arena-behaviour.test.ts measured that asymmetry
+   * on the reference kernel; this is the compiler reproducing it deliberately
+   * rather than by accident.
+   */
+  it('emits a lower bound one above the resting position it wants', () => {
+    const bounds = movementBounds(ARENA);
+    const code = text(lowerMove(RULE, bounds, '.m0'));
+    expect(code).toContain(`cpx #${bounds.xMin + 1}`);
+    expect(code).toContain(`cpx #${bounds.yMin + 1}`);
+  });
+
+  it('emits an upper bound exactly on the resting position', () => {
+    const bounds = movementBounds(ARENA);
+    const code = text(lowerMove(RULE, bounds, '.m0'));
+    expect(code).toContain(`cpx #${bounds.xMax}`);
+    expect(code).toContain(`cpx #${bounds.yMax}`);
+  });
+
+  it('pairs each lower bound with bcc and each upper with bcs', () => {
+    const code = lowerMove(RULE, movementBounds(ARENA), '.m0');
+    const after = (needle: string) => code[code.findIndex((l) => l.includes(needle)) + 1] ?? '';
+    expect(after(`cpx #${movementBounds(ARENA).xMin + 1}`)).toContain('bcc');
+    expect(after(`cpx #${movementBounds(ARENA).xMax}`)).toContain('bcs');
+  });
+
+  // Joystick port 2 is the LOW nibble of SWCHA. A lowerer that used port 1's
+  // masks for both would move both tanks with one stick.
+  it('takes the low nibble of SWCHA for joystick2', () => {
+    const p2 = text(lowerMove({ ...RULE, actor: 'tank1', control: 'joystick2' }, movementBounds(ARENA), '.m1'));
+    expect(p2).toContain('and #$04'); // J1_LEFT
+    expect(p2).not.toContain('and #$40'); // J0_LEFT
+  });
+
+  it('gives every branch a label unique to the rule', () => {
+    const a = lowerMove(RULE, movementBounds(ARENA), '.m0').filter((l) => l.startsWith('.'));
+    const b = lowerMove(RULE, movementBounds(ARENA), '.m1').filter((l) => l.startsWith('.'));
+    expect(a.some((l) => b.includes(l))).toBe(false);
+  });
+
+  // Refuse rather than guess: a step of N needs clamp logic that cannot
+  // overshoot, and nothing has measured what that costs.
+  it('refuses a speed it cannot lower', () => {
+    expect(() => lowerMove({ ...RULE, speed: 2 }, movementBounds(ARENA), '.m0')).toThrow(/E70\d/);
+  });
+
+  it('costs less than a scanline, so a rule cannot silently eat the blank', () => {
+    expect(cycleCost(lowerMove(RULE, movementBounds(ARENA), '.m0'))).toBeLessThan(76);
+  });
+});
+```
+
+      Add `import { cycleCost, movementBounds } from '@player1dsl/runtime';` at the top.
+
+- [ ] **Step 2 — run it, watch it fail** with "lowerMove is not exported".
+
+```bash
+npx vitest run packages/compiler/test/rules.test.ts
+```
+
+- [ ] **Step 3 — implement `packages/compiler/src/rules.ts`.**
+
+```ts
+/**
+ * Game IR rules to 6502.
+ *
+ * No operation IR between them: two rule forms do not justify one, and the
+ * moment a third arrives that starts repeating itself, that is when to add one.
+ *
+ * Every fragment here is straight-line with FORWARD branches only, which is
+ * what lets `cycleCost` give it a worst case. A rule form that needed a loop
+ * would need a trip count nothing here has.
+ */
+
+import { type Diagnostic, P1Error } from '@player1dsl/parser';
+import type { MovementBounds } from '@player1dsl/runtime';
+import type { MoveRule } from './ir.ts';
+
+/**
+ * SWCHA bits, active LOW: a 0 bit means pressed.
+ *
+ * The HIGH nibble is the left controller and the low nibble the right, which
+ * is why joystick2's masks are joystick1's shifted down by four.
+ */
+const JOYSTICK_MASKS: Readonly<Record<string, Readonly<Record<string, number>>>> = {
+  joystick1: { up: 0x10, down: 0x20, left: 0x40, right: 0x80 },
+  joystick2: { up: 0x01, down: 0x02, left: 0x04, right: 0x08 },
+};
+
+function hex(value: number): string {
+  return `$${value.toString(16).padStart(2, '0').toUpperCase()}`;
+}
+
+/**
+ * One direction: read the stick, compare against the bound, step the byte.
+ *
+ * `bound` is the CONSTANT the compare uses, not the resting position, and the
+ * two differ on a lower bound. See `lowerMove`.
+ */
+function direction(
+  mask: number,
+  variable: string,
+  bound: number,
+  branch: 'bcc' | 'bcs',
+  step: 'inc' | 'dec',
+  label: string,
+): string[] {
+  return [
+    '    lda SWCHA',
+    `    and #${hex(mask)}`,
+    `    bne ${label}`,
+    `    ldx ${variable}`,
+    `    cpx #${bound}`,
+    `    ${branch} ${label}`,
+    `    ${step} ${variable}`,
+    label,
+  ];
+}
+
+/**
+ * A movement rule.
+ *
+ * THE ASYMMETRY. `cpx #C / bcc skip / dec` skips only when the value is ALREADY
+ * below C, so it decrements off C and rests at C - 1; a lower bound therefore
+ * emits `xMin + 1`. `cpx #C / bcs skip / inc` skips at or above C, so it rests
+ * exactly on C. `movementBounds` says where the sprite may REST; turning that
+ * into the constant that produces it is this function's job, and putting it
+ * here rather than in the bounds is why those four numbers mean one thing.
+ *
+ * The Y sense is inverted: the field loop counts DOWN, so a larger y is higher
+ * up the screen and joystick up INCREMENTS it.
+ */
+export function lowerMove(rule: MoveRule, bounds: MovementBounds, label: string): string[] {
+  if (rule.speed !== 1) {
+    throw new P1Error([
+      {
+        code: 'E701',
+        message: `"${rule.actor}" moves at speed ${rule.speed}, which is not lowered yet`,
+        span: { file: '<rules>', offset: 0, length: 0, line: 1, column: 1 },
+        hint:
+          'a step of more than one needs a clamp that cannot overshoot the bound, and ' +
+          'nothing has measured what that costs. Speed 1 is what the language ships.',
+      } satisfies Diagnostic,
+    ]);
+  }
+
+  const masks = JOYSTICK_MASKS[rule.control];
+  if (!masks) {
+    throw new P1Error([
+      {
+        code: 'E702',
+        message: `"${rule.actor}" is controlled by "${rule.control}", which is not a joystick`,
+        span: { file: '<rules>', offset: 0, length: 0, line: 1, column: 1 },
+        hint: `known controls: ${Object.keys(JOYSTICK_MASKS).join(', ')}`,
+      } satisfies Diagnostic,
+    ]);
+  }
+
+  const x = `${rule.actor}_x`;
+  const y = `${rule.actor}_y`;
+  return [
+    ...direction(masks.left ?? 0, x, bounds.xMin + 1, 'bcc', 'dec', `${label}Left`),
+    ...direction(masks.right ?? 0, x, bounds.xMax, 'bcs', 'inc', `${label}Right`),
+    ...direction(masks.up ?? 0, y, bounds.yMax, 'bcs', 'inc', `${label}Up`),
+    ...direction(masks.down ?? 0, y, bounds.yMin + 1, 'bcc', 'dec', `${label}Down`),
+  ];
+}
+```
+
+- [ ] **Step 4 — export and run.** Add `export * from './rules.ts';` to
+      `packages/compiler/src/index.ts`. All eight tests pass.
+
+- [ ] **Step 5 — commit.**
+
+```bash
+git add packages/compiler/src/rules.ts packages/compiler/test/rules.test.ts \
+        packages/compiler/src/index.ts
+git commit -m "Task 5: movement lowering, with the clamp asymmetry where it belongs"
+```
+
+---
+
+### Task 6: Which register reports a collision, written twice
+
+**Files:**
+- Create: `packages/runtime/src/collisions.ts`
+- Create: `packages/runtime/test/collisions.test.ts`
+- Modify: `packages/runtime/src/index.ts`
+
+**Interfaces:**
+- Produces: `collisionLatch(a: TiaObject, b: TiaObject): { register: string; bit: number }`.
+
+The pairing table is a HARDWARE fact, so it belongs in the runtime — and it is held to the
+emulator's own `LATCHES` by a test, the same arrangement `cycles.ts` uses. The runtime must
+not import the emulator in `src`; the cross-check is test-only.
+
+- [ ] **Step 1 — write the failing test.** In `packages/runtime/test/collisions.test.ts`:
+
+```ts
+import { CX, Tia } from '@player1dsl/emulator';
+import { describe, expect, it } from 'vitest';
+import { collisionLatch } from '../src/index.ts';
+
+describe('collisionLatch', () => {
+  it('reports a player pair through CXPPMM D7', () => {
+    expect(collisionLatch('p0', 'p1')).toEqual({ register: 'CXPPMM', bit: 0x80 });
+  });
+
+  it('does not care which way round the pair is given', () => {
+    expect(collisionLatch('p1', 'p0')).toEqual(collisionLatch('p0', 'p1'));
+  });
+
+  it('reports a player against the playfield through CXP0FB D7', () => {
+    expect(collisionLatch('p0', 'pf')).toEqual({ register: 'CXP0FB', bit: 0x80 });
+  });
+
+  /**
+   * The runtime's table and the emulator's are written separately, so this is
+   * the only thing that makes agreement mean anything. Driving the emulator to
+   * set each pair and reading the register the runtime names is a stronger
+   * check than comparing two tables: it proves the runtime names a register
+   * that actually reports that pair.
+   */
+  it('names a register the emulator really sets for that pair', () => {
+    const tia = new Tia();
+    tia.objects.grp0 = 0xff;
+    tia.objects.grp1 = 0xff;
+    tia.objects.p0 = 40;
+    tia.objects.p1 = 40;
+    tia.tick(228);
+    const { register, bit } = collisionLatch('p0', 'p1');
+    expect(tia.read(CX[register as keyof typeof CX]) & bit).toBe(bit);
+  });
+
+  it('refuses a pair the hardware has no latch for', () => {
+    expect(() => collisionLatch('p0', 'p0')).toThrow(/E70\d/);
+  });
+});
+```
+
+- [ ] **Step 2 — run it, watch it fail.**
+
+- [ ] **Step 3 — implement `packages/runtime/src/collisions.ts`.**
+
+```ts
+/**
+ * Which collision register and bit report a pair of TIA objects.
+ *
+ * A hardware table, so the runtime owns it. Written independently of
+ * `packages/emulator/src/tia.ts`'s `LATCHES` and held to it by a test that
+ * drives the emulator to set each pair rather than comparing two tables --
+ * comparing them would only prove a copy is a copy.
+ *
+ * The fifteen bits cover fifteen PAIRS, not thirty: a latch does not care
+ * which object is named first, so the lookup is order-independent.
+ */
+
+import type { TiaObject } from './catalog.ts';
+
+/** Everything the TIA can collide, including the playfield. */
+export type Collidable = TiaObject | 'pf';
+
+export interface CollisionLatch {
+  /** Read-register name, as `registerMnemonic` spells it. */
+  readonly register: string;
+  /** D7 or D6. */
+  readonly bit: number;
+}
+
+const PAIRS: Readonly<Record<string, CollisionLatch>> = {
+  'm0|p1': { register: 'CXM0P', bit: 0x80 },
+  'm0|p0': { register: 'CXM0P', bit: 0x40 },
+  'm1|p0': { register: 'CXM1P', bit: 0x80 },
+  'm1|p1': { register: 'CXM1P', bit: 0x40 },
+  'p0|pf': { register: 'CXP0FB', bit: 0x80 },
+  'ball|p0': { register: 'CXP0FB', bit: 0x40 },
+  'p1|pf': { register: 'CXP1FB', bit: 0x80 },
+  'ball|p1': { register: 'CXP1FB', bit: 0x40 },
+  'm0|pf': { register: 'CXM0FB', bit: 0x80 },
+  'ball|m0': { register: 'CXM0FB', bit: 0x40 },
+  'm1|pf': { register: 'CXM1FB', bit: 0x80 },
+  'ball|m1': { register: 'CXM1FB', bit: 0x40 },
+  'ball|pf': { register: 'CXBLPF', bit: 0x80 },
+  'p0|p1': { register: 'CXPPMM', bit: 0x80 },
+  'm0|m1': { register: 'CXPPMM', bit: 0x40 },
+};
+
+export function collisionLatch(a: Collidable, b: Collidable): CollisionLatch {
+  const found = PAIRS[`${a}|${b}`] ?? PAIRS[`${b}|${a}`];
+  if (!found) {
+    throw new Error(
+      `E703: the TIA has no collision latch for ${a} against ${b}. Fifteen latches cover ` +
+        'fifteen pairs; an object does not collide with itself, and a pair with no latch ' +
+        'needs a software check the compiler does not generate yet.',
+    );
+  }
+  return found;
+}
+```
+
+- [ ] **Step 4 — export from `packages/runtime/src/index.ts`, run, commit.**
+
+```bash
+git add packages/runtime/src/collisions.ts packages/runtime/test/collisions.test.ts \
+        packages/runtime/src/index.ts
+git commit -m "Task 6: which register reports a pair, written twice"
+```
+
+---
+
+### Task 7: Collision, the debounce, and the score wrap
+
+**Files:**
+- Modify: `packages/compiler/src/rules.ts`
+- Modify: `packages/compiler/test/rules.test.ts`
+
+**Interfaces:**
+- Consumes: `collisionLatch` from Task 6; `WhenHitsIr`, `AddRule` from `ir.ts`.
+- Produces: `lowerAdd(rule: AddRule, wrapAt: number, label: string): string[]` and
+  `lowerCollision(rule: WhenHitsIr, latch: CollisionLatch, label: string, actions: readonly string[]): string[]`.
+  `actions` is the already-lowered body, so `lowerCollision` never has to know what an action
+  IS -- `build.ts` lowers each `AddRule` with `lowerAdd` and hands the lines in.
+
+- [ ] **Step 1 — write the failing test.** Append to `packages/compiler/test/rules.test.ts`:
+
+```ts
+describe('lowerAdd', () => {
+  it('adds and stores', () => {
+    const code = text(lowerAdd({ kind: 'add', variable: 'p0_score', amount: 1 }, 10, '.s0'));
+    expect(code).toContain('lda p0_score');
+    expect(code).toContain('adc #1');
+    expect(code).toContain('sta p0_score');
+  });
+
+  // A single digit wraps 9 -> 0. Without the wrap the glyph pointer walks off
+  // the end of the font table and the HUD draws whatever follows it in ROM.
+  it('wraps a single digit at ten rather than running off the font', () => {
+    const code = text(lowerAdd({ kind: 'add', variable: 'p0_score', amount: 1 }, 10, '.s0'));
+    expect(code).toContain('cmp #10');
+    expect(code).toContain('lda #0');
+  });
+
+  it('clears carry before adding, so a stale carry cannot add two', () => {
+    const code = lowerAdd({ kind: 'add', variable: 'p0_score', amount: 1 }, 10, '.s0');
+    expect(code[code.findIndex((l) => l.includes('adc')) - 1]).toContain('clc');
+  });
+});
+
+describe('lowerCollision', () => {
+  const RULE = {
+    a: 'tank0',
+    b: 'tank1',
+    debounce: 'tank0_tank1_hit',
+    actions: [{ kind: 'add' as const, variable: 'p0_score', amount: 1 }],
+  };
+  const LATCH = { register: 'CXPPMM', bit: 0x80 };
+  const ACTIONS = lowerAdd({ kind: 'add', variable: 'p0_score', amount: 1 }, 10, '.s0');
+
+  it('tests the latch the pair reports through', () => {
+    const code = text(lowerCollision(RULE, LATCH, '.c0', ACTIONS));
+    expect(code).toContain('bit CXPPMM');
+  });
+
+  /**
+   * THE debounce. TIA latches are LEVEL, not edge: they stay set for every
+   * frame the objects overlap. Scoring once per contact is the language's
+   * promise, and the hardware does not provide it -- so the flag is set on the
+   * first frame of contact and cleared only when contact ends.
+   */
+  it('scores only on the first frame of a contact', () => {
+    const code = text(lowerCollision(RULE, LATCH, '.c0', ACTIONS));
+    expect(code).toContain('lda tank0_tank1_hit');
+    expect(code).toContain('bne .c0Done');
+    expect(code).toContain('sta tank0_tank1_hit');
+  });
+
+  it('clears the flag when the contact ends, or it never scores twice', () => {
+    const code = lowerCollision(RULE, LATCH, '.c0', ACTIONS);
+    const noContact = code.findIndex((l) => l === '.c0NoContact');
+    expect(code.slice(noContact).join('\n')).toContain('lda #0');
+    expect(code.slice(noContact).join('\n')).toContain('sta tank0_tank1_hit');
+  });
+
+  // Straight-line with forward branches only, which is what lets cycleCost
+  // give the vertical-blank budget a worst case.
+  it('is costable, so the budget gate can see it', () => {
+    expect(cycleCost(lowerCollision(RULE, LATCH, '.c0', ACTIONS))).toBeGreaterThan(0);
+  });
+});
+```
+
+- [ ] **Step 2 — run, watch both describes fail.**
+
+- [ ] **Step 3 — implement.** Append to `packages/compiler/src/rules.ts`:
+
+```ts
+import type { CollisionLatch } from '@player1dsl/runtime';
+import type { AddRule, WhenHitsIr } from './ir.ts';
+
+/**
+ * `score += n`, with a single-digit wrap.
+ *
+ * `clc` is not decoration: the carry survives whatever ran before this, and a
+ * stale one adds an extra point on the frame after any compare that set it.
+ */
+export function lowerAdd(rule: AddRule, wrapAt: number, label: string): string[] {
+  return [
+    `    lda ${rule.variable}`,
+    '    clc',
+    `    adc #${rule.amount}`,
+    `    cmp #${wrapAt}`,
+    `    bcc ${label}Ok`,
+    '    lda #0                  ; a single digit wraps 9 -> 0',
+    `${label}Ok`,
+    `    sta ${rule.variable}`,
+  ];
+}
+
+/**
+ * `when A hits B`, with the debounce the hardware does not provide.
+ *
+ * The latches are LEVEL: they stay set for every frame the objects overlap, so
+ * a rule that scored on the latch alone would score once per frame of contact.
+ * The flag is set on the first frame and cleared when contact ends, which makes
+ * "once per contact" -- the language's promise -- the compiler's obligation.
+ *
+ * CXCLR is NOT strobed here. It clears every latch at once, so it belongs to
+ * the frame rather than to any one rule, and `build.ts` emits it after the last
+ * collision rule has read what it needs.
+ */
+export function lowerCollision(
+  rule: WhenHitsIr,
+  latch: CollisionLatch,
+  label: string,
+  actions: readonly string[],
+): string[] {
+  return [
+    `    bit ${latch.register}`,
+    latch.bit === 0x80 ? `    bpl ${label}NoContact` : `    bvc ${label}NoContact`,
+    `    lda ${rule.debounce}`,
+    `    bne ${label}Done`,
+    ...actions,
+    '    lda #1',
+    `    sta ${rule.debounce}`,
+    `    jmp ${label}Done`,
+    `${label}NoContact`,
+    '    lda #0',
+    `    sta ${rule.debounce}`,
+    `${label}Done`,
+  ];
+}
+```
+
+      **Note the `bit` trick and why the bit matters.** `bit` copies D7 into N and D6 into V,
+      so a D7 latch tests with `bpl` and a D6 latch with `bvc`. A lowerer that always used
+      `bpl` would read the wrong half of `CXPPMM` for a missile pair and score on the wrong
+      collision.
+
+- [ ] **Step 4 — run, all pass. Commit.**
+
+```bash
+git add packages/compiler/src/rules.ts packages/compiler/test/rules.test.ts
+git commit -m "Task 7: collision, the debounce the hardware does not provide, and the wrap"
+```
+
+---
+
+### Task 8: The score's glyph reaches through a pointer
+
+**Files:**
+- Modify: `packages/runtime/src/emit.ts` (`emitGlyphs`, and a new `digitPointers`)
+- Modify: `packages/runtime/test/emit.test.ts`
+
+A static build baked `Score0Glyph = DigitFont + start * 8` at assembly time. A score that
+changes cannot do that, so the glyph band reads through a two-byte zero-page pointer
+rebuilt each frame — which is what the reference kernel does.
+
+**This changes the HUD kernel's per-line cost**: `lda (ptr),y` is 5 cycles where `lda abs,y`
+is 4, twice per line. Step 4 checks the deadline rather than assuming it survived.
+
+**Interfaces:**
+- Produces: `digitPointers(scores: readonly { variable: string; pointer: string }[], font: string): string[]`.
+
+- [ ] **Step 1 — write the failing test.** In `packages/runtime/test/emit.test.ts`:
+
+```ts
+describe('digitPointers', () => {
+  it('multiplies the digit by the glyph height and adds the font base', () => {
+    const code = digitPointers([{ variable: 'p0_score', pointer: 'digit0Ptr' }], 'DigitFont');
+    const text = code.join('\n');
+    expect(text).toContain('lda p0_score');
+    expect(text).toContain('asl'); // x2, x4, x8
+    expect(text).toContain('adc #<DigitFont');
+    expect(text).toContain('sta digit0Ptr');
+    expect(text).toContain('lda #>DigitFont');
+    expect(text).toContain('sta digit0Ptr+1');
+  });
+
+  // Eight bytes per glyph is three shifts. Two would index the wrong glyph and
+  // the HUD would draw a slice of its neighbour.
+  it('shifts three times, because a glyph is eight bytes', () => {
+    const code = digitPointers([{ variable: 'p0_score', pointer: 'digit0Ptr' }], 'DigitFont');
+    expect(code.filter((l) => l.trim() === 'asl')).toHaveLength(3);
+  });
+
+  it('carries the high byte, so a font crossing a page still resolves', () => {
+    const code = digitPointers([{ variable: 'p0_score', pointer: 'digit0Ptr' }], 'DigitFont');
+    const high = code.findIndex((l) => l.includes('lda #>DigitFont'));
+    expect(code[high + 1]).toContain('adc #0');
+  });
+
+  it('builds one pointer per score', () => {
+    const code = digitPointers(
+      [
+        { variable: 'p0_score', pointer: 'digit0Ptr' },
+        { variable: 'p1_score', pointer: 'digit1Ptr' },
+      ],
+      'DigitFont',
+    );
+    expect(code.join('\n')).toContain('sta digit1Ptr');
+  });
+});
+```
+
+- [ ] **Step 2 — run, watch it fail.**
+
+- [ ] **Step 3 — implement `digitPointers` in `emit.ts`.**
+
+```ts
+/** One score's glyph pointer: which variable holds the digit, where it lands. */
+export interface DigitPointer {
+  readonly variable: string;
+  /** Two-byte zero-page symbol. `pointer+1` is the high byte. */
+  readonly pointer: string;
+}
+
+/**
+ * Resolve each score digit to a font pointer, in vertical blank.
+ *
+ * A static build baked `Glyph = Font + digit * 8` at assembly time. A digit
+ * that changes cannot, so the band reads `lda (ptr),y` and this rebuilds `ptr`
+ * each frame. Three shifts because a glyph is eight bytes; the `adc #0` on the
+ * high byte is what keeps a font that crosses a page boundary resolving.
+ */
+export function digitPointers(pointers: readonly DigitPointer[], font: string): string[] {
+  return pointers.flatMap((entry) => [
+    `    lda ${entry.variable}`,
+    '    asl',
+    '    asl',
+    '    asl                     ; digit * 8 bytes per glyph',
+    '    clc',
+    `    adc #<${font}`,
+    `    sta ${entry.pointer}`,
+    `    lda #>${font}`,
+    '    adc #0                  ; carry, so a font across a page still resolves',
+    `    sta ${entry.pointer}+1`,
+  ]);
+}
+```
+
+- [ ] **Step 4 — switch `emitGlyphs` to the pointer, and CHECK THE DEADLINE.**
+      In `emitGlyphs`, replace
+
+```ts
+  const rows = objects.flatMap((object, i) => [`    lda ${object.table},y`, `    sta ${grp(i)}`]);
+```
+
+      with
+
+```ts
+  // `lda (ptr),y` rather than `lda table,y`: the glyph a changing score points
+  // at is not known until vertical blank. It costs one cycle more per object
+  // per line, which is why emit.test.ts checks the GRP deadline below rather
+  // than assuming the band still fits its horizontal blank.
+  const rows = objects.flatMap((object, i) => [
+    `    lda (${object.table}),y`,
+    `    sta ${grp(i)}`,
+  ]);
+```
+
+      Then add the deadline test:
+
+```ts
+  // The band writes two GRPs per line and now spends an extra cycle on each.
+  // GRP0 is read at pixel 0, so both writes must still land inside the 68-clock
+  // horizontal blank. Asserted rather than assumed: this is the one change in
+  // the increment that could push a write into the visible region.
+  it('still writes both glyph rows inside horizontal blank', () => {
+    const frame = tracedFrame('tank-arena');
+    const hud = (frame.writes ?? []).filter((w) => w.line >= 40 && w.line <= 51);
+    const grpWrites = hud.filter((w) => w.register === 0x1b || w.register === 0x1c);
+    expect(grpWrites.length).toBeGreaterThan(0);
+    expect(grpWrites.every((w) => w.pixel === -1)).toBe(true);
+  });
+```
+
+      **If that test fails, STOP.** The band no longer fits its blank, and the answer is a
+      kernel shape change rather than a tolerance change. Record the measurement in
+      `docs/kernel-measurements.md` and raise it before continuing.
+
+- [ ] **Step 5 — commit.**
+
+```bash
+git add packages/runtime/src/emit.ts packages/runtime/test/emit.test.ts
+git commit -m "Task 8: a score that changes reaches its glyph through a pointer"
+```
+
+---
+
+### Task 9: The cycle budget gate
+
+**Files:**
+- Modify: `packages/compiler/src/build.ts`
+- Modify: `packages/compiler/test/ram.test.ts` → new `packages/compiler/test/budget.test.ts`
+
+**Interfaces:**
+- Consumes: `cycleCost` from `@player1dsl/runtime`.
+- Produces: `VBLANK_CYCLE_BUDGET` and an `E704` diagnostic when rules overrun it.
+
+Vertical blank is 37 lines of 76 CPU cycles = **2812**, of which positioning spends
+`positionLines(n) * 76`. Everything else is the rules' to spend. An untracked cycle cost
+becomes an assumed zero the compiler will happily spend — the property the line ledger
+exists to prevent, one region over.
+
+- [ ] **Step 1 — write the failing test.** Create `packages/compiler/test/budget.test.ts`:
+
+```ts
+import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { parse } from '@player1dsl/parser';
+import { build, check, VBLANK_CYCLE_BUDGET } from '../src/index.ts';
+
+const SOURCE = 'examples/tank-arena/tank-arena.p1';
+const source = () => readFileSync(SOURCE, 'utf8');
+
+describe('the vertical blank cycle budget', () => {
+  it('is 37 lines of 76 cycles', () => {
+    expect(VBLANK_CYCLE_BUDGET).toBe(37 * 76);
+  });
+
+  it('reports what tank-arena actually spends', () => {
+    const { budget } = build(check(parse(source(), SOURCE)));
+    expect(budget.spent).toBeGreaterThan(0);
+    expect(budget.spent).toBeLessThan(budget.available);
+  });
+
+  // A gate that cannot fire is not a gate. Repeating the rules until they
+  // overrun proves the diagnostic exists and names the overrun.
+  it('fails the build when rules do not fit, rather than emitting a long frame', () => {
+    const many = source().replace(
+      'every frame:',
+      `every frame:\n${'  tank0 moves with joystick1 speed 1 within field\n'.repeat(120)}`,
+    );
+    expect(() => build(check(parse(many, SOURCE)))).toThrow(/E704/);
+  });
+
+  it('says how many cycles over budget it is, not just that it failed', () => {
+    const many = source().replace(
+      'every frame:',
+      `every frame:\n${'  tank0 moves with joystick1 speed 1 within field\n'.repeat(120)}`,
+    );
+    try {
+      build(check(parse(many, SOURCE)));
+      throw new Error('should have thrown');
+    } catch (error) {
+      const first = (error as { diagnostics?: { message: string }[] }).diagnostics?.[0];
+      expect(first?.message).toMatch(/\d+ cycles/);
+    }
+  });
+});
+```
+
+- [ ] **Step 2 — run, watch it fail.**
+
+- [ ] **Step 3 — implement in `build.ts`.**
+
+```ts
+/**
+ * CPU cycles vertical blank contains: 37 scanlines of 76.
+ *
+ * Positioning spends `positionLines(n)` of those lines; the rest is the rules'.
+ * An untracked cost becomes an assumed zero the compiler will happily spend,
+ * which is the property the line ledger exists to prevent, one region over.
+ */
+export const VBLANK_CYCLE_BUDGET = NTSC_VBLANK_LINES * CPU_CYCLES_PER_SCANLINE;
+
+export interface CycleBudget {
+  readonly available: number;
+  readonly spent: number;
+  readonly free: number;
+}
+
+function checkBudget(rules: readonly string[], setupLines: number): CycleBudget {
+  const available = VBLANK_CYCLE_BUDGET - setupLines * CPU_CYCLES_PER_SCANLINE;
+  const spent = cycleCost(rules);
+  if (spent > available) {
+    throw new P1Error([
+      {
+        code: 'E704',
+        message:
+          `the frame's rules need ${spent} cycles but vertical blank has ${available} ` +
+          `once positioning has taken its ${setupLines} lines -- ${spent - available} over`,
+        span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
+        hint:
+          'worst case, counted by reading the emitted assembly. Rules that overrun would ' +
+          'push work into the visible region and tear the first band.',
+      },
+    ]);
+  }
+  return { available, spent, free: available - spent };
+}
+```
+
+      Add `readonly budget: CycleBudget` to the result interface, and rename `StaticBuild` to
+      `BuildResult` -- the name it has to have once a build is not necessarily static. Keep
+      `export type StaticBuild = BuildResult;` so nothing outside this task moves.
+
+- [ ] **Step 4 — write the range into SPEC 13.** This plan's global constraints reserved
+      `E7xx` for "rule lowering and the cycle budget" and said to add it to SPEC 13; four codes
+      now exist and the spec still does not list them. Add:
+
+```
+E701  a movement speed the lowerer does not implement
+E702  an actor controlled by something that is not a joystick
+E703  a collision pair the TIA has no latch for
+E704  the frame's rules do not fit vertical blank
+```
+
+- [ ] **Step 5 — run, all four pass. Commit.**
+
+```bash
+git add packages/compiler/src/build.ts packages/compiler/test/budget.test.ts docs/SPEC.md
+git commit -m "Task 9: rules are gated on vertical blank's cycles, counted by reading them"
+```
+
+---
+
+### Task 10: `build(game, { static })` and `p1 build` without the flag
+
+**Files:**
+- Modify: `packages/compiler/src/build.ts`
+- Modify: `packages/cli/src/index.ts`
+- Modify: `packages/emulator/test/static-build.test.ts`
+- Modify: `packages/cli/test/build.test.ts`
+
+- [ ] **Step 1 — write the failing test.** In `packages/cli/test/build.test.ts`:
+
+```ts
+it('builds without --static now that rules are lowered', async () => {
+  const out = join(tmp, 'dynamic.bin');
+  expect(await run(['build', 'examples/tank-arena', '-o', out])).toBe(0);
+  expect(statSync(out).size).toBe(4096);
+});
+
+// The static build has to stay reachable BY NAME: static-build.test.ts compares
+// it against golden frame 0, and a flag that silently started meaning "with
+// rules" would leave that test measuring something else while still passing.
+it('still builds a static image when asked for one', async () => {
+  const out = join(tmp, 'static.bin');
+  expect(await run(['build', '--static', 'examples/tank-arena', '-o', out])).toBe(0);
+  expect(statSync(out).size).toBe(4096);
+});
+
+it('emits different bytes with rules than without', async () => {
+  const a = join(tmp, 'a.bin');
+  const b = join(tmp, 'b.bin');
+  await run(['build', 'examples/tank-arena', '-o', a]);
+  await run(['build', '--static', 'examples/tank-arena', '-o', b]);
+  expect(readFileSync(a).equals(readFileSync(b))).toBe(false);
+});
+```
+
+- [ ] **Step 2 — run, watch the first fail with the `--static` hard-error.**
+
+- [ ] **Step 3 — implement.** Rename `buildStatic(game)` to
+      `build(game: GameIr, options: BuildOptions = {})` where
+      `interface BuildOptions { readonly static?: boolean }`. When `options.static` is true the
+      rule fragments are omitted and the frame is exactly what increment 5b emitted. Keep
+      `buildStatic` as a thin wrapper so nothing else has to move in this task:
+
+```ts
+/** The static build, by name. Kept so a caller cannot get one by accident. */
+export function buildStatic(game: GameIr): BuildResult {
+  return build(game, { static: true });
+}
+```
+
+      In `packages/cli/src/index.ts`, delete the `--static` hard-error and pass
+      `{ static: rest.includes('--static') }`.
+
+- [ ] **Step 4 — point `static-build.test.ts` at `buildStatic` explicitly.** It already calls
+      `buildStatic`; confirm it still does and that its frame-0 comparison passes unchanged.
+      **If it fails, the static path has picked up rule code and the split is wrong.**
+
+- [ ] **Step 5 — commit.**
+
+```bash
+git add packages/compiler/src/build.ts packages/cli/src/index.ts \
+        packages/cli/test/build.test.ts packages/emulator/test/static-build.test.ts
+git commit -m "Task 10: p1 build without --static, and a static build still reachable by name"
+```
+
+---
+
+### Task 11: The comparator learns which region it is in
+
+**Files:**
+- Modify: `packages/emulator/src/golden.ts`
+- Modify: `packages/emulator/test/golden.test.ts`
+
+Correction 1 of this plan, implemented. In vertical blank the comparator asserts the ordered
+sequence of `(register, value, pixel)` and **not** the line, because a scanline number there
+is an artifact of instruction selection. In the visible region it keeps exact
+`(line, register, value)`.
+
+- [ ] **Step 1 — write the failing test.** In `packages/emulator/test/golden.test.ts`:
+
+```ts
+describe('region-aware comparison', () => {
+  const shift = (frame: GoldenFrame, by: number): GoldenFrame => ({
+    ...frame,
+    records: frame.records.map((r) =>
+      r.line < 40 ? { ...r, line: r.line + by, endLine: r.endLine + by } : r,
+    ),
+  });
+
+  it('accepts a vertical-blank write that moved to another line', () => {
+    const golden = goldenFrame0();
+    expect(compareGolden([golden], [shift(golden, 1)])).toEqual([]);
+  });
+
+  // pixel is retained in blank and is LOAD-BEARING: it is what carries a RESPx
+  // strobe's meaning. Dropping it would let a ROM position a player anywhere
+  // and still compare equal.
+  it('rejects a vertical-blank strobe that moved along its line', () => {
+    const golden = goldenFrame0();
+    const moved: GoldenFrame = {
+      ...golden,
+      records: golden.records.map((r) =>
+        r.line < 40 && r.register === 0x10 ? { ...r, pixel: r.pixel + 8 } : r,
+      ),
+    };
+    expect(compareGolden([golden], [moved])).not.toEqual([]);
+  });
+
+  it('still rejects a visible write that moved one scanline', () => {
+    const golden = goldenFrame0();
+    const moved: GoldenFrame = {
+      ...golden,
+      records: golden.records.map((r) =>
+        r.line >= 66 && r.register === 0x1b ? { ...r, line: r.line + 1 } : r,
+      ),
+    };
+    expect(compareGolden([golden], [moved])).not.toEqual([]);
+  });
+});
+```
+
+- [ ] **Step 2 — run, watch the first fail.**
+
+- [ ] **Step 3 — implement.** In `compareGolden`, key each record by region:
+
+```ts
+/**
+ * What equality means, per region.
+ *
+ * A scanline number is an equivalence property only where the code is
+ * straight-line. The visible region is counted WSYNCs with no data-dependent
+ * branch, so its landmarks are identical across all 90 golden frames. Vertical
+ * blank is not: the joystick code's branches change how many cycles run before
+ * positioning, so asserting a line there forces a compiler to reproduce the
+ * reference's branch structure -- transcription rather than compilation.
+ *
+ * `pixel` is retained in blank and is load-bearing: it is what carries a RESPx
+ * strobe's meaning, and dropping it lets a ROM position a player anywhere and
+ * still compare equal.
+ */
+function key(record: GoldenRecord): string {
+  return record.line < NTSC_FIRST_VISIBLE_LINE
+    ? `blank ${record.register} ${record.value} px${record.pixel}`
+    : `visible ${record.line} ${record.register} ${record.value}`;
+}
+```
+
+- [ ] **Step 4 — run the whole suite.** `static-build.test.ts`'s separate vertical-blank
+      comparison can now be deleted: the main comparison covers it. Delete it and say so in
+      the commit, rather than leaving two comparisons that could disagree.
+
+- [ ] **Step 5 — commit.**
+
+```bash
+git add packages/emulator/src/golden.ts packages/emulator/test/golden.test.ts \
+        packages/emulator/test/static-build.test.ts
+git commit -m "Task 11: a scanline is an equivalence property only where the code is straight-line"
+```
+
+---
+
+### Task 12: A script that reaches a bound, and rules verified against the ROM
+
+**Files:**
+- Modify: `tests/goldens/tank-arena.input.json`
+- Regenerate: `tests/goldens/tank-arena.trace`
+- Create: `packages/emulator/test/rules-behaviour.test.ts`
+
+The committed script already makes contact (frame 35, measured 2026-08-30). What it never
+does is reach a **bound**, so add a phase that holds one direction long enough to clamp.
+
+- [ ] **Step 1 — add the phase.** Hold `p0: ["left"]` for 80 frames, which is more than the
+      74 a traverse from x = 72 to the bound needs. Note in the phase's `note` field that the
+      reference clamps at 8 and the compiler at 1, so these frames are the known difference.
+
+- [ ] **Step 2 — write the behaviour test.** Create
+      `packages/emulator/test/rules-behaviour.test.ts`:
+
+```ts
+import { readFileSync } from 'node:fs';
+import { build, check } from '@player1dsl/compiler';
+import { parse } from '@player1dsl/parser';
+import { describe, expect, it } from 'vitest';
+import { Machine, SWCHA_IDLE } from '../src/index.ts';
+
+const SOURCE = 'examples/tank-arena/tank-arena.p1';
+const J0_LEFT = 0x40;
+
+/** The COMPILED ROM, which is the thing under test here. */
+function compiled(): Uint8Array {
+  return build(check(parse(readFileSync(SOURCE, 'utf8'), SOURCE))).rom;
+}
+
+function settled(): Machine {
+  const machine = new Machine(compiled());
+  machine.runFrame();
+  machine.runFrame();
+  return machine;
+}
+
+describe('the compiled ROM obeys its own rules', () => {
+  it('moves a tank at all, so the clamp test below is not vacuous', () => {
+    const machine = settled();
+    const before = machine.riot.ram[0];
+    for (let i = 0; i < 5; i += 1) machine.runFrame({ swcha: SWCHA_IDLE & ~J0_LEFT });
+    expect(machine.riot.ram[0]).not.toBe(before);
+  });
+
+  /**
+   * Clamps at the DERIVED bound, which is not the reference's.
+   * `movementBounds` gives xMin = 1 in authored coordinates, and the lowered
+   * `cpx #2 / bcc` rests one below its constant, so the tank comes to rest at 1.
+   *
+   * The reference rests at 7. That divergence is deliberate and documented:
+   * docs/kernel-measurements.md, "Where a movement bound comes from".
+   */
+  it('clamps at the derived bound rather than wrapping past it', () => {
+    const machine = settled();
+    const held = SWCHA_IDLE & ~J0_LEFT;
+    for (let i = 0; i < 90; i += 1) machine.runFrame({ swcha: held });
+    const atBound = machine.riot.ram[0];
+    for (let i = 0; i < 10; i += 1) machine.runFrame({ swcha: held });
+    expect([atBound, machine.riot.ram[0]]).toEqual([1, 1]);
+  });
+
+  it('scores once per contact, not once per frame of contact', () => {
+    const machine = settled();
+    // Drive them together, then hold. The debounce must fire exactly once.
+    const scores: number[] = [];
+    for (let i = 0; i < 60; i += 1) {
+      machine.runFrame({ swcha: SWCHA_IDLE });
+      scores.push(machine.riot.ram[4] ?? 0);
+    }
+    const increments = scores.filter((s, i) => i > 0 && s !== scores[i - 1]).length;
+    expect(increments).toBeLessThanOrEqual(1);
+  });
+});
+```
+
+- [ ] **Step 3 — regenerate and read the diff.**
+
+```bash
+npm run golden && npm run check
+```
+
+      The bound-reaching frames will diverge between the reference and the compiled ROM. Name
+      them in `static-build.test.ts` where the filter is applied, with the reason, exactly as
+      `CXCLR` was named in increment 5b.
+
+- [ ] **Step 4 — commit.**
+
+```bash
+git add tests/goldens packages/emulator/test/rules-behaviour.test.ts \
+        packages/emulator/test/static-build.test.ts
+git commit -m "Task 12: a script that reaches a bound, and rules checked against the ROM"
+```
+
+---
+
+### Task 13 (increment 6b): Measure what 6 and 7 spent
+
+**Files:**
+- Create: `tests/fixtures/timing/stack-depth.asm`
+- Modify: `packages/compiler/src/ram.ts`
+- Modify: `docs/kernel-measurements.md`
+
+`DEFAULT_STACK_RESERVED = 16` is labelled a guess in `ram.ts`, and rule lowering is what
+finally makes the call chain real. Measuring inside the increment that spends it is what 4b
+existed to prevent.
+
+- [ ] **Step 1 — measure the real depth, from the ROM rather than from a fixture.** The
+      cheapest correct probe needs no new ROM at all: run the COMPILED tank-arena and watch
+      the stack pointer.
+
+```ts
+// PREDICTION, written before the run: the deepest chain is MainLoop -> jsr
+// PosObjectX, one level, so two bytes of return address. sp starts at $FD and
+// should not go below $FB.
+const machine = new Machine(build(check(parse(source, SOURCE))).rom);
+machine.runFrame();
+let lowest = 0xff;
+for (let i = 0; i < 200; i += 1) {
+  machine.runFrame({ swcha: SWCHA_IDLE });
+  lowest = Math.min(lowest, machine.cpu.sp);
+}
+console.log(`deepest stack use: $${(0xfd - lowest).toString(16)} bytes below reset`);
+```
+
+      `Cpu.sp` is already public. If the measured depth contradicts the prediction, the
+      prediction was wrong and that is the finding.
+
+      **Only write `tests/fixtures/timing/stack-depth.asm` if the probe cannot answer it** —
+      a fixture that measures what a real ROM already shows is a fixture nobody will maintain.
+
+- [ ] **Step 2 — set the constant from the measurement**, and replace the "a guess, and
+      labelled as one" paragraph in `ram.ts` with the number and how it was obtained. If the
+      measured depth is far below 16, say so and keep a stated margin rather than shaving it
+      to the exact figure — but the margin must be a decision with a reason, not an
+      unexamined default.
+
+- [ ] **Step 3 — record it** in `docs/kernel-measurements.md` under "How deep the call chain
+      actually goes", predicted beside measured.
+
+- [ ] **Step 4 — commit.**
+
+```bash
+git add tests/fixtures/timing/stack-depth.asm packages/compiler/src/ram.ts \
+        docs/kernel-measurements.md
+git commit -m "Task 13: the stack reservation stops being a guess"
+```
+
+---
+
+## Definition of done
+
+`p1 build examples/tank-arena` emits a 4 KiB ROM whose 90-frame TIA-write trace matches the
+reference kernel's, except at the bound-reaching frames, where the divergence is named and
+explained. `npm run check` green. The session log records what moved.
