@@ -78,3 +78,21 @@ export function allocateRam(variables: readonly Variable[], options: AllocateOpt
   if (diagnostics.length > 0) throw new P1Error(diagnostics);
   return { slots, used, stackReserved, free: budget - used };
 }
+
+/**
+ * The kernel's own working bytes.
+ *
+ * No source line asks for these: `gfxN` holds the graphics byte a scanning loop
+ * computed one line ahead, and `lineTmp` is where it parks its counter. They go
+ * through `allocateRam` with the declared variables because they compete for the
+ * same 128 bytes, and a second allocator is a second answer to which byte is
+ * free.
+ */
+export function kernelScratch(objects: number): Variable[] {
+  const scratch: Variable[] = [];
+  for (let i = 0; i < objects; i += 1) {
+    scratch.push({ name: `gfx${i}`, type: 'byte', initial: 0 });
+  }
+  scratch.push({ name: 'lineTmp', type: 'byte', initial: 0 });
+  return scratch;
+}

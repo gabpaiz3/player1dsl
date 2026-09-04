@@ -30,7 +30,13 @@ export const NTSC_OVERSCAN_LINES = 30;
 export const NTSC_FIRST_VISIBLE_LINE = NTSC_VSYNC_LINES + NTSC_VBLANK_LINES;
 
 export interface FrameOptions {
-  /** Zero-page reservations, as `name ds N` lines. */
+  /**
+   * Zero-page symbols, as `name = $XX` equates.
+   *
+   * Equates rather than `ds` reservations: `ds` would make the assembler decide
+   * where each byte lands, and the compiler's RAM allocator has already decided.
+   * Two things assigning addresses is two answers to which byte is free.
+   */
   readonly ram: readonly string[];
   /** Assembly lines run once at reset, after RAM and the TIA are cleared. */
   readonly init: readonly string[];
@@ -89,8 +95,8 @@ export function emitFrame(options: FrameOptions): string[] {
     '',
     ...registerEquates(),
     '',
-    '    seg.u variables',
-    '    org $80                 ; the stack grows down into the same 128 bytes',
+    "; Zero page, from the compiler's RAM allocator. The stack grows down into",
+    '; the same 128 bytes, which is why the allocator reserves the top of them.',
     ...ram,
     '',
     '    seg code',

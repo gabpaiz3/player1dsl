@@ -33,6 +33,19 @@ export class Cpu {
   /** Cycles consumed by the most recent step(). */
   private cycles = 0;
 
+  /**
+   * Cycles the instruction currently executing will consume.
+   *
+   * FINAL at every bus access, which is what lets the machine advance the beam
+   * to the access's own cycle. Stores add no page-cross penalty -- they call
+   * `addrAbsoluteX(false)` and friends -- and loads add theirs inside the
+   * addressing helper, before the access. The only `this.cycles +=` that runs
+   * after an access is the branch penalty, and no branch touches the bus.
+   */
+  get pendingCycles(): number {
+    return this.cycles;
+  }
+
   constructor(private readonly bus: Bus) {}
 
   reset(): void {
@@ -739,8 +752,15 @@ export class Cpu {
   }
 }
 
-/** Base cycle counts; addressing modes and branches add penalties. */
-const BASE_CYCLES: readonly number[] = [
+/**
+ * Base cycle counts; addressing modes and branches add penalties.
+ *
+ * Exported for `packages/runtime/test/cycles.test.ts`, which holds the runtime's
+ * independent copy to this one. The runtime must not import it in `src`: the
+ * emulator is what generated ROMs are checked against, and a cost model taking
+ * its numbers from its own checker could be wrong in both places and pass.
+ */
+export const BASE_CYCLES: readonly number[] = [
   7,
   6,
   0,

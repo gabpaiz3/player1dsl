@@ -17,6 +17,9 @@ export const ROM_SOURCES: Readonly<Record<string, string>> = {
   'scroll-field': 'tests/fixtures/kernels/scroll-field.asm',
   'ball-and-paddles': 'tests/fixtures/kernels/ball-and-paddles.asm',
   'sprite-formation': 'tests/fixtures/kernels/sprite-formation.asm',
+  'double-hmove': 'tests/fixtures/tia/double-hmove.asm',
+  'double-hmove-cleared': 'tests/fixtures/tia/double-hmove-cleared.asm',
+  'collide-playfield': 'tests/fixtures/tia/collide-playfield.asm',
 };
 
 /**
@@ -31,6 +34,19 @@ export function romFor(name: string): Uint8Array {
   const source = ROM_SOURCES[name];
   if (!source) throw new Error(`unknown ROM "${name}"`);
   return assemble(`${root}/${source}`, { includeDirs: [`${root}/kernels/include`] }).rom;
+}
+
+/**
+ * A fixture's source text, for tests that patch a constant before assembling.
+ *
+ * Patching the SOURCE rather than an offset into the assembled image: a byte
+ * offset goes stale the moment the fixture gains an instruction, and the
+ * failure it produces is a wrong answer rather than an error.
+ */
+export function fixtureSource(name: string): string {
+  const source = ROM_SOURCES[name];
+  if (!source) throw new Error(`unknown ROM "${name}"`);
+  return readFileSync(`${root}/${source}`, 'utf8');
 }
 
 /** DASM's output for a ROM, or null when DASM has not been run locally. */

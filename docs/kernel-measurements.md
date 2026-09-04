@@ -185,6 +185,377 @@ immediately. Now that the measurements exist, each is decided on the evidence:
 Two adopted, one narrowed by evidence, one deferred with the hole marked, one already
 covered, one out of scope. Deferring is a legitimate answer; deferring silently is not.
 
+## Where a movement bound comes from
+
+Plan 4's Task 1: measure before spending. `within field` has to lower to four constants, and
+the reference kernel already carries four. The question is whether those four are DERIVED
+from the arena's geometry -- in which case the compiler computes them -- or hand-chosen, in
+which case it must not pretend otherwise.
+
+### Method
+
+`tools/probe-bounds.ts` (throwaway, not committed) holds one joystick direction on the
+reference ROM for 200 frames and reads the resting `tank0X`/`tank0Y` out of RIOT RAM, plus
+the `RESP0` colour clock and `HMP0` value the trace records for that frame. Two hundred
+frames is far more than the 137 a full traverse needs, so a resting value is a clamp rather
+than a snapshot mid-travel.
+
+### Predicted, from geometry
+
+The arena is a `border` playfield of one PF0 block: PF0 D4 alone, `$10`, which is 4 screen
+pixels, mirrored under REF to pixels 156-159. The sprite is 8x8. The ledger renders the field
+loop on frame lines 66-223.
+
+The loop counts DOWN and primes one line ahead, so a sprite whose top row is computed at
+counter N appears on line N-1; reading `emitLoop` gives the first rendered line as
+`fieldFirstLine + (lines + 1) - y`, which is `fieldLastLine + 2 - y` = `225 - y`. That
+constant is DERIVED here rather than measured, from the emitter's own text.
+
+| Bound | Derivation | Predicted |
+|---|---|---|
+| `xMin` | sprite's left column clears the left wall: `wallPixels` | **4** |
+| `xMax` | right column clears the mirrored wall: `160 - wallPixels - spriteWidth` | **148** |
+| `yMax` | top row lands on the field's first line: `counterOrigin - fieldFirstLine` | **159** |
+| `yMin` | bottom row lands on its last: `counterOrigin - fieldLastLine + spriteHeight - 1` | **9** |
+
+### Measured, from the reference ROM
+
+| Held | Rests at | `RESP0` clock | `HMP0` | Constant it clamps against |
+|---|---|---|---|---|
+| left | `tank0X` = **7** | 60 | `$F0` | `X_MIN` 8 |
+| right | `tank0X` = **144** | 195 | `$D0` | `X_MAX` 144 |
+| down | `tank0Y` = **11** | 90 | `$C0` | `Y_MIN` 12 |
+| up | `tank0Y` = **155** | 90 | `$C0` | `Y_MAX` 155 |
+
+A resting value is not the constant. The clamp is **asymmetric**, and reading the source says
+why: a lower bound is `cpx #MIN / bcc skip`, which skips only when ALREADY below, so the
+tank decrements off the constant and rests one below it. An upper bound is `cpx #MAX / bcs
+skip`, which skips at or above, so the tank rests exactly on it.
+`packages/emulator/test/tank-arena-behaviour.test.ts` pins both.
+
+### Verdict: hand-chosen, and the compiler derives tight instead
+
+| | left | right | bottom | top |
+|---|---|---|---|---|
+| tight | 4 | 148 | 9 | 159 |
+| reference | 8 | 144 | 12 | 155 |
+| margin | 4 | 4 | 3 | 4 |
+
+The margins are **not uniform** -- 3 at the bottom, 4 everywhere else -- so no single rule in
+the band extent, the border thickness and the sprite size reproduces all four. Task 1's stated
+criterion therefore selects its second branch: `movementBounds` derives the **tight** bound,
+the sprite may not overlap the wall, and the reference's extra margin is recorded here as a
+hand-chosen value the compiler does not reproduce.
+
+Two consequences, both deliberate:
+
+- **The asymmetry belongs to lowering, not to the numbers.** `movementBounds` returns the four
+  constants; the `cpx / bcc` shape that makes a lower bound rest one below is what `rules.ts`
+  emits. Baking the off-by-one into the constants would give four numbers whose meaning
+  depended on which side of the axis they sat on.
+- **A compiled ROM will clamp 3-4 pixels wider than the reference.** Nothing observes that
+  today -- the committed input script visits `tank0X` 32..73 and `tank0Y` 87..128, so no
+  clamp fires in any of the 90 golden frames. It will be observable the moment plan 4's
+  Task 8 replaces the script with one that reaches a bound, and at that point the divergence
+  is a KNOWN one with a reason, not a mystery.
+
+### Not measured: whether `x` is exactly the sprite's leftmost screen pixel
+
+`PosObjectX` divides by 15 and strobes `RESPx` at the beam, and a `RESPx` strobe takes effect
+some clocks after the write. Whether the sprite's leftmost column lands on screen pixel `x`
+or on `x + k` for a small fixed `k` is **not** something this repo can measure: our TIA model
+does not render pixels and does not track object positions at all
+(`packages/emulator/src/tia.ts` returns 0 for every read). The tight bounds above assume
+`k = 0`.
+
+**ANSWERED, 2026-08-30, and the answer was not zero.**
+[One HMOVE moves every object](#one-hmove-moves-every-object) found that every object but the
+last was displaced twice, and `PosObjectX` now strobes HMCLR so it is not.
+[Where a RESPx strobe puts an object](#where-a-respx-strobe-puts-an-object) then measured what
+remained: an authored x renders at **x + 3**. `bounds.ts` carries that as
+`POSITIONING_OFFSET` and no longer assumes it is zero, so `xMin` and `xMax` below are 1 and
+145 rather than 4 and 148, and the reference's margins are 7/1/2/4.
+
+The paragraph below is kept as written because the argument it makes does not depend on the
+offset:
+
+This does not change the verdict -- the reference's margins are non-uniform for any `k`,
+because a constant offset shifts both horizontal bounds the same way and neither vertical one.
+It does mean `xMin`/`xMax` could be off by a fixed amount in the picture, which is exactly the
+class of defect [What is still unmeasured](#what-is-still-unmeasured) records as needing a
+second implementation or a human eye.
+
+## What the write-timing correction moved
+
+Increment 5c, Task 1. Until this correction every TIA write in this repository was applied,
+and recorded, at the beam position the instruction **started** on. A 6502 writes on its final
+cycle, so every write was early by the instruction's address work.
+
+### The defect, measured
+
+A probe ROM running stores immediately after `sta WSYNC`, so the beam starts at colour clock 0:
+
+| instruction | cycles | recorded before | true, and now |
+|---|---|---|---|
+| `sta zp` ×3 | 3 each | 0, 9, 18 | **6, 15, 24** |
+| `sta zp,x` ×2 | 4 each | 0, 12 | **9, 21** |
+
+`sta zp` spends two cycles on the opcode and operand and writes on the third; `sta zp,x` adds
+the index-add cycle. Six colour clocks and nine.
+
+### Why it mattered enough to fix before anything else
+
+An object's horizontal position is set by the beam at the `RESPx` strobe, and `PosObjectX`
+strobes with `sta RESP0,x` — the `zp,x` row. Every object was being placed **nine pixels**
+from where the hardware places it. For a P0-versus-P1 collision the error cancels, because
+both tanks are positioned by the same routine; against the playfield, whose position the beam
+fixes and no strobe places, it does not.
+
+### What changed in the golden, and what did not
+
+`tests/goldens/tank-arena.trace`, regenerated: 990 of 6990 records changed.
+
+| | |
+|---|---|
+| records whose `line`, `register` or `value` changed | **0** |
+| records whose pixel moved by 6 | 270 |
+| records whose pixel moved by 9 | 720 |
+
+Two shifts and no third, each exactly its addressing mode's address-work cost, and nothing
+about what the ROM *does* changed at all. The remaining ~6000 records are writes inside
+horizontal blank, whose pixel is -1 either way — which is the golden-format gap already
+recorded under [What is still unmeasured](#what-is-still-unmeasured): the format stores the
+pixel and not the colour clock, so an in-blank write cannot show that it moved.
+
+`frame-timing.test.ts` and `kernel-fixtures.test.ts` assert absolute scanline counts and are
+**unchanged**, which is what says the correction is uniform rather than a shift that ate a
+scanline boundary. `dasm-parity.test.ts` compares bytes and is untouched by construction.
+
+### The hoist argument survives, and it was the EMULATOR that had been wrong
+
+Increment 5b hoists the field band's colour writes onto the previous row group's setup line,
+and `packages/runtime/src/emit.ts` justifies it with a specific number: *"the reference
+reaches COLUP1 on the first visible line at colour clock 66, two cycles inside a 68-clock
+horizontal blank."*
+
+**Prediction, written before the recomputation:** the corrected write lands later than 66, so
+the case gets stronger.
+
+**Measured:**
+
+| write | pre-correction | corrected | hand-derived number in `emit.ts` |
+|---|---|---|---|
+| line 57 `COLUP1` | clock 60 | **66** | 66 |
+| line 65 `GRP0` | clock 69, pixel 1 | **75, pixel 7** | — |
+| line 65 `GRP1` | clock 78, pixel 10 | **84, pixel 16** | — |
+
+The prediction is right in direction and wrong in letter: the write moved later, from 60 to
+66, and 66 is *exactly* the number the emitter's comment already claimed. That comment was
+derived by hand from the reference kernel's instruction sequence, and the emulator had been
+disagreeing with it by six colour clocks in silence. The correction makes the two agree, and
+the hoist argument stops resting on a hand-derivation the model contradicted.
+
+The entry line's own case is unchanged in substance: line 65 spends its blank on PF0, PF1 and
+PF2 and reaches `GRP0` at pixel 7 — already past the end of horizontal blank, as before, only
+further past it. Two colour writes added there would land around pixel 22 to 34 rather than
+around 31. Same conclusion, better numbers.
+
+### Numbers elsewhere that this correction invalidated
+
+Marked rather than deleted, because a number that moved is evidence:
+
+- `docs/session-logs/2026-08-29.md`, first session, "Why the field's colour writes are hoisted":
+  GRP0 "landing at **pixel 1**" is pre-correction; it is pixel 7.
+- The same section's "they would land around pixel 31" is pre-correction; around 22 to 34.
+- `packages/emulator/test/trace.test.ts` pinned `GRP0@pixel1` and `GRP1@pixel10`; both moved
+  by six and the test carries the reason.
+
+## One HMOVE moves every object
+
+Increment 5c. The first measurement in this repository where **Stella settled a question our
+own emulator could not**, and it found a defect in the hand-written kernel.
+
+### Question
+
+`PosObjectX` ends `sta WSYNC / sta HMOVE / rts`, and both the reference kernel and the
+compiler's `positioningRoutine()` call it once per object with **no `HMCLR` between the
+calls**. A `HMOVE` strobe applies every `HMxx` register that is currently set. So does the
+second call's `HMOVE` re-apply the first object's fine adjustment, displacing P0 twice?
+
+### Fixtures
+
+`tests/fixtures/tia/double-hmove.asm` and its control `double-hmove-cleared.asm`, identical
+but for one `sta HMCLR` between the two positioning calls.
+
+Both position P0 at an authored x of 44 and P1 at 55, both 8 pixels wide and solid, then read
+`CXPPMM` in overscan and paint the **background** red on contact and black otherwise.
+
+A whole-screen colour, deliberately. An earlier attempt to settle object placement by
+measuring a sprite's left edge off a screenshot was abandoned: locating the emulator's window
+reliably enough to calibrate against turned out to be a screen-scraping problem, and a
+measurement whose error bars come from window management is not a measurement. A screen that
+is entirely one colour is not that kind of measurement.
+
+### Prediction, written before the run
+
+x = 44 divides as 15·2 remainder 14, so the coarse strobe lands P0 at pixel 36 and its fine
+adjustment is `$80` — signed −8, which moves it **right** by 8. x = 55 divides as 15·3
+remainder 10: coarse 51, fine `$C0`, right by 4.
+
+| | P0 | P1 | gap | `CXPPMM` | screen |
+|---|---|---|---|---|---|
+| if `HMOVE` moves only the object just positioned | 44 (covers 44–51) | 55 (55–62) | 3 clear pixels | clear | **black** |
+| if `HMOVE` moves every object with a non-zero `HMxx` | 52 (52–59) | 55 (55–62) | overlap of 5 | set | **red** |
+
+P1 is positioned last and gets exactly one adjustment either way, which is what makes the
+difference attributable to P0 alone.
+
+### Measured
+
+| | our emulator | **Stella 7.0** |
+|---|---|---|
+| `double-hmove` | red, P0 at 52 | **red**, and one *merged* white bar rather than two |
+| `double-hmove-cleared` | black, P0 at 44 | **black**, and two clearly separated white bars |
+
+**Verdict: one `HMOVE` moves every object.** Both implementations agree, on both fixtures,
+and the control fires — which is what says the pair can report black at all. Without the
+control, a red result would be indistinguishable from a fixture that is always red.
+
+Stella's picture corroborates the colour independently: merged versus separated bars is the
+overlap, visible directly, in a model that renders pixels where ours does not.
+
+### What it costs
+
+**The reference kernel displaces every object but the last.** `tank0` authored at x = 70 in
+the golden's frame 33 renders at pixel **74** — its own `$C0` fine adjustment applied a second
+time. `tank1`, positioned last, renders at 80 as authored.
+
+That is a latent defect in `examples/tank-arena/reference/tank-arena.asm`, and
+`packages/runtime/src/emit.ts`'s `positioningRoutine()` is a copy of it, so **the compiler
+inherits it**. A scene with three objects would displace the first by twice its adjustment and
+the second by once.
+
+It is also why the two tanks touch at all. See below.
+
+### And it is why the golden's tanks collide
+
+The design's correction of 2026-08-29 derived, geometrically, that *"the two sprites miss
+contact by about a pixel on line 139, so `CXPPMM` never sets"*. Measured against a machine
+that can see a collision:
+
+| frame | tank0 | tank1 | `score0` | `hitFlag` |
+|---|---|---|---|---|
+| 0–32 | (40,120) → (70,90) | (110,60) → (80,90) | 3 | 0 |
+| **33** | (70,90) | (80,90) | **4** | 1 |
+| 52 | (69,91) | (81,89) | 4 | 0 |
+
+They contact at frame 33 and separate at 52, and **the score increments exactly once across
+19 frames of contact** — the `hitFlag` debounce, which the correction said was "covered
+nowhere at all", working.
+
+The authored gap is 10 pixels and the sprites are 8 wide, so on the arithmetic the correction
+used they should indeed miss. They touch because P0 is displaced to 74 and covers 74–81 while
+P1 covers 80–87. The correction's geometry was right; its premise — that an authored x is
+where the object lands — was not.
+
+### Still open
+
+Whether an authored x lands on screen pixel x for the **last-positioned** object. The
+fixtures above measure a RELATIVE displacement: both players carry the same strobe delay, so
+it cancels out of the overlap arithmetic and Stella would agree with a model whose delay was
+uniformly wrong. `packages/runtime/src/bounds.ts` still assumes the delay is such that
+authored x is screen pixel x, and a fixture collided against the **playfield** — whose
+position the beam fixes and no strobe places — is what would settle it.
+
+## Where a RESPx strobe puts an object
+
+Increment 5c. **The measurement that contradicted the model**, and the one that closed
+`bounds.ts`'s longest-standing assumption.
+
+### Question
+
+`packages/runtime/src/bounds.ts` derived its movement bounds from the assumption that an
+object authored at x lands on screen pixel x, and said so in a note headed "Not measured".
+Does it?
+
+### Why this fixture and not the other one
+
+[One HMOVE moves every object](#one-hmove-moves-every-object) collides P0 against P1. Both are
+placed by the same routine, so a strobe delay that was uniformly wrong would move both and the
+flip would land at the same separation regardless — **Stella would agree with a model that is
+uniformly wrong.** That fixture measures a separation, not a position.
+
+`tests/fixtures/tia/collide-playfield.asm` collides P0 against a **playfield** block, whose
+position the beam fixes and no strobe places. That is absolute.
+
+### Setup
+
+One playfield block lit — PF0 D4, screen pixels 0–3 — and `GRP0 = $80`, so P0 is a single lit
+column. `CXP0FB` D7 is read in overscan and the background painted red on contact. P0's
+authored x is swept.
+
+### Prediction, written before the run
+
+If an authored x lands on screen pixel x, the single column touches the block for x = 0, 1, 2,
+3 and misses from 4. **Flip at 4.** Any other flip f says the true landing pixel is x + (4 − f).
+
+### Measured
+
+| authored x | our model, delay 5 | **Stella 7.0** |
+|---|---|---|
+| 0 | red | **red** |
+| 1 | red | **black** |
+| 2 | red | **black** |
+| 3 | red | **black** |
+| 4 | black | black |
+
+**Flip at 1, not 4.** The prediction was wrong by three pixels, and the model was wrong with
+it.
+
+### Verdict
+
+An object authored at x renders at **x + 3**. `Objects.PLAYER_STROBE_DELAY` is **8**, not the
+5 the documented starting point suggested, and 8 reproduces every one of Stella's data points.
+
+The design said these offsets are *"parameters measured by fixtures, not constants asserted
+from a datasheet"*, and *"these values are the documented starting point and lose to any
+measurement that disagrees"*. This is that clause being spent.
+
+### What it cost
+
+**`bounds.ts` stops assuming.** The rendered bound is still the wall's edge, but the bounds a
+rule clamps are in AUTHORED coordinates, so each horizontal bound moves back by three:
+
+| | before | after |
+|---|---|---|
+| `xMin` | 4 | **1** |
+| `xMax` | 148 | **145** |
+| `yMin`, `yMax` | 9, 159 | unchanged |
+
+The vertical bounds do not move: vertical placement is a loop counter and no strobe is
+involved. `POSITIONING_OFFSET` is now a named constant in `bounds.ts` with this measurement
+behind it.
+
+Worth noting where that leaves the reference kernel's hand-chosen `X_MAX` of 144: the derived
+tight bound is now **145**, one away, where before it was 148. The margins recorded under
+[Where a movement bound comes from](#where-a-movement-bound-comes-from) are 7/1/2/4 rather
+than 4/4/3/4 — still not uniform, so that section's verdict of "hand-chosen" stands.
+
+**The golden did not change.** A uniform offset shifts both tanks equally, so tank-versus-tank
+contact is unaffected, and the script never brings a tank near a wall. Predicted before
+regenerating, and confirmed: `tests/goldens/tank-arena.trace` is byte-identical across the
+correction.
+
+### What the sweep cannot say
+
+It measures the strobe **and** the HMOVE that follows it as one composite, because
+`PosObjectX` always does both. The three pixels could belong to either. Separating them needs
+a fixture that strobes `RESPx` and never strobes `HMOVE`, and nothing here has one yet.
+
+`MISSILE_STROBE_DELAY`, `PLAYER_HBLANK_POSITION` and `MISSILE_HBLANK_POSITION` are **not
+measured**. They are shifted by the same three pixels on the assumption that the mechanism is
+shared, and that assumption is untested. Each is labelled UNMEASURED in `objects.ts`.
+
 ## What is still unmeasured
 
 Carried forward. Nothing in this list may be treated as zero.

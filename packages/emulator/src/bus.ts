@@ -14,6 +14,16 @@ import type { Tia } from './tia.ts';
  *   otherwise      -> RIOT RAM ($80-$FF)
  */
 export class Bus {
+  /**
+   * Called immediately before an access that decodes to the TIA, and never
+   * otherwise.
+   *
+   * The beam has to be where the hardware would have it WHEN the access lands,
+   * not where it was when the instruction started. RIOT accesses do not need
+   * this: its timer is read in vertical blank, where three cycles buy nothing.
+   */
+  onTiaAccess: (() => void) | undefined;
+
   constructor(
     private readonly rom: Uint8Array,
     readonly tia: Tia,
@@ -31,6 +41,7 @@ export class Bus {
       return this.rom[addr & 0x0fff] ?? 0;
     }
     if ((addr & 0x0080) === 0) {
+      this.onTiaAccess?.();
       return this.tia.read(addr & 0x0f);
     }
     if ((addr & 0x0200) !== 0) {
@@ -47,6 +58,7 @@ export class Bus {
       return; // ROM writes are ignored on an unbanked cartridge
     }
     if ((addr & 0x0080) === 0) {
+      this.onTiaAccess?.();
       this.tia.write(addr & 0x3f, v);
       return;
     }

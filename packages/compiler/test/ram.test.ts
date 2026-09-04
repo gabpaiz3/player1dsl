@@ -2,10 +2,22 @@ import { describe, expect, it } from 'vitest';
 import {
   allocateRam,
   DEFAULT_STACK_RESERVED,
+  kernelScratch,
   RAM_BASE,
   RAM_SIZE,
   type Variable,
 } from '../src/index.ts';
+
+/** tank-arena's declared variables, in the order the .p1 declares them. */
+const IR_VARIABLES: Variable[] = [
+  { name: 'tank0_x', type: 'byte', initial: 40 },
+  { name: 'tank0_y', type: 'byte', initial: 120 },
+  { name: 'tank1_x', type: 'byte', initial: 110 },
+  { name: 'tank1_y', type: 'byte', initial: 60 },
+  { name: 'p0_score', type: 'byte', initial: 3 },
+  { name: 'p1_score', type: 'byte', initial: 5 },
+  { name: 'tank0_tank1_hit', type: 'bool', initial: 0 },
+];
 
 const vars = (n: number): Variable[] =>
   Array.from({ length: n }, (_, i) => ({ name: `v${i}`, type: 'byte' as const, initial: 0 }));
@@ -61,5 +73,23 @@ describe('RAM allocation', () => {
       { name: 'a', type: 'byte', initial: 1 },
     ];
     expect(() => allocateRam(dup)).toThrow(/E30\d/);
+  });
+
+  // The kernel's working bytes are not declared by any source line, but they
+  // occupy the same 128 bytes as the ones that are. Two allocators mean two
+  // answers to "which byte is free", and the symptom is a sprite whose graphics
+  // change when a rule fires.
+  it('allocates the kernel scratch out of the same zero page as declared variables', () => {
+    const scratch = kernelScratch(2);
+    const map = allocateRam([...IR_VARIABLES, ...scratch]);
+    const addresses = [...map.slots.values()];
+    expect(new Set(addresses).size).toBe(addresses.length);
+    expect(map.slots.has('gfx0')).toBe(true);
+    expect(map.slots.has('tank0_x')).toBe(true);
+  });
+
+  it('gives the kernel one graphics byte per bound object and one shared counter', () => {
+    expect(kernelScratch(2).map((v) => v.name)).toEqual(['gfx0', 'gfx1', 'lineTmp']);
+    expect(kernelScratch(1).map((v) => v.name)).toEqual(['gfx0', 'lineTmp']);
   });
 });

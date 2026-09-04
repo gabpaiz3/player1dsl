@@ -8,11 +8,12 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import {
-  allocateRam,
+  allocateGameRam,
   buildLedger,
   buildStatic,
   check,
   formatLedger,
+  kernelObjects,
   layout,
 } from '@player1dsl/compiler';
 import { type Diagnostic, format, formatDiagnostic, P1Error, parse } from '@player1dsl/parser';
@@ -134,7 +135,11 @@ export async function run(argv: readonly string[]): Promise<number> {
       return 0;
     }
 
-    const ram = allocateRam(ir.variables);
+    // The SAME allocation the build makes, kernel scratch included. A map that
+    // listed only the declared variables would report free bytes `p1 build` has
+    // already spent, which is the disagreement one allocator exists to prevent.
+    const ir_layout = layout(ir.scene);
+    const ram = allocateGameRam(ir, kernelObjects(ir_layout, ir.scene));
 
     console.log(`${ir.title} -- ${ir.target} ${ir.cartridge}`);
     console.log('');
@@ -142,7 +147,9 @@ export async function run(argv: readonly string[]): Promise<number> {
     for (const [name, address] of ram.slots) {
       const variable = ir.variables.find((v) => v.name === name);
       console.log(
-        `  $${address.toString(16).toUpperCase()}  ${name.padEnd(16)} ${variable?.type ?? '?'} = ${variable?.initial ?? 0}`,
+        `  $${address.toString(16).toUpperCase()}  ${name.padEnd(16)} ` +
+          `${variable?.type ?? 'byte'} = ${variable?.initial ?? 0}` +
+          `${variable ? '' : '   (kernel scratch)'}`,
       );
     }
     console.log('');
@@ -155,7 +162,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     // below already reports P1Error diagnostics and returns 1, so nothing new
     // is needed here.
     console.log('');
-    console.log(formatLedger(buildLedger(layout(ir.scene))));
+    console.log(formatLedger(buildLedger(ir_layout)));
     return 0;
   } catch (error) {
     if (isP1Error(error)) {

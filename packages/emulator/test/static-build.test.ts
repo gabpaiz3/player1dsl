@@ -117,13 +117,33 @@ describe('the static build against the reference kernel', () => {
     expect(mismatches.map((m) => `[${m.kind}] ${m.detail}`)).toEqual([]);
   });
 
-  // The half the window above leaves out, compared on everything except which
-  // line it happened on. The beam clock matters here and is asserted: RESP0
-  // carries no value, so where it strobed IS what it means, and reusing the
-  // reference's positioning routine has to reproduce pixels 52 and 82 exactly.
+  /**
+   * The half the window above leaves out, compared on everything except which
+   * line it happened on. The beam clock matters here and is asserted: RESP0
+   * carries no value, so where it strobed IS what it means, and reusing the
+   * reference's positioning routine has to reproduce pixels 61 and 91 exactly.
+   *
+   * HMCLR is the one exception, and it is compared on register and value only.
+   * It is a strobe that zeroes the horizontal-motion registers wherever the
+   * beam happens to be, so unlike RESPx its position carries no meaning -- and
+   * `PosObjectX` puts it BEFORE the WSYNC that anchors the rest of the routine,
+   * precisely so it costs no beam time. The first call therefore inherits the
+   * caller's phase, and the static build reaches positioning one scanline
+   * earlier than the reference does. Comparing that pixel compares the
+   * artifact, which is the argument correction 1 makes about vertical-blank
+   * LINE numbers, one field over.
+   *
+   * Every subsequent HMCLR is at px-1 in both, because by then the previous
+   * call's WSYNC has anchored them.
+   */
   it('positions both players in vertical blank with the same values and clocks', () => {
+    const HMCLR = 0x2b;
     const shape = (records: readonly GoldenRecord[]) =>
-      records.map((r) => `${r.register.toString(16)}=${r.value.toString(16)}@px${r.pixel}`);
+      records.map((r) =>
+        r.register === HMCLR
+          ? `${r.register.toString(16)}=${r.value.toString(16)}@anywhere`
+          : `${r.register.toString(16)}=${r.value.toString(16)}@px${r.pixel}`,
+      );
 
     expect(shape(verticalBlank(tracedFrame(build().rom)))).toEqual(
       shape(verticalBlank(goldenFrame0())),

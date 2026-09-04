@@ -84,6 +84,19 @@ export class Machine {
       };
     }
 
+    // Colour clocks of the CURRENT instruction already handed to the TIA. A bus
+    // access lands on the instruction's final cycle, so the beam is advanced to
+    // `pendingCycles - 1` before the access and the remainder afterwards. An
+    // instruction with two TIA accesses syncs once: the second call finds the
+    // beam already there.
+    let ticked = 0;
+    this.bus.onTiaAccess = () => {
+      const target = Math.max(0, this.cpu.pendingCycles - 1);
+      if (target <= ticked) return;
+      this.tia.tick((target - ticked) * COLOR_CLOCKS_PER_CPU_CYCLE);
+      ticked = target;
+    };
+
     this.tia.onScanline = (record) => {
       scanlines += 1;
       if (record.vsync) {
@@ -113,7 +126,8 @@ export class Machine {
           const cycles = this.cpu.step();
           cpuCycles += cycles;
           this.riot.tick(cycles);
-          this.tia.tick(cycles * COLOR_CLOCKS_PER_CPU_CYCLE);
+          this.tia.tick((cycles - ticked) * COLOR_CLOCKS_PER_CPU_CYCLE);
+          ticked = 0;
         }
 
         // Rising edge of VSYNC ends the frame, but only after the frame has
@@ -132,6 +146,7 @@ export class Machine {
     } finally {
       this.tia.onScanline = undefined;
       this.tia.onWrite = undefined;
+      this.bus.onTiaAccess = undefined;
     }
 
     return writes

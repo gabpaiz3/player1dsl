@@ -333,7 +333,7 @@ export function emitTransition(ctx: TransitionContext): string[] {
 }
 
 /**
- * The positioning routine, verbatim from the reference kernel.
+ * The positioning routine, shared with the reference kernel.
  *
  * Two scanlines per object, which is what `positionLines` charges. The loop
  * body is 5 CPU cycles = 15 colour clocks, which is the only reason 15 appears
@@ -342,10 +342,23 @@ export function emitTransition(ctx: TransitionContext): string[] {
  *
  * HMP0+x covers $20-$24 and RESP0+x covers $10-$14, so one routine serves all
  * five movable objects.
+ *
+ * The leading HMCLR is load-bearing and was MEASURED into existence. One HMOVE
+ * strobe moves every object whose HMxx is set, not just the object this call
+ * positioned -- so without it, calling this routine once per object left each
+ * earlier object's fine adjustment in place to be applied a second time by the
+ * next call's HMOVE. Stella confirmed the displacement against our emulator on
+ * a fixture pair; see docs/kernel-measurements.md, "One HMOVE moves every
+ * object".
+ *
+ * It sits BEFORE the WSYNC on purpose. Every cycle after that WSYNC moves the
+ * beam the divide loop is counting against, so an instruction added there would
+ * shift every object nine pixels right. Before it, the WSYNC absorbs the cost.
  */
 export function positioningRoutine(): string[] {
   return [
     'PosObjectX subroutine',
+    '    sta HMCLR               ; only THIS object may move when HMOVE strobes',
     '    sta WSYNC               ; line 1: begin from a known beam position',
     '    sec',
     '.divide',

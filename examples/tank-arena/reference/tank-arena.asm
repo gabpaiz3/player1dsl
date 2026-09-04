@@ -515,6 +515,16 @@ MainLoop
 ; five movable objects.
 ; ---------------------------------------------------------------------------
 PosObjectX subroutine
+    ; HMCLR first, and BEFORE the WSYNC. One HMOVE strobe moves every object
+    ; whose HMxx is set, not just the one this call positioned -- so without
+    ; this, the next call's HMOVE applied THIS object's adjustment a second
+    ; time and left it displaced. Measured, and confirmed in Stella against a
+    ; fixture pair: docs/kernel-measurements.md, "One HMOVE moves every object".
+    ;
+    ; Before the WSYNC because every cycle after it moves the beam the divide
+    ; loop counts against; an instruction added there shifts every object nine
+    ; pixels right. Here the WSYNC absorbs the cost.
+    sta HMCLR
     sta WSYNC               ; line 1: begin from a known beam position
     sec
 .divide
