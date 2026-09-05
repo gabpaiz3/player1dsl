@@ -1,5 +1,6 @@
 export * from './bounds.ts';
 export * from './catalog.ts';
+export * from './collisions.ts';
 export * from './cycles.ts';
 export * from './emit.ts';
 export * from './entries.ts';
