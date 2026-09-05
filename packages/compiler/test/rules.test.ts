@@ -1,6 +1,6 @@
 import { cycleCost, movementBounds } from '@player1dsl/runtime';
 import { describe, expect, it } from 'vitest';
-import { lowerMove, type MoveRule } from '../src/index.ts';
+import { lowerAdd, lowerCollision, lowerMove, type MoveRule } from '../src/index.ts';
 
 const ARENA = {
   wallPixels: 4,
@@ -106,5 +106,89 @@ describe('lowerMove', () => {
   it('costs 96 worst-case cycles, which the budget gate spends', () => {
     const zeroPage = new Set(['tank0_x', 'tank0_y']);
     expect(cycleCost(lowerMove(RULE, movementBounds(ARENA), '.m0'), { zeroPage })).toBe(96);
+  });
+});
+
+describe('lowerAdd', () => {
+  it('adds and stores', () => {
+    const code = text(lowerAdd({ kind: 'add', variable: 'p0_score', amount: 1 }, 10, '.s0'));
+    expect(code).toContain('lda p0_score');
+    expect(code).toContain('adc #1');
+    expect(code).toContain('sta p0_score');
+  });
+
+  // A single digit wraps 9 -> 0. Without the wrap the glyph pointer walks off
+  // the end of the font table and the HUD draws whatever follows it in ROM.
+  it('wraps a single digit at ten rather than running off the font', () => {
+    const code = text(lowerAdd({ kind: 'add', variable: 'p0_score', amount: 1 }, 10, '.s0'));
+    expect(code).toContain('cmp #10');
+    expect(code).toContain('lda #0');
+  });
+
+  it('clears carry before adding, so a stale carry cannot add two', () => {
+    const code = lowerAdd({ kind: 'add', variable: 'p0_score', amount: 1 }, 10, '.s0');
+    expect(code[code.findIndex((l) => l.includes('adc')) - 1]).toContain('clc');
+  });
+
+  // The wrap branches FORWARD to a label. `bcc *+4` would be shorter and is
+  // what a human writes, but neither our assembler nor cycleCost parses a
+  // PC-relative operand, so the budget gate could not see it.
+  it('branches forward to a label, which cycleCost can cost', () => {
+    const code = lowerAdd({ kind: 'add', variable: 'p0_score', amount: 1 }, 10, '.s0');
+    expect(code).toContain('.s0Ok');
+    expect(() => cycleCost(code)).not.toThrow();
+  });
+});
+
+describe('lowerCollision', () => {
+  const RULE = {
+    a: 'tank0',
+    b: 'tank1',
+    debounce: 'tank0_tank1_hit',
+    actions: [{ kind: 'add' as const, variable: 'p0_score', amount: 1 }],
+  };
+  const LATCH = { register: 'CXPPMM', bit: 0x80 };
+  const ACTIONS = lowerAdd({ kind: 'add', variable: 'p0_score', amount: 1 }, 10, '.s0');
+
+  it('tests the latch the pair reports through', () => {
+    expect(text(lowerCollision(RULE, LATCH, '.c0', ACTIONS))).toContain('bit CXPPMM');
+  });
+
+  /**
+   * THE debounce. TIA latches are LEVEL, not edge: they stay set for every
+   * frame the objects overlap. Scoring once per contact is the language's
+   * promise, and the hardware does not provide it -- so the flag is set on the
+   * first frame of contact and cleared only when contact ends.
+   */
+  it('scores only on the first frame of a contact', () => {
+    const code = text(lowerCollision(RULE, LATCH, '.c0', ACTIONS));
+    expect(code).toContain('lda tank0_tank1_hit');
+    expect(code).toContain('bne .c0Done');
+    expect(code).toContain('sta tank0_tank1_hit');
+  });
+
+  it('clears the flag when the contact ends, or it never scores twice', () => {
+    const code = lowerCollision(RULE, LATCH, '.c0', ACTIONS);
+    const noContact = code.findIndex((l) => l === '.c0NoContact');
+    expect(noContact).toBeGreaterThan(0);
+    expect(code.slice(noContact).join('\n')).toContain('lda #0');
+    expect(code.slice(noContact).join('\n')).toContain('sta tank0_tank1_hit');
+  });
+
+  /**
+   * `bit` copies D7 into N and D6 into V, so a D7 latch tests with `bpl` and a
+   * D6 latch with `bvc`. A lowerer that always used `bpl` would read the wrong
+   * half of CXPPMM for a missile pair and score on somebody else's collision.
+   */
+  it('branches on V rather than N for a D6 latch', () => {
+    const d6 = text(lowerCollision(RULE, { register: 'CXPPMM', bit: 0x40 }, '.c0', ACTIONS));
+    expect(d6).toContain('bvc .c0NoContact');
+    expect(d6).not.toContain('bpl .c0NoContact');
+  });
+
+  // Straight-line with forward branches only, which is what lets cycleCost
+  // give the vertical-blank budget a worst case.
+  it('is costable, so the budget gate can see it', () => {
+    expect(cycleCost(lowerCollision(RULE, LATCH, '.c0', ACTIONS))).toBeGreaterThan(0);
   });
 });

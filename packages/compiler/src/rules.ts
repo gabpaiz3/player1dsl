@@ -11,8 +11,8 @@
  */
 
 import { type Diagnostic, P1Error } from '@player1dsl/parser';
-import type { MovementBounds } from '@player1dsl/runtime';
-import type { MoveRule } from './ir.ts';
+import type { CollisionLatch, MovementBounds } from '@player1dsl/runtime';
+import type { AddRule, MoveRule, WhenHitsIr } from './ir.ts';
 
 /**
  * SWCHA bits, active LOW: a 0 bit means pressed.
@@ -106,5 +106,68 @@ export function lowerMove(rule: MoveRule, bounds: MovementBounds, label: string)
     ...direction(masks.right ?? 0, x, bounds.xMax, 'bcs', 'inc', `${label}Right`),
     ...direction(masks.up ?? 0, y, bounds.yMax, 'bcs', 'inc', `${label}Up`),
     ...direction(masks.down ?? 0, y, bounds.yMin + 1, 'bcc', 'dec', `${label}Down`),
+  ];
+}
+
+/**
+ * `score += n`, with a single-digit wrap.
+ *
+ * `clc` is not decoration: the carry survives whatever ran before this, and a
+ * stale one adds an extra point on the frame after any compare that set it.
+ *
+ * The wrap branches FORWARD to a label. `bcc *+4` is what a human writes and is
+ * two bytes shorter, but neither our assembler nor `cycleCost` parses a
+ * PC-relative operand -- so the budget gate could not see the instruction it
+ * skipped.
+ */
+export function lowerAdd(rule: AddRule, wrapAt: number, label: string): string[] {
+  return [
+    `    lda ${rule.variable}`,
+    '    clc',
+    `    adc #${rule.amount}`,
+    `    cmp #${wrapAt}`,
+    `    bcc ${label}Ok`,
+    '    lda #0                  ; a single digit wraps 9 -> 0',
+    `${label}Ok`,
+    `    sta ${rule.variable}`,
+  ];
+}
+
+/**
+ * `when A hits B`, with the debounce the hardware does not provide.
+ *
+ * The latches are LEVEL: they stay set for every frame the objects overlap, so
+ * a rule that scored on the latch alone would score once per frame of contact.
+ * The flag is set on the first frame and cleared when contact ends, which makes
+ * "once per contact" -- the language's promise -- the compiler's obligation.
+ *
+ * `bit` copies D7 into N and D6 into V, so a D7 latch tests with `bpl` and a D6
+ * latch with `bvc`. A lowerer that always used `bpl` would read the wrong half
+ * of CXPPMM for a missile pair and score on somebody else's collision.
+ *
+ * CXCLR is NOT strobed here. It clears every latch at once, so it belongs to
+ * the frame rather than to any one rule, and `build.ts` emits it after the last
+ * collision rule has read what it needs.
+ */
+export function lowerCollision(
+  rule: WhenHitsIr,
+  latch: CollisionLatch,
+  label: string,
+  actions: readonly string[],
+): string[] {
+  return [
+    `; when ${rule.a} hits ${rule.b}`,
+    `    bit ${latch.register}`,
+    latch.bit === 0x80 ? `    bpl ${label}NoContact` : `    bvc ${label}NoContact`,
+    `    lda ${rule.debounce}`,
+    `    bne ${label}Done        ; already scored this contact`,
+    ...actions,
+    '    lda #1',
+    `    sta ${rule.debounce}`,
+    `    jmp ${label}Done`,
+    `${label}NoContact`,
+    '    lda #0',
+    `    sta ${rule.debounce}`,
+    `${label}Done`,
   ];
 }
