@@ -39,8 +39,29 @@ describe('the cost model and the CPU agree', () => {
 
 describe('cycleCost', () => {
   it('adds up a straight run of instructions', () => {
-    // lda #  2, sta zp 3, inc zp 5  =  10
-    expect(cycleCost(['    lda #$08', '    sta tank0_x', '    inc tank0_x'])).toBe(10);
+    // lda #  2, sta zp 3, inc zp 5  =  10, once the caller says tank0_x is
+    // zero page. The allocator knows; this function cannot.
+    const zeroPage = new Set(['tank0_x']);
+    expect(cycleCost(['    lda #$08', '    sta tank0_x', '    inc tank0_x'], { zeroPage })).toBe(
+      10,
+    );
+  });
+
+  /**
+   * An unnamed symbol is ABSOLUTE, which costs one more than zero page.
+   *
+   * This defaulted the other way until movement lowering broke it on its first
+   * line: `lda SWCHA` reads $0282 and was being charged three cycles instead of
+   * four, four times per rule. A budget survives over-charging; it does not
+   * survive under-charging.
+   */
+  it('charges an unnamed symbol as absolute rather than assuming zero page', () => {
+    expect(cycleCost(['    sta tank0_x', '    inc tank0_x'])).toBe(4 + 6);
+  });
+
+  it('reads a hex literal width rather than needing to be told', () => {
+    expect(cycleCost(['    sta $80'])).toBe(3);
+    expect(cycleCost(['    sta $0282'])).toBe(4);
   });
 
   it('ignores labels, comments and blank lines', () => {
