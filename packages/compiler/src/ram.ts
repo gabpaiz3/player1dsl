@@ -19,12 +19,23 @@ export const RAM_SIZE = 128;
 /**
  * Bytes held back for the stack.
  *
- * A guess, and labelled as one: nothing has yet measured the deepest call chain
- * the generated code produces. It is deliberately generous, and the moment
- * codegen exists the right move is to measure the true depth and set this from
- * evidence rather than from caution.
+ * MEASURED, 2026-09-04, and it stopped being a guess. The compiled tank-arena's
+ * deepest chain is `MainLoop -> jsr PosObjectX`: one level, **two bytes** of
+ * return address, with the stack pointer never dropping below $FD from its
+ * $FF. See docs/kernel-measurements.md, "How deep the call chain actually
+ * goes".
+ *
+ * Eight rather than two, and the margin is a decision rather than caution left
+ * over. Two bytes buys one level; eight buys four. The language forbids
+ * recursion and indirect calls (SPEC 4.3), so depth is bounded by nesting the
+ * compiler can see -- but nothing yet nests, so four levels is headroom for a
+ * rule form that does, not a number anybody has spent.
+ *
+ * `rules-behaviour.test.ts` runs the compiled ROM and asserts the real depth
+ * stays inside this, so a deeper chain fails loudly instead of quietly
+ * corrupting the variables below it.
  */
-export const DEFAULT_STACK_RESERVED = 16;
+export const DEFAULT_STACK_RESERVED = 8;
 
 export interface RamMap {
   /** Variable name to zero-page address, in declaration order. */

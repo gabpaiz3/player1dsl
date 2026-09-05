@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { build, check } from '@player1dsl/compiler';
+import { build, check, DEFAULT_STACK_RESERVED } from '@player1dsl/compiler';
 import { parse } from '@player1dsl/parser';
 import { describe, expect, it } from 'vitest';
 import {
@@ -168,5 +168,40 @@ describe('the compiled ROM against the reference kernel', () => {
     expect(compareGolden(golden, ours).map((m) => `[${m.frame}] ${m.kind}: ${m.detail}`)).toEqual(
       [],
     );
+  });
+});
+
+/**
+ * The stack reservation, held to what the ROM actually uses.
+ *
+ * `DEFAULT_STACK_RESERVED` was a guess for three plans. It is eight now,
+ * because the deepest chain measures two -- and this is what keeps that honest:
+ * a rule form that nested deeper would fail here rather than quietly corrupting
+ * the variables allocated below the stack.
+ */
+describe('the compiled ROM stays inside its stack reservation', () => {
+  it('never pushes deeper than the allocator reserved', () => {
+    const machine = settled();
+    const cpu = machine.cpu;
+    const step = Object.getPrototypeOf(cpu).step;
+    let lowest = 0xff;
+    let top = 0x00;
+    Object.defineProperty(cpu, 'step', {
+      value: function patched(this: typeof cpu) {
+        const cycles = step.call(this);
+        if (this.sp < lowest) lowest = this.sp;
+        if (this.sp > top) top = this.sp;
+        return cycles;
+      },
+      writable: true,
+    });
+
+    for (let i = 0; i < 20; i += 1) {
+      machine.runFrame({ swcha: SWCHA_IDLE & ~(i % 2 ? J0_LEFT : J0_UP) });
+    }
+
+    // One `jsr PosObjectX` and no nesting: two bytes of return address.
+    expect(top - lowest).toBe(2);
+    expect(top - lowest).toBeLessThanOrEqual(DEFAULT_STACK_RESERVED);
   });
 });
