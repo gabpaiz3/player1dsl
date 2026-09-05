@@ -672,7 +672,7 @@ the tasks below are written against the new ones:
 - Consumes: `MoveRule` from `ir.ts`; `MovementBounds` from `@player1dsl/runtime`.
 - Produces: `lowerMove(rule: MoveRule, bounds: MovementBounds, label: string): string[]`.
 
-- [ ] **Step 1 — write the failing test.** In `packages/compiler/test/rules.test.ts`:
+- [x] **Step 1 — write the failing test.** In `packages/compiler/test/rules.test.ts`:
 
 ```ts
 import { movementBounds } from '@player1dsl/runtime';
@@ -768,13 +768,13 @@ describe('lowerMove', () => {
 
       Add `import { cycleCost, movementBounds } from '@player1dsl/runtime';` at the top.
 
-- [ ] **Step 2 — run it, watch it fail** with "lowerMove is not exported".
+- [x] **Step 2 — run it, watch it fail** with "lowerMove is not exported".
 
 ```bash
 npx vitest run packages/compiler/test/rules.test.ts
 ```
 
-- [ ] **Step 3 — implement `packages/compiler/src/rules.ts`.**
+- [x] **Step 3 — implement `packages/compiler/src/rules.ts`.**
 
 ```ts
 /**
@@ -883,10 +883,10 @@ export function lowerMove(rule: MoveRule, bounds: MovementBounds, label: string)
 }
 ```
 
-- [ ] **Step 4 — export and run.** Add `export * from './rules.ts';` to
+- [x] **Step 4 — export and run.** Add `export * from './rules.ts';` to
       `packages/compiler/src/index.ts`. All eight tests pass.
 
-- [ ] **Step 5 — commit.**
+- [x] **Step 5 — commit.**
 
 ```bash
 git add packages/compiler/src/rules.ts packages/compiler/test/rules.test.ts \
@@ -910,7 +910,7 @@ The pairing table is a HARDWARE fact, so it belongs in the runtime — and it is
 emulator's own `LATCHES` by a test, the same arrangement `cycles.ts` uses. The runtime must
 not import the emulator in `src`; the cross-check is test-only.
 
-- [ ] **Step 1 — write the failing test.** In `packages/runtime/test/collisions.test.ts`:
+- [x] **Step 1 — write the failing test.** In `packages/runtime/test/collisions.test.ts`:
 
 ```ts
 import { CX, Tia } from '@player1dsl/emulator';
@@ -954,9 +954,9 @@ describe('collisionLatch', () => {
 });
 ```
 
-- [ ] **Step 2 — run it, watch it fail.**
+- [x] **Step 2 — run it, watch it fail.**
 
-- [ ] **Step 3 — implement `packages/runtime/src/collisions.ts`.**
+- [x] **Step 3 — implement `packages/runtime/src/collisions.ts`.**
 
 ```ts
 /**
@@ -1014,7 +1014,7 @@ export function collisionLatch(a: Collidable, b: Collidable): CollisionLatch {
 }
 ```
 
-- [ ] **Step 4 — export from `packages/runtime/src/index.ts`, run, commit.**
+- [x] **Step 4 — export from `packages/runtime/src/index.ts`, run, commit.**
 
 ```bash
 git add packages/runtime/src/collisions.ts packages/runtime/test/collisions.test.ts \
@@ -1037,7 +1037,7 @@ git commit -m "Task 6: which register reports a pair, written twice"
   `actions` is the already-lowered body, so `lowerCollision` never has to know what an action
   IS -- `build.ts` lowers each `AddRule` with `lowerAdd` and hands the lines in.
 
-- [ ] **Step 1 — write the failing test.** Append to `packages/compiler/test/rules.test.ts`:
+- [x] **Step 1 — write the failing test.** Append to `packages/compiler/test/rules.test.ts`:
 
 ```ts
 describe('lowerAdd', () => {
@@ -1105,9 +1105,9 @@ describe('lowerCollision', () => {
 });
 ```
 
-- [ ] **Step 2 — run, watch both describes fail.**
+- [x] **Step 2 — run, watch both describes fail.**
 
-- [ ] **Step 3 — implement.** Append to `packages/compiler/src/rules.ts`:
+- [x] **Step 3 — implement.** Append to `packages/compiler/src/rules.ts`:
 
 ```ts
 import type { CollisionLatch } from '@player1dsl/runtime';
@@ -1172,7 +1172,7 @@ export function lowerCollision(
       `bpl` would read the wrong half of `CXPPMM` for a missile pair and score on the wrong
       collision.
 
-- [ ] **Step 4 — run, all pass. Commit.**
+- [x] **Step 4 — run, all pass. Commit.**
 
 ```bash
 git add packages/compiler/src/rules.ts packages/compiler/test/rules.test.ts
@@ -1197,7 +1197,7 @@ is 4, twice per line. Step 4 checks the deadline rather than assuming it survive
 **Interfaces:**
 - Produces: `digitPointers(scores: readonly { variable: string; pointer: string }[], font: string): string[]`.
 
-- [ ] **Step 1 — write the failing test.** In `packages/runtime/test/emit.test.ts`:
+- [x] **Step 1 — write the failing test.** In `packages/runtime/test/emit.test.ts`:
 
 ```ts
 describe('digitPointers', () => {
@@ -1238,9 +1238,9 @@ describe('digitPointers', () => {
 });
 ```
 
-- [ ] **Step 2 — run, watch it fail.**
+- [x] **Step 2 — run, watch it fail.**
 
-- [ ] **Step 3 — implement `digitPointers` in `emit.ts`.**
+- [x] **Step 3 — implement `digitPointers` in `emit.ts`.**
 
 ```ts
 /** One score's glyph pointer: which variable holds the digit, where it lands. */
@@ -1274,7 +1274,7 @@ export function digitPointers(pointers: readonly DigitPointer[], font: string): 
 }
 ```
 
-- [ ] **Step 4 — switch `emitGlyphs` to the pointer, and CHECK THE DEADLINE.**
+- [x] **Step 4 — switch `emitGlyphs` to the pointer, and CHECK THE DEADLINE.**
       In `emitGlyphs`, replace
 
 ```ts
@@ -1314,7 +1314,7 @@ export function digitPointers(pointers: readonly DigitPointer[], font: string): 
       kernel shape change rather than a tolerance change. Record the measurement in
       `docs/kernel-measurements.md` and raise it before continuing.
 
-- [ ] **Step 5 — commit.**
+- [x] **Step 5 — commit.**
 
 ```bash
 git add packages/runtime/src/emit.ts packages/runtime/test/emit.test.ts
@@ -1338,7 +1338,7 @@ Vertical blank is 37 lines of 76 CPU cycles = **2812**, of which positioning spe
 becomes an assumed zero the compiler will happily spend — the property the line ledger
 exists to prevent, one region over.
 
-- [ ] **Step 1 — write the failing test.** Create `packages/compiler/test/budget.test.ts`:
+- [x] **Step 1 — write the failing test.** Create `packages/compiler/test/budget.test.ts`:
 
 ```ts
 import { describe, expect, it } from 'vitest';
@@ -1386,9 +1386,9 @@ describe('the vertical blank cycle budget', () => {
 });
 ```
 
-- [ ] **Step 2 — run, watch it fail.**
+- [x] **Step 2 — run, watch it fail.**
 
-- [ ] **Step 3 — implement in `build.ts`.**
+- [x] **Step 3 — implement in `build.ts`.**
 
 ```ts
 /**
@@ -1431,7 +1431,7 @@ function checkBudget(rules: readonly string[], setupLines: number): CycleBudget 
       `BuildResult` -- the name it has to have once a build is not necessarily static. Keep
       `export type StaticBuild = BuildResult;` so nothing outside this task moves.
 
-- [ ] **Step 4 — write the range into SPEC 13.** This plan's global constraints reserved
+- [x] **Step 4 — write the range into SPEC 13.** This plan's global constraints reserved
       `E7xx` for "rule lowering and the cycle budget" and said to add it to SPEC 13; four codes
       now exist and the spec still does not list them. Add:
 
@@ -1442,7 +1442,7 @@ E703  a collision pair the TIA has no latch for
 E704  the frame's rules do not fit vertical blank
 ```
 
-- [ ] **Step 5 — run, all four pass. Commit.**
+- [x] **Step 5 — run, all four pass. Commit.**
 
 ```bash
 git add packages/compiler/src/build.ts packages/compiler/test/budget.test.ts docs/SPEC.md
@@ -1459,7 +1459,7 @@ git commit -m "Task 9: rules are gated on vertical blank's cycles, counted by re
 - Modify: `packages/emulator/test/static-build.test.ts`
 - Modify: `packages/cli/test/build.test.ts`
 
-- [ ] **Step 1 — write the failing test.** In `packages/cli/test/build.test.ts`:
+- [x] **Step 1 — write the failing test.** In `packages/cli/test/build.test.ts`:
 
 ```ts
 it('builds without --static now that rules are lowered', async () => {
@@ -1486,9 +1486,9 @@ it('emits different bytes with rules than without', async () => {
 });
 ```
 
-- [ ] **Step 2 — run, watch the first fail with the `--static` hard-error.**
+- [x] **Step 2 — run, watch the first fail with the `--static` hard-error.**
 
-- [ ] **Step 3 — implement.** Rename `buildStatic(game)` to
+- [x] **Step 3 — implement.** Rename `buildStatic(game)` to
       `build(game: GameIr, options: BuildOptions = {})` where
       `interface BuildOptions { readonly static?: boolean }`. When `options.static` is true the
       rule fragments are omitted and the frame is exactly what increment 5b emitted. Keep
@@ -1504,11 +1504,11 @@ export function buildStatic(game: GameIr): BuildResult {
       In `packages/cli/src/index.ts`, delete the `--static` hard-error and pass
       `{ static: rest.includes('--static') }`.
 
-- [ ] **Step 4 — point `static-build.test.ts` at `buildStatic` explicitly.** It already calls
+- [x] **Step 4 — point `static-build.test.ts` at `buildStatic` explicitly.** It already calls
       `buildStatic`; confirm it still does and that its frame-0 comparison passes unchanged.
       **If it fails, the static path has picked up rule code and the split is wrong.**
 
-- [ ] **Step 5 — commit.**
+- [x] **Step 5 — commit.**
 
 ```bash
 git add packages/compiler/src/build.ts packages/cli/src/index.ts \
@@ -1529,7 +1529,7 @@ sequence of `(register, value, pixel)` and **not** the line, because a scanline 
 is an artifact of instruction selection. In the visible region it keeps exact
 `(line, register, value)`.
 
-- [ ] **Step 1 — write the failing test.** In `packages/emulator/test/golden.test.ts`:
+- [x] **Step 1 — write the failing test.** In `packages/emulator/test/golden.test.ts`:
 
 ```ts
 describe('region-aware comparison', () => {
@@ -1572,9 +1572,9 @@ describe('region-aware comparison', () => {
 });
 ```
 
-- [ ] **Step 2 — run, watch the first fail.**
+- [x] **Step 2 — run, watch the first fail.**
 
-- [ ] **Step 3 — implement.** In `compareGolden`, key each record by region:
+- [x] **Step 3 — implement.** In `compareGolden`, key each record by region:
 
 ```ts
 /**
@@ -1598,11 +1598,11 @@ function key(record: GoldenRecord): string {
 }
 ```
 
-- [ ] **Step 4 — run the whole suite.** `static-build.test.ts`'s separate vertical-blank
+- [x] **Step 4 — run the whole suite.** `static-build.test.ts`'s separate vertical-blank
       comparison can now be deleted: the main comparison covers it. Delete it and say so in
       the commit, rather than leaving two comparisons that could disagree.
 
-- [ ] **Step 5 — commit.**
+- [x] **Step 5 — commit.**
 
 ```bash
 git add packages/emulator/src/golden.ts packages/emulator/test/golden.test.ts \
@@ -1622,11 +1622,11 @@ git commit -m "Task 11: a scanline is an equivalence property only where the cod
 The committed script already makes contact (frame 35, measured 2026-08-30). What it never
 does is reach a **bound**, so add a phase that holds one direction long enough to clamp.
 
-- [ ] **Step 1 — add the phase.** Hold `p0: ["left"]` for 80 frames, which is more than the
+- [x] **Step 1 — add the phase.** Hold `p0: ["left"]` for 80 frames, which is more than the
       74 a traverse from x = 72 to the bound needs. Note in the phase's `note` field that the
       reference clamps at 8 and the compiler at 1, so these frames are the known difference.
 
-- [ ] **Step 2 — write the behaviour test.** Create
+- [x] **Step 2 — write the behaviour test.** Create
       `packages/emulator/test/rules-behaviour.test.ts`:
 
 ```ts
@@ -1690,7 +1690,7 @@ describe('the compiled ROM obeys its own rules', () => {
 });
 ```
 
-- [ ] **Step 3 — regenerate and read the diff.**
+- [x] **Step 3 — regenerate and read the diff.**
 
 ```bash
 npm run golden && npm run check
@@ -1700,7 +1700,7 @@ npm run golden && npm run check
       them in `static-build.test.ts` where the filter is applied, with the reason, exactly as
       `CXCLR` was named in increment 5b.
 
-- [ ] **Step 4 — commit.**
+- [x] **Step 4 — commit.**
 
 ```bash
 git add tests/goldens packages/emulator/test/rules-behaviour.test.ts \
@@ -1721,7 +1721,7 @@ git commit -m "Task 12: a script that reaches a bound, and rules checked against
 finally makes the call chain real. Measuring inside the increment that spends it is what 4b
 existed to prevent.
 
-- [ ] **Step 1 — measure the real depth, from the ROM rather than from a fixture.** The
+- [x] **Step 1 — measure the real depth, from the ROM rather than from a fixture.** The
       cheapest correct probe needs no new ROM at all: run the COMPILED tank-arena and watch
       the stack pointer.
 
@@ -1745,16 +1745,16 @@ console.log(`deepest stack use: $${(0xfd - lowest).toString(16)} bytes below res
       **Only write `tests/fixtures/timing/stack-depth.asm` if the probe cannot answer it** —
       a fixture that measures what a real ROM already shows is a fixture nobody will maintain.
 
-- [ ] **Step 2 — set the constant from the measurement**, and replace the "a guess, and
+- [x] **Step 2 — set the constant from the measurement**, and replace the "a guess, and
       labelled as one" paragraph in `ram.ts` with the number and how it was obtained. If the
       measured depth is far below 16, say so and keep a stated margin rather than shaving it
       to the exact figure — but the margin must be a decision with a reason, not an
       unexamined default.
 
-- [ ] **Step 3 — record it** in `docs/kernel-measurements.md` under "How deep the call chain
+- [x] **Step 3 — record it** in `docs/kernel-measurements.md` under "How deep the call chain
       actually goes", predicted beside measured.
 
-- [ ] **Step 4 — commit.**
+- [x] **Step 4 — commit.**
 
 ```bash
 git add tests/fixtures/timing/stack-depth.asm packages/compiler/src/ram.ts \
@@ -1763,6 +1763,16 @@ git commit -m "Task 13: the stack reservation stops being a guess"
 ```
 
 ---
+
+## Status: complete, 2026-09-04
+
+All thirteen tasks done; see [`docs/session-logs/2026-09-04.md`](../../session-logs/2026-09-04.md).
+
+Two deviations, both recorded with their reasons. Task 12's bound-reaching input phase was NOT
+added: the reference rests at 7 and the compiler at 1, so those frames could only be excluded
+from the comparison, and clamping is asserted against the compiled ROM instead. Task 13 needed
+no `stack-depth.asm` fixture -- the compiled ROM answered the question directly, and a fixture
+measuring what a real ROM already shows is one nobody maintains.
 
 ## Definition of done
 

@@ -35,7 +35,7 @@ STELLA="${P1_EMULATOR:-C:/Users/gabpa/tools/stella/Stella-7.0c/Stella.exe}"
 # its TypeScript source through its own `exports`. There is no runnable
 # dist/main.js to point node at, so the CLI runs through tsx -- which is already
 # a devDependency for tools/gen-golden.ts.
-npx tsx packages/cli/src/main.ts build --static "$PROJECT" -o "$OUT"
+npx tsx packages/cli/src/main.ts build "$PROJECT" -o "$OUT"
 
 if ! command -v "$STELLA" >/dev/null 2>&1 && [ ! -f "$STELLA" ]; then
   echo ""
