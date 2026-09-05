@@ -92,4 +92,23 @@ describe('RAM allocation', () => {
     expect(kernelScratch(2).map((v) => v.name)).toEqual(['gfx0', 'gfx1', 'lineTmp']);
     expect(kernelScratch(1).map((v) => v.name)).toEqual(['gfx0', 'lineTmp']);
   });
+
+  /**
+   * A glyph pointer's high byte must live at `pointer + 1`, because that is
+   * where `lda (ptr),y` reads it from. Nothing in the allocator's contract
+   * promises adjacency -- it promises declaration order -- so the thing that
+   * depends on it asserts it.
+   */
+  it('places each glyph pointer high byte immediately after its low byte', () => {
+    const map = allocateRam([...IR_VARIABLES, ...kernelScratch(2, 2)]);
+    for (const i of [0, 1]) {
+      const low = map.slots.get(`digit${i}Ptr`);
+      const high = map.slots.get(`digit${i}PtrHi`);
+      expect([i, high]).toEqual([i, (low ?? 0) + 1]);
+    }
+  });
+
+  it('asks for no glyph pointers when a scene has no scores', () => {
+    expect(kernelScratch(2, 0).some((v) => v.name.startsWith('digit'))).toBe(false);
+  });
 });

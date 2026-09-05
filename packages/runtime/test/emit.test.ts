@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { EmitContext, ObjectDraw, RowGroupCode } from '../src/index.ts';
-import { emitRowGroup, emitTransition, entryById, TIA_REGISTERS } from '../src/index.ts';
+import {
+  digitPointers,
+  emitRowGroup,
+  emitTransition,
+  entryById,
+  TIA_REGISTERS,
+} from '../src/index.ts';
 import { wsyncLines } from './support/wsync.ts';
 
 /** Every TIA register a fragment stores to. WSYNC is structure, not content. */
@@ -207,5 +213,43 @@ describe('when a row group cannot be drawn as asked', () => {
       content: { playfield: [0, 0, 0], objects: [TANK] },
     });
     expect(() => emitRowGroup(template('two-sprite-static-field'), ctx)).toThrow(/counter/);
+  });
+});
+
+const BREAK = String.fromCharCode(10);
+
+describe('digitPointers', () => {
+  it('multiplies the digit by the glyph height and adds the font base', () => {
+    const code = digitPointers([{ variable: 'p0_score', pointer: 'digit0Ptr' }], 'DigitFont');
+    const joined = code.join(BREAK);
+    expect(joined).toContain('lda p0_score');
+    expect(joined).toContain('adc #<DigitFont');
+    expect(joined).toContain('sta digit0Ptr');
+    expect(joined).toContain('lda #>DigitFont');
+    expect(joined).toContain('sta digit0Ptr+1');
+  });
+
+  // Eight bytes per glyph is three shifts. Two would index the wrong glyph and
+  // the HUD would draw a slice of its neighbour.
+  it('shifts three times, because a glyph is eight bytes', () => {
+    const code = digitPointers([{ variable: 'p0_score', pointer: 'digit0Ptr' }], 'DigitFont');
+    expect(code.filter((l) => l.trim().startsWith('asl'))).toHaveLength(3);
+  });
+
+  it('carries the high byte, so a font crossing a page still resolves', () => {
+    const code = digitPointers([{ variable: 'p0_score', pointer: 'digit0Ptr' }], 'DigitFont');
+    const high = code.findIndex((l) => l.includes('lda #>DigitFont'));
+    expect(code[high + 1]).toContain('adc #0');
+  });
+
+  it('builds one pointer per score', () => {
+    const code = digitPointers(
+      [
+        { variable: 'p0_score', pointer: 'digit0Ptr' },
+        { variable: 'p1_score', pointer: 'digit1Ptr' },
+      ],
+      'DigitFont',
+    );
+    expect(code.join(BREAK)).toContain('sta digit1Ptr');
   });
 });

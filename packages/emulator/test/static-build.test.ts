@@ -150,6 +150,38 @@ describe('the static build against the reference kernel', () => {
     );
   });
 
+  /**
+   * The glyph band reaches its font through a pointer now, and `lda (ptr),y` is
+   * one cycle dearer than `lda table,y` -- twice per line, in a band whose GRP0
+   * is read at pixel 0.
+   *
+   * MEASURED rather than assumed: both writes land at colour clocks 21 and 45,
+   * well inside the 68-clock horizontal blank. This is the one change in the
+   * increment that could have pushed a write into the visible region, so it is
+   * asserted rather than trusted.
+   */
+  it('still writes both glyph rows inside horizontal blank', () => {
+    const frame = tracedFrame(build().rom);
+    const glyphs = frame.records.filter(
+      (r) => r.line >= 40 && r.line <= 51 && (r.register === 0x1b || r.register === 0x1c),
+    );
+    expect(glyphs.length).toBeGreaterThan(0);
+    expect(glyphs.every((r) => r.pixel === -1)).toBe(true);
+  });
+
+  /**
+   * The digits the pointer resolves to. A rebuild that indexed the wrong glyph
+   * would still write GRP inside blank and still pass the deadline test above,
+   * so the VALUE is pinned too: $3C is the font's 3 and $7E its 5, which is
+   * what tank-arena.p1 declares.
+   */
+  it('resolves each score to the glyph its .p1 declares', () => {
+    const frame = tracedFrame(build().rom);
+    const firstRow = frame.records.filter((r) => r.line === 43);
+    expect(firstRow.find((r) => r.register === 0x1b)?.value).toBe(0x3c);
+    expect(firstRow.find((r) => r.register === 0x1c)?.value).toBe(0x7e);
+  });
+
   // Known-positive: without it, every assertion above is also satisfied by a
   // comparison that cannot tell two different scenes apart. Moving one tank one
   // scanline has to show up, because a wrong ledger would move things the same

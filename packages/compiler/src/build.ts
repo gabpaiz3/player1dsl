@@ -18,6 +18,7 @@ import { P1Error } from '@player1dsl/parser';
 import {
   DIGIT_FONT,
   DIGIT_HEIGHT,
+  digitPointers,
   emitFrame,
   emitRowGroup,
   emitTable,
@@ -97,8 +98,8 @@ const SCRATCH = 'lineTmp';
  * Exported because `p1 check` prints a RAM map, and a map that omitted the
  * kernel's bytes would report free space the build has already spent.
  */
-export function allocateGameRam(game: GameIr, objects: number): RamMap {
-  return allocateRam([...game.variables, ...kernelScratch(objects)]);
+export function allocateGameRam(game: GameIr, objects: number, scores = 0): RamMap {
+  return allocateRam([...game.variables, ...kernelScratch(objects, scores)]);
 }
 
 /** The widest band's object count: how many graphics bytes the kernel needs. */
@@ -129,11 +130,10 @@ function ramEquates(map: RamMap): string[] {
  * until rules exist -- writing either here would be initialising state no
  * emitted instruction reads.
  */
-function initialPositions(scene: SceneIr): Store[] {
-  return scene.actors.flatMap((actor): Store[] => [
-    [`${actor.name}_x`, actor.x],
-    [`${actor.name}_y`, actor.y],
-  ]);
+function initialState(game: GameIr): Store[] {
+  return game.variables
+    .filter((variable) => variable.initial !== 0)
+    .map((variable): Store => [variable.name, variable.initial]);
 }
 
 /** The objects one glyph row group draws: one digit per score in the band. */
@@ -144,7 +144,7 @@ function glyphObjects(
   return scores.map((score, i) => ({
     object: bindings[i]?.object ?? 'p0',
     color: score.color,
-    table: `Score${i}Glyph`,
+    table: `digit${i}Ptr`,
     height: DIGIT_HEIGHT,
   }));
 }
@@ -269,7 +269,7 @@ export function buildStatic(game: GameIr): StaticBuild {
   }
 
   const objects = kernelObjects(ir, scene);
-  const ram = allocateGameRam(game, objects);
+  const ram = allocateGameRam(game, objects, scene.scores.length);
 
   const codes = ir.rowGroups.map((group, i) => {
     const row = ledger.rows[i];
@@ -297,6 +297,11 @@ export function buildStatic(game: GameIr): StaticBuild {
   const firstBand = scene.bands[0];
   const firstBindings = ir.bindings.filter((b) => b.band === firstBand?.name);
   const firstScores = scene.scores.filter((s) => s.band === firstBand?.name);
+  const glyphPointers = digitPointers(
+    scene.scores.map((score, i) => ({ variable: `${score.name}_score`, pointer: `digit${i}Ptr` })),
+    'DigitFont',
+  );
+
   const setup = emitTransition({
     moves: firstBindings.map((binding, i) => ({
       object: binding.object,
@@ -310,7 +315,7 @@ export function buildStatic(game: GameIr): StaticBuild {
     scene,
     playfield?.color ?? 0,
     playfield?.mode ?? 'reflect',
-    initialPositions(scene),
+    initialState(game),
   );
 
   const data = [
@@ -323,7 +328,6 @@ export function buildStatic(game: GameIr): StaticBuild {
       256,
     ),
     '',
-    ...firstScores.map((score, i) => `Score${i}Glyph = DigitFont + ${score.start * DIGIT_HEIGHT}`),
     '',
     ...game.sprites.flatMap((sprite) => [
       '',
@@ -334,7 +338,7 @@ export function buildStatic(game: GameIr): StaticBuild {
   const source = emitFrame({
     ram: ramEquates(ram),
     init,
-    setup,
+    setup: [...glyphPointers, ...setup],
     setupLines: positionLines(firstBindings.length),
     kernel,
     data,

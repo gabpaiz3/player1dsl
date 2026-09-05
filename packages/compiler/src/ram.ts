@@ -88,11 +88,20 @@ export function allocateRam(variables: readonly Variable[], options: AllocateOpt
  * same 128 bytes, and a second allocator is a second answer to which byte is
  * free.
  */
-export function kernelScratch(objects: number): Variable[] {
+export function kernelScratch(objects: number, scores = 0): Variable[] {
   const scratch: Variable[] = [];
   for (let i = 0; i < objects; i += 1) {
     scratch.push({ name: `gfx${i}`, type: 'byte', initial: 0 });
   }
   scratch.push({ name: 'lineTmp', type: 'byte', initial: 0 });
+
+  // Two bytes per score, ADJACENT and in this order: the glyph band reads
+  // `lda (digitNPtr),y`, and the 6502 takes the high byte from the very next
+  // address. `ram.test.ts` asserts the adjacency rather than trusting that the
+  // allocator keeps declaration order forever.
+  for (let i = 0; i < scores; i += 1) {
+    scratch.push({ name: `digit${i}Ptr`, type: 'byte', initial: 0 });
+    scratch.push({ name: `digit${i}PtrHi`, type: 'byte', initial: 0 });
+  }
   return scratch;
 }
