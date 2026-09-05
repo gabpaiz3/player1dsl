@@ -422,3 +422,85 @@ describe('golden comparison', () => {
     expect(compareGolden(parseGolden(text), actual)).toEqual([]);
   });
 });
+
+/**
+ * Correction 1 of plan 4, implemented: a scanline number is an equivalence
+ * property only where the code is straight-line.
+ */
+describe('region-aware comparison', () => {
+  /**
+   * A frame with one write in each region: a RESP0 strobe in vertical blank,
+   * whose pixel IS its meaning, and a GRP0 in the visible region, whose line
+   * is. Hand-built rather than read from the committed golden, so the test
+   * says exactly what it is varying.
+   */
+  const goldenFrame0 = (): GoldenFrame => ({
+    index: 0,
+    swcha: 0xff,
+    swchb: 0x3f,
+    scanlines: 262,
+    regions: [3, 37, 192, 30],
+    records: [
+      { line: 5, endLine: 5, register: 0x20, value: 0x60, pixel: 40 },
+      { line: 5, endLine: 5, register: 0x10, value: 0x60, pixel: 52 },
+      { line: 66, endLine: 66, register: 0x1b, value: 0x3c, pixel: -1 },
+      { line: 67, endLine: 67, register: 0x1b, value: 0x66, pixel: -1 },
+    ],
+  });
+
+  const shiftBlank = (frame: GoldenFrame, by: number): GoldenFrame => ({
+    ...frame,
+    records: frame.records.map((r) =>
+      r.line < 40 ? { ...r, line: r.line + by, endLine: r.endLine + by } : r,
+    ),
+  });
+
+  it('accepts a vertical-blank write that moved to another line', () => {
+    const golden = goldenFrame0();
+    expect(compareGolden([golden], [shiftBlank(golden, 1)])).toEqual([]);
+  });
+
+  /**
+   * A strobe's pixel is load-bearing -- it carries RESPx's whole meaning -- and
+   * relaxing the LINE must not relax it. Caught by positionMismatch rather than
+   * by the key, which is why it is reported as a `clock` mismatch: a better
+   * diagnostic than "record differs".
+   */
+  it('rejects a vertical-blank strobe that moved along its line', () => {
+    const golden = goldenFrame0();
+    const moved: GoldenFrame = {
+      ...golden,
+      records: golden.records.map((r) =>
+        r.line < 40 && r.register === 0x10 ? { ...r, pixel: r.pixel + 8 } : r,
+      ),
+    };
+    expect(compareGolden([golden], [moved])).not.toEqual([]);
+  });
+
+  it('still rejects a vertical-blank write whose value changed', () => {
+    const golden = goldenFrame0();
+    const moved: GoldenFrame = {
+      ...golden,
+      records: golden.records.map((r) =>
+        r.line < 40 && r.register === 0x20 ? { ...r, value: r.value ^ 0x10 } : r,
+      ),
+    };
+    expect(compareGolden([golden], [moved])).not.toEqual([]);
+  });
+
+  // The visible region keeps EXACT lines, because it is counted WSYNCs with no
+  // data-dependent branch. Relaxing it there would stop the ledger meaning
+  // anything.
+  it('still rejects a visible write that moved one scanline', () => {
+    const golden = goldenFrame0();
+    const moved: GoldenFrame = {
+      ...golden,
+      records: golden.records.map((r) =>
+        r.line >= 66 && r.register === 0x1b
+          ? { ...r, line: r.line + 1, endLine: r.endLine + 1 }
+          : r,
+      ),
+    };
+    expect(compareGolden([golden], [moved])).not.toEqual([]);
+  });
+});

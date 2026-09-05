@@ -408,6 +408,36 @@ function positionMismatch(a: GoldenRecord, b: GoldenRecord): Omit<GoldenMismatch
   }
 }
 
+/**
+ * What equality MEANS, and it depends on the region.
+ *
+ * A scanline number is an equivalence property only where the code is
+ * straight-line. The visible region is counted WSYNCs with no data-dependent
+ * branch, so its landmarks -- lines 40, 57, 65, 224, 232 -- are identical
+ * across all 90 golden frames, and comparing them exactly is comparing content.
+ *
+ * Vertical blank is not. The joystick code's branches change how many cycles
+ * run before positioning, so the reference's own RESP0 lands on line 5 in some
+ * frames and line 6 in others. Asserting a line there forces a compiler to
+ * reproduce the reference's branch structure -- transcription rather than
+ * compilation, and the same argument the spec already makes about the colour
+ * clock.
+ *
+ * `pixel` is deliberately absent from BOTH keys, and it is still checked: a
+ * strobe's pixel is load-bearing -- it is what carries a RESPx's meaning -- and
+ * `positionMismatch` compares it immediately after this, per register class. It
+ * reports a moved strobe as a `clock` mismatch and a write that left horizontal
+ * blank as a `blank` one, which are both better diagnostics than the `record`
+ * this key would produce.
+ */
+const FIRST_VISIBLE_LINE = 40;
+
+function recordKey(record: GoldenRecord): string {
+  return record.line < FIRST_VISIBLE_LINE
+    ? `blank ${record.register} ${record.value}`
+    : `visible ${record.line}-${record.endLine} ${record.register} ${record.value}`;
+}
+
 export function compareGolden(
   expected: readonly GoldenFrame[],
   actual: readonly GoldenFrame[],
@@ -465,12 +495,7 @@ export function compareGolden(
         break;
       }
       if (!a || !b) break;
-      if (
-        a.line !== b.line ||
-        a.endLine !== b.endLine ||
-        a.register !== b.register ||
-        a.value !== b.value
-      ) {
+      if (recordKey(a) !== recordKey(b)) {
         mismatches.push({
           frame: f,
           kind: 'record',
