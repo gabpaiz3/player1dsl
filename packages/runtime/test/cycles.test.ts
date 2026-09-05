@@ -1,7 +1,10 @@
 import { OPCODES } from '@player1dsl/assembler';
-import { BASE_CYCLES as EMULATOR_CYCLES } from '@player1dsl/emulator';
+import {
+  BASE_CYCLES as EMULATOR_CYCLES,
+  CPU_CYCLES_PER_SCANLINE as EMULATOR_CYCLES_PER_SCANLINE,
+} from '@player1dsl/emulator';
 import { describe, expect, it } from 'vitest';
-import { BASE_CYCLES, baseCycles, cycleCost } from '../src/index.ts';
+import { BASE_CYCLES, baseCycles, CPU_CYCLES_PER_SCANLINE, cycleCost } from '../src/index.ts';
 
 describe('the cost model and the CPU agree', () => {
   // Only opcodes the assembler can emit are compared. The emulator's table has
@@ -16,6 +19,10 @@ describe('the cost model and the CPU agree', () => {
         EMULATOR_CYCLES[opcode],
       ]);
     }
+  });
+
+  it('agrees with the CPU about how long a scanline is', () => {
+    expect(CPU_CYCLES_PER_SCANLINE).toBe(EMULATOR_CYCLES_PER_SCANLINE);
   });
 
   it('covers all 256 opcode slots, so a lookup can never be undefined', () => {

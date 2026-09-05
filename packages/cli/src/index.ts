@@ -9,8 +9,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSy
 import { basename, dirname, join } from 'node:path';
 import {
   allocateGameRam,
+  build,
   buildLedger,
-  buildStatic,
   check,
   formatLedger,
   kernelObjects,
@@ -113,16 +113,12 @@ export async function run(argv: readonly string[]): Promise<number> {
 
     if (command === 'build') {
       // `--static` is required rather than assumed. A build flag that defaults
-      // to the only thing implemented today silently becomes the default
-      // forever; naming it makes the arrival of dynamic builds an addition
-      // rather than a change of meaning.
-      if (!rest.includes('--static')) {
-        console.error('p1 build needs --static: nothing moves yet.');
-        console.error('Input, collisions and scoring arrive with the rule compiler in plan 4.');
-        return 2;
-      }
-
-      const { rom, ledger } = buildStatic(ir);
+      // `--static` renders the scene's initial state and nothing else. It stays
+      // reachable BY NAME rather than becoming the default, because
+      // static-build.test.ts compares it against golden frame 0 and a flag that
+      // silently started meaning "with rules" would leave that test measuring
+      // something else while still passing.
+      const { rom, ledger, budget } = build(ir, { static: rest.includes('--static') });
       const out = output ?? join('build', `${basename(path).replace(/\.p1$/, '')}.bin`);
       mkdirSync(dirname(out), { recursive: true });
       writeFileSync(out, rom);
@@ -130,6 +126,11 @@ export async function run(argv: readonly string[]): Promise<number> {
       console.log(`${ir.title} -- ${ir.target} ${ir.cartridge}`);
       console.log('');
       console.log(formatLedger(ledger));
+      console.log('');
+      console.log(
+        `  vertical blank: ${budget.spent} of ${budget.available} cycles spent, ` +
+          `${budget.free} free`,
+      );
       console.log('');
       console.log(`wrote ${out}: ${rom.byteLength} bytes`);
       return 0;

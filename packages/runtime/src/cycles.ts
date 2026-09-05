@@ -1,5 +1,7 @@
 import { isMnemonic, type Mode, OPCODES } from '@player1dsl/assembler';
 
+import { TIA_READ_REGISTERS, TIA_REGISTERS } from './registers.ts';
+
 /**
  * Base cycle counts for the 6502, indexed by opcode byte.
  *
@@ -37,6 +39,16 @@ export const BASE_CYCLES: readonly number[] = [
   /* 0xE0 */ 2, 6, 0, 0, 3, 3, 5, 0, 2, 2, 2, 0, 4, 4, 6, 0,
   /* 0xF0 */ 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0,
 ];
+
+/**
+ * CPU cycles in one scanline: 228 colour clocks at three per cycle.
+ *
+ * The runtime's own copy, because `packages/runtime` must not import the
+ * emulator in `src` -- a cost model taking its numbers from its own checker
+ * could be wrong in both places and pass. `cycles.test.ts` holds it to the
+ * emulator's.
+ */
+export const CPU_CYCLES_PER_SCANLINE = 76;
 
 export function baseCycles(opcode: number): number {
   return BASE_CYCLES[opcode & 0xff] ?? 0;
@@ -102,10 +114,17 @@ function classify(
     return null;
   }
 
-  // Zero page only when the caller says so, or when a hex literal says so
-  // itself. Everything else is absolute, which costs one more.
+  // Zero page when the caller says so, when a hex literal says so itself, or
+  // when it is a TIA register -- those are $00-$3F, which the runtime already
+  // knows and the caller should not have to repeat. RIOT registers are NOT:
+  // SWCHA is $0282, and charging it as zero page is the under-count that
+  // movement lowering caught.
   const literal = /^\$([0-9a-fA-F]+)$/.exec(tail);
-  const narrow = zeroPage.has(tail) || (literal?.[1] !== undefined && literal[1].length <= 2);
+  const narrow =
+    zeroPage.has(tail) ||
+    tail in TIA_REGISTERS ||
+    tail in TIA_READ_REGISTERS ||
+    (literal?.[1] !== undefined && literal[1].length <= 2);
   if (narrow && table.zp !== undefined) return { mode: 'zp', operand: tail };
   if (table.abs !== undefined) return { mode: 'abs', operand: tail };
   if (table.zp !== undefined) return { mode: 'zp', operand: tail };

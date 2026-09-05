@@ -1,6 +1,12 @@
 import { cycleCost, movementBounds } from '@player1dsl/runtime';
 import { describe, expect, it } from 'vitest';
-import { lowerAdd, lowerCollision, lowerMove, type MoveRule } from '../src/index.ts';
+import {
+  lowerAdd,
+  lowerCollision,
+  lowerMove,
+  MOVE_RULE_LINES,
+  type MoveRule,
+} from '../src/index.ts';
 
 const ARENA = {
   wallPixels: 4,
@@ -97,15 +103,29 @@ describe('lowerMove', () => {
    * Four directions, each: `lda SWCHA` 4 (ABSOLUTE -- $0282 is not zero page,
    * and charging it as zero page is the under-count that made this assertion
    * fail first time), `and #` 2, `bne` 4 taken-and-crossing, `ldx zp` 3,
-   * `cpx #` 2, the bound branch 4, and `inc`/`dec` zp 5. That is 24 a
-   * direction and 96 for the rule.
+   * `cpx #` 2, the bound branch 4, `inc`/`dec` zp 5, and the closing
+   * `sta WSYNC` 3. That is 27 a direction and 108 for the rule.
    *
    * Pinned rather than bounded, because Task 9's budget gate is only as honest
    * as this number. A lowering that quietly grew would move it.
    */
-  it('costs 96 worst-case cycles, which the budget gate spends', () => {
+  it('costs 108 worst-case cycles, which the budget gate spends', () => {
     const zeroPage = new Set(['tank0_x', 'tank0_y']);
-    expect(cycleCost(lowerMove(RULE, movementBounds(ARENA), '.m0'), { zeroPage })).toBe(96);
+    expect(cycleCost(lowerMove(RULE, movementBounds(ARENA), '.m0'), { zeroPage })).toBe(108);
+  });
+
+  /**
+   * One WSYNC per direction, so the rule costs a whole number of scanlines
+   * whichever way the joystick was pushed.
+   *
+   * Without them the beam advances by an amount that depends on the INPUT, and
+   * the frame comes out 262 lines on one press and 264 on another -- which is
+   * how this was found: the first wiring produced a 264-line frame with zero
+   * vertical-blank lines.
+   */
+  it('spends exactly one scanline per direction, whatever the branch', () => {
+    const code = lowerMove(RULE, movementBounds(ARENA), '.m0');
+    expect(code.filter((l) => l.trim() === 'sta WSYNC')).toHaveLength(MOVE_RULE_LINES);
   });
 });
 

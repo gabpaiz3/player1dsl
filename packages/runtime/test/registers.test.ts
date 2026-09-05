@@ -1,6 +1,12 @@
-import { TIA_WRITE_NAMES } from '@player1dsl/emulator';
+import { RIOT as EMULATOR_RIOT, TIA_WRITE_NAMES } from '@player1dsl/emulator';
 import { describe, expect, it } from 'vitest';
-import { ENTRIES, registerMnemonic, TIA_REGISTERS } from '../src/index.ts';
+import {
+  ENTRIES,
+  RIOT_REGISTERS,
+  registerEquates,
+  registerMnemonic,
+  TIA_REGISTERS,
+} from '../src/index.ts';
 
 /**
  * The emitter's equates against the hardware table.
@@ -39,5 +45,35 @@ describe('the emitter equates and the emulator agree', () => {
   it('refuses to invent an operand for a register it has no equate for', () => {
     expect(TIA_WRITE_NAMES[0x15]).toBe('AUDC0'); // real register, deliberately not emitted
     expect(() => registerMnemonic(0x15)).toThrow(/no equate/);
+  });
+});
+
+/**
+ * The RIOT addresses, held to the emulator's.
+ *
+ * Written from vcs.h and checked against the chip the ROMs actually run on,
+ * because getting one wrong is silent: SWCHA at $0282 is SWCHB, so a movement
+ * rule reads the console switches, sees no joystick press, and the tank simply
+ * never moves. That is exactly what happened, and this test is what would have
+ * caught it in seconds instead of a debugging session.
+ */
+describe('the RIOT registers a rule can name', () => {
+  it('reads joystick directions from SWCHA at $0280, not the console switches', () => {
+    expect(RIOT_REGISTERS.SWCHA).toBe(0x0280);
+    expect(RIOT_REGISTERS.SWCHB).toBe(0x0282);
+  });
+
+  it('agrees with the emulator about every RIOT address', () => {
+    expect([RIOT_REGISTERS.SWCHA, RIOT_REGISTERS.SWCHB, RIOT_REGISTERS.INTIM]).toEqual([
+      EMULATOR_RIOT.SWCHA,
+      EMULATOR_RIOT.SWCHB,
+      EMULATOR_RIOT.INTIM,
+    ]);
+  });
+
+  it('emits an equate for each, so a lowered rule can name them', () => {
+    const equates = registerEquates().join(String.fromCharCode(10));
+    expect(equates).toContain('SWCHA    = $0280');
+    expect(equates).toContain('CXPPMM   = $07');
   });
 });

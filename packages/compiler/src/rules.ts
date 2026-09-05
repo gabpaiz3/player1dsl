@@ -55,6 +55,17 @@ function direction(
     `    ${branch} ${label}`,
     `    ${step} ${variable}`,
     label,
+    // ONE LINE PER DIRECTION, whichever branch was taken.
+    //
+    // Rule code has no WSYNC of its own, so its cycles advance the beam by an
+    // amount that depends on which way the joystick was pushed -- and a frame
+    // whose length depends on the input is exactly what the ledger exists to
+    // prevent. Ending each direction on a WSYNC makes the cost a whole line
+    // regardless of the branch, which the ledger can charge and the frame
+    // driver can count.
+    //
+    // A direction is 24 worst-case cycles, comfortably inside a line's 76.
+    '    sta WSYNC',
   ];
 }
 
@@ -72,6 +83,14 @@ function direction(
  * The Y sense is inverted: the field loop counts DOWN, so a larger y is higher
  * up the screen and joystick up INCREMENTS it.
  */
+/**
+ * Scanlines one movement rule spends: one per direction.
+ *
+ * Charged by the caller into `setupLines`, because the frame driver counts
+ * WSYNCs and these are four of them.
+ */
+export const MOVE_RULE_LINES = 4;
+
 export function lowerMove(rule: MoveRule, bounds: MovementBounds, label: string): string[] {
   if (rule.speed !== 1) {
     throw new P1Error([
@@ -169,5 +188,12 @@ export function lowerCollision(
     '    lda #0',
     `    sta ${rule.debounce}`,
     `${label}Done`,
+    // One line, like a movement direction and for the same reason: the branch
+    // taken depends on whether contact happened, and a frame whose length
+    // depends on the game state is not a frame the ledger can balance.
+    '    sta WSYNC',
   ];
 }
+
+/** Scanlines one collision rule spends, in overscan. */
+export const COLLISION_RULE_LINES = 1;

@@ -16,6 +16,9 @@
 import { assembleSource } from '@player1dsl/assembler';
 import { P1Error } from '@player1dsl/parser';
 import {
+  CPU_CYCLES_PER_SCANLINE,
+  collisionLatch,
+  cycleCost,
   DIGIT_FONT,
   DIGIT_HEIGHT,
   digitPointers,
@@ -24,25 +27,110 @@ import {
   emitTable,
   emitTransition,
   entryById,
+  type MovementBounds,
+  movementBounds,
+  NTSC_VBLANK_LINES,
   type ObjectBinding,
   type ObjectDraw,
+  PLAYFIELD_BIT_PIXELS,
   positioningRoutine,
   positionLines,
   type RowGroupCode,
   type Store,
   stores,
+  type TiaObject,
 } from '@player1dsl/runtime';
 import type { ActorIr, GameIr, SceneIr, ScoreIr, SpriteIr } from './ir.ts';
 import { type LayoutIr, layout, type RowGroup } from './layout.ts';
 import { buildLedger, type Ledger, type LedgerRow } from './ledger.ts';
 import { allocateRam, kernelScratch, type RamMap } from './ram.ts';
+import {
+  COLLISION_RULE_LINES,
+  lowerAdd,
+  lowerCollision,
+  lowerMove,
+  MOVE_RULE_LINES,
+} from './rules.ts';
 
-export interface StaticBuild {
+export interface BuildResult {
   /** Exactly 4096 bytes: a 4 KiB unbanked cartridge image. */
   readonly rom: Uint8Array;
   /** The assembly the ROM was made from. */
   readonly source: string;
   readonly ledger: Ledger;
+  readonly budget: CycleBudget;
+}
+
+/** Kept so nothing outside this file has to move. */
+export type StaticBuild = BuildResult;
+
+export interface BuildOptions {
+  /**
+   * Emit the scene's initial state and no rules.
+   *
+   * NAMED rather than default: `static-build.test.ts` compares this build
+   * against golden frame 0, and a flag that silently started meaning "with
+   * rules" would leave that test measuring something else while still passing.
+   */
+  readonly static?: boolean;
+}
+
+/**
+ * CPU cycles vertical blank contains: 37 scanlines of 76.
+ *
+ * Positioning spends some of those lines; the rest is the rules'. An untracked
+ * cost becomes an assumed zero the compiler will happily spend, which is the
+ * property the line ledger exists to prevent, one region over.
+ */
+export const VBLANK_CYCLE_BUDGET = NTSC_VBLANK_LINES * CPU_CYCLES_PER_SCANLINE;
+
+export interface CycleBudget {
+  readonly available: number;
+  readonly spent: number;
+  readonly free: number;
+}
+
+/**
+ * Hold the frame's rules to what vertical blank can actually run.
+ *
+ * Worst case, counted by READING the emitted assembly rather than by modelling
+ * what the lowerer meant to produce. The zero-page set matters: without it
+ * `cycleCost` charges every unindexed symbol as absolute, and the allocator is
+ * the only thing that knows which are not.
+ */
+function checkBudget(rules: readonly string[], setupLines: number, ram: RamMap): CycleBudget {
+  if (setupLines >= NTSC_VBLANK_LINES) {
+    throw new P1Error([
+      {
+        code: 'E705',
+        message:
+          `the frame's rules need ${setupLines} scanlines of setup, and vertical blank ` +
+          `is only ${NTSC_VBLANK_LINES}`,
+        span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
+        hint:
+          'each movement direction and each collision rule spends a scanline, so that its ' +
+          'cost does not depend on which branch the input took. Fewer rules, or a kernel ' +
+          'that gives vertical blank more lines.',
+      },
+    ]);
+  }
+  const available = VBLANK_CYCLE_BUDGET - setupLines * CPU_CYCLES_PER_SCANLINE;
+  const spent = cycleCost(rules, { zeroPage: new Set(ram.slots.keys()) });
+  if (spent > available) {
+    throw new P1Error([
+      {
+        code: 'E704',
+        message:
+          `the frame's rules need ${spent} cycles but vertical blank has ${available} ` +
+          `once positioning has taken its ${setupLines} lines -- ${spent - available} over`,
+        span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
+        hint:
+          'worst case, counted by reading the emitted assembly. Rules that overrun push ' +
+          'work into the visible region and tear the first band.',
+      },
+    ]);
+  }
+  return { available, spent, free: available - spent };
 }
 
 /** 4 KiB unbanked, which is the only cartridge shape the language accepts. */
@@ -254,7 +342,42 @@ function codeFor(
   });
 }
 
-export function buildStatic(game: GameIr): StaticBuild {
+/**
+ * Every rule the game declares, lowered.
+ *
+ * Movement runs in VERTICAL BLANK, before positioning, because positioning
+ * reads the bytes movement writes. Collision runs in OVERSCAN, because the
+ * latches accumulate across the whole visible region and reading them in blank
+ * would report the previous frame's contact.
+ */
+function lowerRules(
+  game: GameIr,
+  bounds: MovementBounds,
+  bindingFor: (actor: string) => TiaObject,
+): { readonly blank: string[]; readonly overscan: string[] } {
+  const blank = game.everyFrame.actions.flatMap((action, i) =>
+    action.kind === 'move' ? lowerMove(action, bounds, `.mv${i}`) : [],
+  );
+
+  const overscan = game.collisions.flatMap((rule, i) => {
+    const latch = collisionLatch(bindingFor(rule.a), bindingFor(rule.b));
+    const actions = rule.actions.flatMap((action, j) =>
+      action.kind === 'add' ? lowerAdd(action, SCORE_WRAP, `.sc${i}_${j}`) : [],
+    );
+    return lowerCollision(rule, latch, `.hit${i}`, actions);
+  });
+
+  // CXCLR clears every latch at once, so it belongs to the frame rather than
+  // to any one rule -- and it must come AFTER the last rule has read what it
+  // needs.
+  if (overscan.length > 0) overscan.push('    sta CXCLR              ; clear for the next frame');
+  return { blank, overscan };
+}
+
+/** One BCD digit wraps 9 -> 0. SPEC 7.1: multi-digit scores need their own kernel. */
+const SCORE_WRAP = 10;
+
+export function build(game: GameIr, options: BuildOptions = {}): BuildResult {
   const scene = game.scene;
   const ir = layout(scene);
   const ledger = buildLedger(ir);
@@ -294,6 +417,7 @@ export function buildStatic(game: GameIr): StaticBuild {
   // The first band positions its objects in vertical blank, where the HMOVE
   // comb falls on a line nothing draws. That is why `positionLines` is charged
   // here and `repositionLines` -- one line more -- at the visible boundary.
+  const fieldRow = ledger.rows.find((row) => row.note === 'the open field');
   const firstBand = scene.bands[0];
   const firstBindings = ir.bindings.filter((b) => b.band === firstBand?.name);
   const firstScores = scene.scores.filter((s) => s.band === firstBand?.name);
@@ -301,6 +425,17 @@ export function buildStatic(game: GameIr): StaticBuild {
     scene.scores.map((score, i) => ({ variable: `${score.name}_score`, pointer: `digit${i}Ptr` })),
     'DigitFont',
   );
+
+  const bounds = movementBounds({
+    wallPixels: PLAYFIELD_BIT_PIXELS,
+    spriteWidth: game.sprites[0]?.width ?? 8,
+    spriteHeight: game.sprites[0]?.height ?? 8,
+    fieldFirstLine: fieldRow?.firstLine ?? 0,
+    fieldLastLine: fieldRow?.lastLine ?? 0,
+    counterOrigin: (fieldRow?.lastLine ?? 0) + 2,
+  });
+  const bindingFor = (actor: string) => ir.bindings.find((b) => b.holder === actor)?.object ?? 'p0';
+  const rules = options.static ? { blank: [], overscan: [] } : lowerRules(game, bounds, bindingFor);
 
   const setup = emitTransition({
     moves: firstBindings.map((binding, i) => ({
@@ -335,11 +470,27 @@ export function buildStatic(game: GameIr): StaticBuild {
     ]),
   ];
 
+  // Movement rules spend one line per direction, and the frame driver counts
+  // WSYNCs -- so they are charged here beside positioning's. A setupLines that
+  // omitted them produced a 264-line frame with zero vertical-blank lines,
+  // which is what the gate in emitFrame is for.
+  const moveRules = game.everyFrame.actions.filter((a) => a.kind === 'move').length;
+  const setupLines =
+    positionLines(firstBindings.length) + (options.static ? 0 : moveRules * MOVE_RULE_LINES);
+
+  const budget = checkBudget(
+    [...rules.blank, ...glyphPointers, ...rules.overscan],
+    setupLines,
+    ram,
+  );
+
   const source = emitFrame({
     ram: ramEquates(ram),
     init,
-    setup: [...glyphPointers, ...setup],
-    setupLines: positionLines(firstBindings.length),
+    setup: [...rules.blank, ...glyphPointers, ...setup],
+    setupLines,
+    overscan: rules.overscan,
+    overscanLines: options.static ? 0 : game.collisions.length * COLLISION_RULE_LINES,
     kernel,
     data,
   }).join('\n');
@@ -352,7 +503,17 @@ export function buildStatic(game: GameIr): StaticBuild {
     );
   }
 
-  return { rom, source: `${source}\n`, ledger };
+  return { rom, source: `${source}\n`, ledger, budget };
+}
+
+/**
+ * The static build, by name.
+ *
+ * Kept as its own function so a caller cannot get one by accident, and so
+ * `static-build.test.ts` names what it is comparing against golden frame 0.
+ */
+export function buildStatic(game: GameIr): BuildResult {
+  return build(game, { static: true });
 }
 
 /** One-time TIA state and the scene's starting positions. */
