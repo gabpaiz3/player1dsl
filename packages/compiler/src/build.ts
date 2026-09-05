@@ -364,13 +364,20 @@ function lowerRules(
     const actions = rule.actions.flatMap((action, j) =>
       action.kind === 'add' ? lowerAdd(action, SCORE_WRAP, `.sc${i}_${j}`) : [],
     );
-    return lowerCollision(rule, latch, `.hit${i}`, actions);
+    const last = i === game.collisions.length - 1;
+    return [
+      ...lowerCollision(rule, latch, `.hit${i}`, actions),
+      // CXCLR clears every latch at once, so it belongs to the frame rather
+      // than to any one rule -- and it must come AFTER the last rule has read
+      // what it needs, and BEFORE the WSYNC that ends the line. Strobing it
+      // after the WSYNC put it a scanline later than the reference does, which
+      // was the only divergence in all 90 golden frames.
+      ...(last ? ['    sta CXCLR              ; clear the latches for next frame'] : []),
+      // One line per rule, so the cost does not depend on whether contact
+      // happened.
+      '    sta WSYNC',
+    ];
   });
-
-  // CXCLR clears every latch at once, so it belongs to the frame rather than
-  // to any one rule -- and it must come AFTER the last rule has read what it
-  // needs.
-  if (overscan.length > 0) overscan.push('    sta CXCLR              ; clear for the next frame');
   return { blank, overscan };
 }
 

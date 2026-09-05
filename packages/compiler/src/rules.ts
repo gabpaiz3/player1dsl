@@ -188,12 +188,16 @@ export function lowerCollision(
     '    lda #0',
     `    sta ${rule.debounce}`,
     `${label}Done`,
-    // One line, like a movement direction and for the same reason: the branch
-    // taken depends on whether contact happened, and a frame whose length
-    // depends on the game state is not a frame the ledger can balance.
-    '    sta WSYNC',
   ];
 }
 
-/** Scanlines one collision rule spends, in overscan. */
+/**
+ * Scanlines one collision rule spends, in overscan.
+ *
+ * The WSYNC is NOT emitted by `lowerCollision`: `CXCLR` has to be strobed
+ * before it, so the caller composes body, then CXCLR after the last rule, then
+ * the WSYNC. Emitting the WSYNC here put CXCLR a scanline later than the
+ * reference kernel strobes it, which was the only divergence in all 90 golden
+ * frames.
+ */
 export const COLLISION_RULE_LINES = 1;
