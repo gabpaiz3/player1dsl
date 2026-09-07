@@ -55,6 +55,29 @@ export interface FrameOptions {
   readonly setupLines: number;
   /** Assembly lines for the visible region, in order. */
   readonly kernel: readonly string[];
+  /**
+   * Assembly run at the top of overscan, after the visible region.
+   *
+   * Where collision rules belong. The TIA's latches accumulate across the
+   * WHOLE visible region and are cleared with CXCLR, so reading them here
+   * reports contact that happened during THIS frame. Reading them in vertical
+   * blank instead would report the previous frame's -- a delay the reference
+   * kernel does not have, and one the golden would see.
+   *
+   * Spends no scanline of its own: overscan's 30 WSYNC loop follows it, and
+   * these lines share the line that loop's first WSYNC ends.
+   */
+  readonly overscan?: readonly string[];
+
+  /**
+   * Scanlines `overscan` consumes, deducted from the 30-line loop below it.
+   *
+   * Same contract as `setupLines`: the caller built the fragment out of rules
+   * whose line costs it knows, and a frame driver that guessed would be
+   * deriving a number somebody already counted.
+   */
+  readonly overscanLines?: number;
+
   /** Subroutines and tables, placed after the frame loop. */
   readonly data: readonly string[];
 }
@@ -75,6 +98,15 @@ function wsyncLoop(count: number, label: string): string[] {
  */
 export function emitFrame(options: FrameOptions): string[] {
   const { ram, init, setup, setupLines, kernel, data } = options;
+  const overscan = options.overscan ?? [];
+  const overscanLines = options.overscanLines ?? 0;
+  const overscanRemaining = NTSC_OVERSCAN_LINES - overscanLines;
+  if (overscanRemaining < 1) {
+    throw new Error(
+      `overscan rules spend ${overscanLines} of the ${NTSC_OVERSCAN_LINES}-line overscan, ` +
+        'which leaves none for the region itself',
+    );
+  }
 
   const blankRemaining = NTSC_VBLANK_LINES - setupLines;
   if (blankRemaining < 1) {
@@ -143,7 +175,8 @@ export function emitFrame(options: FrameOptions): string[] {
     `; --- overscan: ${NTSC_OVERSCAN_LINES} lines ---`,
     '    lda #2',
     '    sta VBLANK              ; blanking on',
-    ...wsyncLoop(NTSC_OVERSCAN_LINES, '.overscan'),
+    ...overscan,
+    ...wsyncLoop(overscanRemaining, '.overscan'),
     '    jmp MainLoop',
     '',
     ...data,

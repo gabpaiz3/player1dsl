@@ -63,9 +63,53 @@ export function registerMnemonic(address: number): string {
 }
 
 /** The equates, as assembly lines, so generated source reads like source. */
+/**
+ * The RIOT registers a lowered rule can name.
+ *
+ * Only the ones rules actually read. The RIOT is a different chip at a
+ * different address range -- SWCHA is $0282, which is why `cycleCost` charges a
+ * read of it as ABSOLUTE rather than zero page, and why it needs its own equate
+ * rather than riding along with the TIA's.
+ */
+/**
+ * The TIA's READ registers, which are a different address space to its writes.
+ *
+ * A read decodes only four address lines, so CXPPMM at $07 is a read of the
+ * collision latch while $07 as a WRITE is COLUPF. The two tables cannot merge.
+ */
+export const TIA_READ_REGISTERS: Readonly<Record<string, number>> = {
+  CXM0P: 0x00,
+  CXM1P: 0x01,
+  CXP0FB: 0x02,
+  CXP1FB: 0x03,
+  CXM0FB: 0x04,
+  CXM1FB: 0x05,
+  CXBLPF: 0x06,
+  CXPPMM: 0x07,
+  INPT4: 0x0c,
+  INPT5: 0x0d,
+};
+
+export const RIOT_REGISTERS: Readonly<Record<string, number>> = {
+  SWCHA: 0x0280,
+  SWCHB: 0x0282,
+  INTIM: 0x0284,
+  TIM64T: 0x0296,
+};
+
 export function registerEquates(): string[] {
-  return Object.entries(TIA_REGISTERS).map(
-    ([name, address]) =>
-      `${name.padEnd(8)} = $${address.toString(16).padStart(2, '0').toUpperCase()}`,
-  );
+  return [
+    ...Object.entries(TIA_REGISTERS).map(
+      ([name, address]) =>
+        `${name.padEnd(8)} = $${address.toString(16).padStart(2, '0').toUpperCase()}`,
+    ),
+    ...Object.entries(TIA_READ_REGISTERS).map(
+      ([name, address]) =>
+        `${name.padEnd(8)} = $${address.toString(16).padStart(2, '0').toUpperCase()}`,
+    ),
+    ...Object.entries(RIOT_REGISTERS).map(
+      ([name, address]) =>
+        `${name.padEnd(8)} = $${address.toString(16).padStart(4, '0').toUpperCase()}`,
+    ),
+  ];
 }

@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -73,15 +73,20 @@ describe('p1 build --static', () => {
     expect(errors).toMatch(/E50[34]/);
   });
 
-  it('requires --static, and says what it is waiting for', async () => {
+  /**
+   * `--static` was a REQUIRED flag while nothing moved: rejecting the bare form
+   * kept "the only thing implemented today" from silently becoming the default.
+   * Rules are lowered now, so the bare form is the real build and the flag
+   * narrows it.
+   */
+  it('builds a moving game without the flag', async () => {
     const io = capture();
-    const code = await run(['build', example]);
-    const errors = io.errors();
+    const code = await run(['build', example, '-o', join(scratch(), 'rom.bin')]);
+    const output = io.out();
     io.restore();
 
-    expect(code).toBe(2);
-    expect(errors).toContain('--static');
-    expect(errors).toMatch(/plan 4/);
+    expect(code).toBe(0);
+    expect(output).toMatch(/vertical blank: \d+ of \d+ cycles/);
   });
 
   // `check` and `build` each call layout -> buildLedger themselves. They cannot
@@ -119,5 +124,35 @@ describe('p1 build --static', () => {
 
     expect(code).toBe(0);
     expect(output).toMatch(/wrote build[/\\]tank-arena\.bin: 4096 bytes/);
+  });
+
+  /**
+   * `p1 build` without the flag now lowers rules, which is what the whole of
+   * plan 4 was for.
+   */
+  it('builds without --static now that rules are lowered', async () => {
+    const out = join(scratch(), 'dynamic.bin');
+    expect(await run(['build', example, '-o', out])).toBe(0);
+    expect(statSync(out).size).toBe(4096);
+  });
+
+  /**
+   * The static build stays reachable BY NAME. static-build.test.ts compares it
+   * against golden frame 0, and a flag that silently started meaning "with
+   * rules" would leave that test measuring something else while still passing.
+   */
+  it('still builds a static image when asked for one', async () => {
+    const out = join(scratch(), 'static.bin');
+    expect(await run(['build', '--static', example, '-o', out])).toBe(0);
+    expect(statSync(out).size).toBe(4096);
+  });
+
+  it('emits different bytes with rules than without', async () => {
+    const dir = scratch();
+    const a = join(dir, 'a.bin');
+    const b = join(dir, 'b.bin');
+    await run(['build', example, '-o', a]);
+    await run(['build', '--static', example, '-o', b]);
+    expect(readFileSync(a).equals(readFileSync(b))).toBe(false);
   });
 });

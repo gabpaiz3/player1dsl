@@ -556,6 +556,60 @@ a fixture that strobes `RESPx` and never strobes `HMOVE`, and nothing here has o
 measured**. They are shifted by the same three pixels on the assumption that the mechanism is
 shared, and that assumption is untested. Each is labelled UNMEASURED in `objects.ts`.
 
+## How deep the call chain actually goes
+
+Increment 6b. `DEFAULT_STACK_RESERVED` was labelled a guess in
+`packages/compiler/src/ram.ts` for three plans — *"nothing has yet measured the deepest call
+chain the generated code produces"*. Rule lowering is what finally made the chain real, and
+measuring inside the increment that spends it is what plan 4's Task 4b existed to prevent.
+
+### Method
+
+No fixture ROM. The cheapest correct probe is the COMPILED tank-arena itself: wrap
+`Cpu.step`, run twenty frames with the joystick held in alternating directions so both
+movement branches execute, and watch the stack pointer.
+
+### Prediction, written before the run
+
+The deepest chain is `MainLoop → jsr PosObjectX`. One level, so **two bytes** of return
+address.
+
+### Measured
+
+| | |
+|---|---|
+| where the ROM sets the stack pointer | `$FF` (`ldx #$FF / txs`) |
+| lowest observed across 20 frames | `$FD` |
+| **deepest use** | **2 bytes** |
+
+Prediction confirmed. One `jsr`, no nesting.
+
+A first probe reported **0 bytes** and was wrong for an instructive reason: it assumed the
+stack pointer's reset value of `$FD`, while the emitted ROM sets `$FF` itself. Measuring the
+difference between the resting and lowest values, rather than against an assumed origin, is
+what made the number appear.
+
+### The constant, and why it is not two
+
+`DEFAULT_STACK_RESERVED` is now **8**, not 16 and not 2.
+
+Two bytes buys one level; eight buys four. The language forbids recursion and indirect calls
+([SPEC §4.3](SPEC.md)), so depth is bounded by nesting the compiler can see — but nothing
+nests yet, so four levels is headroom for a rule form that does rather than a number anybody
+has spent. The margin is a decision with a reason, which is what the previous 16 was not.
+
+Eight bytes came back to the zero page: `p1 check` reports 8 more free than it did.
+
+**It is held honest.** `packages/emulator/test/rules-behaviour.test.ts` runs the compiled ROM
+and asserts the real depth is 2 and within the reservation, so a rule form that nested deeper
+fails loudly instead of quietly corrupting the variables allocated below the stack.
+
+### Still a guess: `TIM64T`'s T
+
+Increment 6b's other half is untouched. `timing-fixtures.test.ts` still marks the timer's tick
+count PENDING a Stella reading, and nothing here spends it — the frame driver counts WSYNCs,
+which is the decision increment 5b made and this increment did not revisit.
+
 ## What is still unmeasured
 
 Carried forward. Nothing in this list may be treated as zero.
@@ -565,8 +619,8 @@ Carried forward. Nothing in this list may be treated as zero.
 - **The HMOVE comb's visual extent.** Our TIA model does not render the 8-pixel blank the
   comb puts on the following line; the `+1` in `2n + 1` is measured as a *line cost*, which
   is what the ledger needs, but the picture is unverified. Stella is the check.
-- **`DEFAULT_STACK_RESERVED`.** Still a guess, still labelled as one in
-  `packages/compiler/src/ram.ts`. The deepest call chain only exists once rule lowering does.
+- ~~**`DEFAULT_STACK_RESERVED`.**~~ MEASURED, 2026-09-04: two bytes, one `jsr` level. See
+  [How deep the call chain actually goes](#how-deep-the-call-chain-actually-goes).
 - **The 6532 timer's T.** `timing-fixtures.test.ts` still marks it PENDING a Stella reading.
   This is why the frame driver in increment 5b uses counted WSYNCs rather than `TIM64T`.
 - **Strobes inside horizontal blank.** The golden format stores the pixel, so the comparator's

@@ -1,5 +1,7 @@
 import { isMnemonic, type Mode, OPCODES } from '@player1dsl/assembler';
 
+import { TIA_READ_REGISTERS, TIA_REGISTERS } from './registers.ts';
+
 /**
  * Base cycle counts for the 6502, indexed by opcode byte.
  *
@@ -38,6 +40,16 @@ export const BASE_CYCLES: readonly number[] = [
   /* 0xF0 */ 2, 5, 0, 0, 0, 4, 6, 0, 2, 4, 0, 0, 0, 4, 7, 0,
 ];
 
+/**
+ * CPU cycles in one scanline: 228 colour clocks at three per cycle.
+ *
+ * The runtime's own copy, because `packages/runtime` must not import the
+ * emulator in `src` -- a cost model taking its numbers from its own checker
+ * could be wrong in both places and pass. `cycles.test.ts` holds it to the
+ * emulator's.
+ */
+export const CPU_CYCLES_PER_SCANLINE = 76;
+
 export function baseCycles(opcode: number): number {
   return BASE_CYCLES[opcode & 0xff] ?? 0;
 }
@@ -56,24 +68,28 @@ interface Instruction {
  * The addressing mode an operand's SHAPE implies.
  *
  * Shape, not value: there is no symbol table here, and asking for one would make
- * the cost function depend on the assembler's placement decisions. Two rules:
+ * the cost function depend on the assembler's placement decisions. Two rules,
+ * and both now cost MORE rather than less when they guess wrong:
  *
  *   - An indexed symbol is absolute. Indexed reads in lowered code are graphics
  *     tables, which live in ROM. Where the assembler picks `zp,x` instead, this
  *     over-estimates by one -- the safe direction for a budget.
- *   - An unindexed symbol is zero page. This one is an ASSUMPTION, not a
- *     worst case: `zp` is 3 cycles where `abs` is 4, so an unindexed operand
- *     that turns out to be an absolute address is charged one cycle too FEW.
+ *   - An unindexed symbol is absolute UNLESS the caller names it as zero page.
+ *     A hex literal is classified by its own width.
  *
- * The assumption holds for every unindexed operand a lowered rule can name --
- * TIA registers are $00-$3F and allocated variables are $80-$FF, both zero page
- * -- and `rules.ts` has to keep it true. The moment a rule emits an unindexed
- * absolute operand (a lookup table read without an index, say), this function
- * under-charges it and the vertical-blank budget passes a frame that overruns.
- * The fix at that point is to pass `cycleCost` the allocated zero-page symbols
- * and charge `abs` for everything else, rather than to widen the guess.
+ * The second rule used to assume the opposite -- that an unindexed symbol was
+ * zero page, because TIA registers are $00-$3F and allocated variables are
+ * $80-$FF. Movement lowering broke it on its first line: `lda SWCHA` reads
+ * $0282, which is absolute, and the cost model was charging it three cycles
+ * instead of four, four times per movement rule. Defaulting to absolute makes a
+ * wrong guess expensive rather than cheap, which is the only direction a budget
+ * can survive.
  */
-function classify(mnemonic: string, tail: string): { mode: Mode; operand: string } | null {
+function classify(
+  mnemonic: string,
+  tail: string,
+  zeroPage: ReadonlySet<string>,
+): { mode: Mode; operand: string } | null {
   const table = OPCODES[mnemonic];
   if (!table) return null;
 
@@ -98,17 +114,29 @@ function classify(mnemonic: string, tail: string): { mode: Mode; operand: string
     return null;
   }
 
-  if (table.zp !== undefined) return { mode: 'zp', operand: tail };
+  // Zero page when the caller says so, when a hex literal says so itself, or
+  // when it is a TIA register -- those are $00-$3F, which the runtime already
+  // knows and the caller should not have to repeat. RIOT registers are NOT:
+  // SWCHA is $0282, and charging it as zero page is the under-count that
+  // movement lowering caught.
+  const literal = /^\$([0-9a-fA-F]+)$/.exec(tail);
+  const narrow =
+    zeroPage.has(tail) ||
+    tail in TIA_REGISTERS ||
+    tail in TIA_READ_REGISTERS ||
+    (literal?.[1] !== undefined && literal[1].length <= 2);
+  if (narrow && table.zp !== undefined) return { mode: 'zp', operand: tail };
   if (table.abs !== undefined) return { mode: 'abs', operand: tail };
+  if (table.zp !== undefined) return { mode: 'zp', operand: tail };
   return null;
 }
 
-function parseInstruction(text: string): Instruction | null {
+function parseInstruction(text: string, zeroPage: ReadonlySet<string>): Instruction | null {
   const parts = /^([A-Za-z]{3})(?:\s+(.*))?$/.exec(text);
   if (!parts?.[1]) return null;
   const mnemonic = parts[1].toUpperCase();
   if (!isMnemonic(mnemonic)) return null;
-  const classified = classify(mnemonic, (parts[2] ?? '').trim());
+  const classified = classify(mnemonic, (parts[2] ?? '').trim(), zeroPage);
   if (!classified) return null;
   return { mnemonic, mode: classified.mode, operand: classified.operand };
 }
@@ -137,7 +165,18 @@ function opcodeFor(mnemonic: string, mode: Mode): number {
  * indexed read is charged as crossing. A budget that assumed the fast path would
  * pass a scene that overruns on the slow one.
  */
-export function cycleCost(lines: readonly string[]): number {
+export interface CycleCostOptions {
+  /**
+   * Symbols the caller knows are in zero page.
+   *
+   * The compiler's RAM allocator assigns them, and the runtime's register table
+   * names the TIA's. Anything absent is charged as absolute.
+   */
+  readonly zeroPage?: ReadonlySet<string>;
+}
+
+export function cycleCost(lines: readonly string[], options: CycleCostOptions = {}): number {
+  const zeroPage = options.zeroPage ?? new Set<string>();
   let total = 0;
   const labels = new Set<string>();
 
@@ -145,7 +184,7 @@ export function cycleCost(lines: readonly string[]): number {
     const text = raw.split(';')[0]?.trim() ?? '';
     if (text === '') continue;
 
-    const parsed = parseInstruction(text);
+    const parsed = parseInstruction(text, zeroPage);
 
     // A bare token that is not a mnemonic is a label. Order matters: reading
     // `dex` as a label would cost the whole implied-mode instruction set at

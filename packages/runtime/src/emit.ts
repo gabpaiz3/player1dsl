@@ -157,7 +157,12 @@ function emitGlyphs(ctx: EmitContext): RowGroupCode {
     throw new Error('a glyph band draws one row per line, so every glyph must be equally tall');
   }
 
-  const rows = objects.flatMap((object, i) => [`    lda ${object.table},y`, `    sta ${grp(i)}`]);
+  // `lda (ptr),y` rather than `lda table,y`: the glyph a CHANGING score points
+  // at is not known until vertical blank, so the band reaches through a pointer
+  // that `digitPointers` rebuilds each frame. It costs one cycle more per
+  // object per line, which is why emit.test.ts asserts the GRP writes still
+  // land inside horizontal blank rather than assuming the band still fits.
+  const rows = objects.flatMap((object, i) => [`    lda (${object.table}),y`, `    sta ${grp(i)}`]);
 
   return {
     hoist: [],
@@ -375,6 +380,39 @@ export function positioningRoutine(): string[] {
     '    sta HMOVE               ; must be strobed in blank; costs the left 8 pixels',
     '    rts',
   ];
+}
+
+/** One score's glyph pointer: which variable holds the digit, where it lands. */
+export interface DigitPointer {
+  readonly variable: string;
+  /** Two-byte zero-page symbol. `pointer+1` is the high byte. */
+  readonly pointer: string;
+}
+
+/**
+ * Resolve each score digit to a font pointer, in vertical blank.
+ *
+ * A static build baked `Glyph = Font + digit * 8` at assembly time. A digit
+ * that CHANGES cannot, so the glyph band reads `lda (ptr),y` and this rebuilds
+ * `ptr` each frame.
+ *
+ * Three shifts because a glyph is eight bytes; two would index the wrong glyph
+ * and the HUD would draw a slice of its neighbour. The `adc #0` on the high
+ * byte is what keeps a font that crosses a page boundary resolving.
+ */
+export function digitPointers(pointers: readonly DigitPointer[], font: string): string[] {
+  return pointers.flatMap((entry) => [
+    `    lda ${entry.variable}`,
+    '    asl',
+    '    asl',
+    '    asl                     ; digit * 8 bytes per glyph',
+    '    clc',
+    `    adc #<${font}`,
+    `    sta ${entry.pointer}`,
+    `    lda #>${font}`,
+    '    adc #0                  ; carry, so a font across a page still resolves',
+    `    sta ${entry.pointer}+1`,
+  ]);
 }
 
 /**

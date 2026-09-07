@@ -1,7 +1,10 @@
 import { OPCODES } from '@player1dsl/assembler';
-import { BASE_CYCLES as EMULATOR_CYCLES } from '@player1dsl/emulator';
+import {
+  BASE_CYCLES as EMULATOR_CYCLES,
+  CPU_CYCLES_PER_SCANLINE as EMULATOR_CYCLES_PER_SCANLINE,
+} from '@player1dsl/emulator';
 import { describe, expect, it } from 'vitest';
-import { BASE_CYCLES, baseCycles, cycleCost } from '../src/index.ts';
+import { BASE_CYCLES, baseCycles, CPU_CYCLES_PER_SCANLINE, cycleCost } from '../src/index.ts';
 
 describe('the cost model and the CPU agree', () => {
   // Only opcodes the assembler can emit are compared. The emulator's table has
@@ -16,6 +19,10 @@ describe('the cost model and the CPU agree', () => {
         EMULATOR_CYCLES[opcode],
       ]);
     }
+  });
+
+  it('agrees with the CPU about how long a scanline is', () => {
+    expect(CPU_CYCLES_PER_SCANLINE).toBe(EMULATOR_CYCLES_PER_SCANLINE);
   });
 
   it('covers all 256 opcode slots, so a lookup can never be undefined', () => {
@@ -39,8 +46,29 @@ describe('the cost model and the CPU agree', () => {
 
 describe('cycleCost', () => {
   it('adds up a straight run of instructions', () => {
-    // lda #  2, sta zp 3, inc zp 5  =  10
-    expect(cycleCost(['    lda #$08', '    sta tank0_x', '    inc tank0_x'])).toBe(10);
+    // lda #  2, sta zp 3, inc zp 5  =  10, once the caller says tank0_x is
+    // zero page. The allocator knows; this function cannot.
+    const zeroPage = new Set(['tank0_x']);
+    expect(cycleCost(['    lda #$08', '    sta tank0_x', '    inc tank0_x'], { zeroPage })).toBe(
+      10,
+    );
+  });
+
+  /**
+   * An unnamed symbol is ABSOLUTE, which costs one more than zero page.
+   *
+   * This defaulted the other way until movement lowering broke it on its first
+   * line: `lda SWCHA` reads $0282 and was being charged three cycles instead of
+   * four, four times per rule. A budget survives over-charging; it does not
+   * survive under-charging.
+   */
+  it('charges an unnamed symbol as absolute rather than assuming zero page', () => {
+    expect(cycleCost(['    sta tank0_x', '    inc tank0_x'])).toBe(4 + 6);
+  });
+
+  it('reads a hex literal width rather than needing to be told', () => {
+    expect(cycleCost(['    sta $80'])).toBe(3);
+    expect(cycleCost(['    sta $0282'])).toBe(4);
   });
 
   it('ignores labels, comments and blank lines', () => {

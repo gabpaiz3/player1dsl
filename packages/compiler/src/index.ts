@@ -4,3 +4,4 @@ export * from './ir.ts';
 export * from './layout.ts';
 export * from './ledger.ts';
 export * from './ram.ts';
+export * from './rules.ts';
