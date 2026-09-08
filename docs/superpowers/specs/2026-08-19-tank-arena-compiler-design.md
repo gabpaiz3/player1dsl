@@ -348,17 +348,25 @@ Each ends in something independently testable, following step 1's discipline.
 | 4b | Kernel-shape fixtures | **Done 2026-08-21.** Three diagnostic kernels measured; the applicability vocabulary revised against them in [`docs/kernel-measurements.md`](../../kernel-measurements.md) |
 | 5 | Template catalog + selector | Selector matches declarations against declared conditions; a deliberately unsatisfiable band produces a diagnostic |
 | 5b | Still-frame ROM | **Done 2026-08-29.** `p1 build --static` emits 4096 bytes; golden frame 0's visible region matches record for record. Added during planning at the user's request — see [`docs/roadmap.md`](../../roadmap.md) |
-| 6 | Rule lowering + instruction selection | VBLANK/overscan code generated from rules, with the cycle budget gated |
-| 6b | Measure what 6 and 7 spend | `DEFAULT_STACK_RESERVED` set from the generated code's deepest call chain; `TIM64T`'s T settled against Stella |
-| 7 | `p1 build` end to end | 4096 bytes; the full 90-frame golden matches |
+| 6 | Rule lowering + instruction selection | **Done 2026-09-04.** VBLANK/overscan code generated from rules, with the cycle budget gated by `E704`/`E705` |
+| 6b | Measure what 6 and 7 spend | **Done 2026-09-07.** `DEFAULT_STACK_RESERVED` measured at 2 from the generated code's deepest call chain; `TIM64T`'s T = 37 against Stella — which turned out to have been settled on 2026-08-17 and mis-recorded as pending ever since |
+| 7 | `p1 build` end to end | **Done 2026-09-04.** 4096 bytes; the full 90-frame golden matches, zero mismatches |
 
-Increment **6b** exists for the same reason 4b did, and the argument has not changed: plan 4
-spends two constants nobody has measured. `DEFAULT_STACK_RESERVED = 16` is labelled a guess
-in `packages/compiler/src/ram.ts` and rule lowering is what finally makes the call chain
-real; `TIM64T`'s T is still marked PENDING in `timing-fixtures.test.ts`, which is why the
-frame driver counts WSYNCs, and the timer is the natural way to bound vertical-blank work
-once there is work to bound. Measuring in the increment that spends them is what 4b existed
-to prevent.
+Increment **6b** existed for the same reason 4b did, and the argument has not changed: plan 4
+spends two constants nobody has measured. `DEFAULT_STACK_RESERVED = 16` was labelled a guess
+in `packages/compiler/src/ram.ts` and rule lowering is what finally made the call chain real;
+`TIM64T`'s T was marked PENDING in `timing-fixtures.test.ts`, which is why the frame driver
+counts WSYNCs, and the timer is the natural way to bound vertical-blank work once there is
+work to bound. Measuring in the increment that spends them is what 4b existed to prevent.
+
+**Both are measured, and the second one taught the more useful lesson.** The stack depth came
+out at 2 against a prediction of 2. T came out at 37 — and had come out at 37 three weeks
+earlier, in step 2, where the reading corrected the emulator's timer model. What increment 6b
+actually did was find that its own premise was stale: the test asserted a range wide enough to
+straddle the old value and the new one, so its comment kept claiming a pending measurement
+that four documents then repeated. The finding is in
+[`docs/session-logs/2026-09-07.md`](../../session-logs/2026-09-07.md), and it is a defect in
+where a measured value was *written down*, not in the value.
 
 Increment 4 is where the design holds or does not: the ledger is derived arithmetic that
 must independently land on 158.

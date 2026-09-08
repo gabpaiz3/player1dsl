@@ -68,7 +68,7 @@ Step 3 runs as four plans, each producing working software on its own:
 | [1](superpowers/plans/2026-08-19-golden-trace-harness.md) | 1a, 1b | Golden trace harness and comparator | **done** |
 | [2](superpowers/plans/2026-08-20-parser-and-game-ir.md) | 2, 3 | Parser, AST, `p1 fmt`, checker, game IR, RAM allocator | **done** |
 | [3](superpowers/plans/2026-08-21-layout-ir-and-template-catalog.md) | 4, 4b, 5, **5b** | Layout IR, line ledger, kernel-shape fixtures, template catalog, still-frame ROM | **done** |
-| 4 | 6, 7 | Rule lowering, `p1 build` end to end | to write |
+| [4](superpowers/plans/2026-08-29-rule-lowering-and-end-to-end-build.md) | 6, **6b**, 7 | Rule lowering, the cycle budget gate, `p1 build` end to end | **done** |
 
 Plan 3's four increments, and what each left behind:
 
@@ -87,13 +87,28 @@ asserts that the compiler computes what the compiler computes, while a ROM built
 ledger and run in the emulator can actually be wrong.
 
 It earned its place. The ROM matches golden frame 0's visible region record for record, and
-the two exclusions from that comparison — `CXCLR`, and vertical-blank line placement — are
+the two exclusions from that comparison — `CXCLR`, and vertical-blank line placement — were
 written down in `docs/session-logs/2026-08-29.md` with the reason for each. Shrinking that
-list is the first thing plan 4 should do.
+list was the first thing plan 4 did: **both exclusions are gone.** The compiled ROM now
+matches all ninety frames with nothing filtered out.
 
-`docs/language-reference.md` is the next *document* but not the next *step*: writing the
-grammar before one ROM exists encodes assumptions the ROM will overturn. Step 3 produces the
-grammar for the tank-arena subset; the full reference follows it.
+### Step 3 is closed
+
+`p1 build examples/tank-arena` emits a 4096-byte ROM whose entire 90-frame TIA-write trace
+matches the hand-written reference kernel's, with zero mismatches — not a static scene, but a
+game that reads two joysticks, clamps four bounds, latches a collision and debounces it, from
+a `.p1` that names no scanline, register or cycle. That is the walking skeleton, and the
+architecture is proven rather than argued.
+
+The last constant increment 6b reserved is settled too: `TIM64T`'s T is **37**, validated
+against Stella. It had been settled since 2026-08-17 and recorded as pending for three weeks
+— see [`docs/session-logs/2026-09-07.md`](session-logs/2026-09-07.md), which is worth reading
+before trusting any other "still unmeasured" line in this repository.
+
+`docs/language-reference.md` is the next *document* and now also close to the next *step*:
+writing the grammar before one ROM existed would have encoded assumptions the ROM overturned,
+and step 3 has now produced the grammar for the tank-arena subset. Everything from here is
+widening the language.
 
 ## Toolchain
 
