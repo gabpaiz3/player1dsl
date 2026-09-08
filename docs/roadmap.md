@@ -97,18 +97,29 @@ matches all ninety frames with nothing filtered out.
 `p1 build examples/tank-arena` emits a 4096-byte ROM whose entire 90-frame TIA-write trace
 matches the hand-written reference kernel's, with zero mismatches — not a static scene, but a
 game that reads two joysticks, clamps four bounds, latches a collision and debounces it, from
-a `.p1` that names no scanline, register or cycle. That is the walking skeleton, and the
-architecture is proven rather than argued.
+a `.p1` that names no scanline, register or cycle. That is the walking skeleton.
+
+**Proven for one program.** An independent review on 2026-09-07 compiled four scenes each one
+edit from `tank-arena.p1` and got a balanced ledger, a passing budget, a 262-line frame and a
+wrong picture from every one of them, with no diagnostic. The pipeline — parser, IR, layout,
+ledger, catalog, emitter — holds. The composition layer in `build.ts` is fitted to this
+example, and the step that follows is what tells the two apart. See
+[`docs/session-logs/2026-09-07.md`](session-logs/2026-09-07.md) and the Known gaps in
+[`docs/next-session.md`](next-session.md) before relying on any broader claim.
 
 The last constant increment 6b reserved is settled too: `TIM64T`'s T is **37**, validated
 against Stella. It had been settled since 2026-08-17 and recorded as pending for three weeks
 — see [`docs/session-logs/2026-09-07.md`](session-logs/2026-09-07.md), which is worth reading
 before trusting any other "still unmeasured" line in this repository.
 
-`docs/language-reference.md` is the next *document* and now also close to the next *step*:
-writing the grammar before one ROM existed would have encoded assumptions the ROM overturned,
-and step 3 has now produced the grammar for the tank-arena subset. Everything from here is
-widening the language.
+`docs/language-reference.md` stays deferred, and for a sharper reason than before. It is not
+that a grammar written from one example documents that example — a reference can honestly be
+titled "the phase-1 subset" and be short. It is that an actor's `y` is currently the field
+loop's *counter* (larger is higher, origin two lines below the bottom wall) and `x` renders at
+`x + 3`. A reference written today would have to document those, and they are things to fix
+rather than describe. Coordinate semantics first, then a second game, then the reference.
+
+Everything from here is widening the language.
 
 ## Toolchain
 
