@@ -604,11 +604,28 @@ Eight bytes came back to the zero page: `p1 check` reports 8 more free than it d
 and asserts the real depth is 2 and within the reservation, so a rule form that nested deeper
 fails loudly instead of quietly corrupting the variables allocated below the stack.
 
-### Still a guess: `TIM64T`'s T
+### Not a guess, and never was: `TIM64T`'s T
 
-Increment 6b's other half is untouched. `timing-fixtures.test.ts` still marks the timer's tick
-count PENDING a Stella reading, and nothing here spends it — the frame driver counts WSYNCs,
-which is the decision increment 5b made and this increment did not revisit.
+**T = 37** for `TIM64T #44`, validated against Stella 7.0c.
+
+Increment 6b listed this as its other half, and it was already done — the reading was taken
+on **2026-08-17**, three weeks before the increment that scheduled it, and it is what
+corrected `riot.ts`'s timer model from 38 to 37 in commit `be3fd27`. Re-read on
+**2026-09-07** against three separate Stella launches at different settle times, all
+reporting 262 scanlines for `timer-only.asm`, whose frame length is `225 + T` by
+construction.
+
+What was untouched was not the measurement but the **test comment**, which went on saying
+`PENDING a Stella reading. This emulator currently gives T = 38` after the model no longer
+did. Four documents then cited that comment rather than `riot.ts`, and a range assertion of
+`30 < T < 45` could not tell 37 from 38, so nothing turned red. The assertion is now
+`toBe(37)`. See [`docs/session-logs/2026-09-07.md`](session-logs/2026-09-07.md).
+
+Nothing the compiler emits spends T. The frame driver counts WSYNCs, which is increment 5b's
+decision and stands on its own reason — a timer-bounded region hides an off-by-one that a
+counted one cannot, and the reference kernel's own two timer constants were both off by one
+until a measurement caught them. **T being measured makes the timer available, not
+required.**
 
 ## What is still unmeasured
 
@@ -621,8 +638,10 @@ Carried forward. Nothing in this list may be treated as zero.
   is what the ledger needs, but the picture is unverified. Stella is the check.
 - ~~**`DEFAULT_STACK_RESERVED`.**~~ MEASURED, 2026-09-04: two bytes, one `jsr` level. See
   [How deep the call chain actually goes](#how-deep-the-call-chain-actually-goes).
-- **The 6532 timer's T.** `timing-fixtures.test.ts` still marks it PENDING a Stella reading.
-  This is why the frame driver in increment 5b uses counted WSYNCs rather than `TIM64T`.
+- ~~**The 6532 timer's T.**~~ MEASURED, 2026-08-17, re-read 2026-09-07: T = 37 against
+  Stella. It was recorded as pending here for three weeks after the fact. See
+  [Not a guess, and never was](#not-a-guess-and-never-was-tim64ts-t). The frame driver still
+  counts WSYNCs, for a reason that does not depend on this.
 - **Strobes inside horizontal blank.** The golden format stores the pixel, so the comparator's
   new `exact` rule compares two RESPx strobes at different clocks inside blank as equal -- both
   are pixel -1. Coarse positioning happens in the visible region, so nothing in this repo hits

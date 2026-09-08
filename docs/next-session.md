@@ -8,88 +8,124 @@ wants more detail than the prompt carries.
 ## The prompt
 
 > I'm continuing work on Player1DSL, a language and compiler that turns readable `.p1`
-> source into real Atari 2600 ROMs. Steps 1 and 2 of the foundation roadmap are merged.
-> Step 3 runs as four plans; plans 1, 2 and 3 are merged. I want to write and execute
-> **plan 4**, which covers increments 6 and 7 and closes step 3.
+> source into real Atari 2600 ROMs. **The foundation is done.** All three steps of
+> `docs/roadmap.md` are merged: the hand-written reference kernel, the assembler and
+> emulator, and the compiler that reproduces it.
+>
+> `p1 build examples/tank-arena` emits a 4096-byte ROM whose **entire 90-frame TIA-write
+> trace matches the hand-written reference kernel's, with zero mismatches and nothing
+> filtered out** — a game that reads two joysticks, clamps four bounds, latches a collision
+> and debounces it, compiled from a `.p1` that names no scanline, register or cycle.
+> 357 tests, `npm run check` green, DASM byte parity, and Stella confirms the picture.
+>
+> **Read the Known gaps below before believing that paragraph.** It is true of
+> `tank-arena` and only of `tank-arena`. An independent review on 2026-09-07 compiled four
+> scenes each one edit from the example and got a wrong picture from every one, with no
+> diagnostic — and reproduced a frame whose length depends on whether the tanks touched.
+> The pipeline holds; the composition layer is fitted to the example.
+>
+> Everything from here is **widening the language**, not proving the architecture. There is
+> no plan for it yet, and choosing what to widen first is the job.
 >
 > Read these first, in order:
-> - `docs/roadmap.md` — the three-step foundation plan and the step-3 plan table
-> - `docs/superpowers/specs/2026-08-19-tank-arena-compiler-design.md` — the step-3 design
-> - `docs/kernel-measurements.md` — what four kernels measured, what contradicted a
->   prediction, and **what is still unmeasured**. Nothing in that last list may be
->   treated as zero
+> - `docs/roadmap.md` — the three foundation steps and what closed each
+> - `docs/SPEC.md` §12 — the delivery phases; phase 2 is "productive games"
+> - `docs/kernel-measurements.md` — what every kernel measured, what contradicted a
+>   prediction, and **what is still unmeasured**. Nothing in that last list may be treated
+>   as zero
+> - `docs/session-logs/2026-09-07.md` — **read this before trusting any "unmeasured" line
+>   anywhere in this repository**. One entry on that list had been measured for three weeks
 > - `docs/testing.md` — the testing disciplines, before writing any test
-> - `docs/session-logs/2026-08-29.md`, then `2026-08-23.md` and `2026-08-21.md` — plan 3's
->   three working days, including every difference filtered out of the frame-0 comparison
+> - `docs/session-logs/2026-09-04.md` — plan 4's findings, three of them silent failures
 >
-> Current state: `main` is green. `p1 build --static examples/tank-arena` emits a real
-> 4096-byte ROM that runs 262 scanlines split 3/37/192/30, and **the visible region of
-> golden frame 0 matches record for record** — the HUD glyphs, the 5-line band transition
-> with both `RESP` strobes on the same colour clocks, both walls, the entry line, and all
-> 158 field lines with both tanks. The compiler independently derives 158 from
-> `192 − 12 − 5 − 8 − 1 − 8` and refuses to build a frame that does not sum to 192.
-> 233 tests, lint and typecheck clean, DASM byte parity on six ROMs.
+> ### What to do first: three repairs, before any new capability
 >
-> **Nothing moves yet.** No input, no collisions, no scoring. That is increment 6 and 7.
+> All three come from the 2026-09-07 review, all are verified, and each gets more expensive
+> with every catalog entry and example added on top of it.
 >
-> ### The first thing to do: shrink the frame-0 filter
+> 1. **A per-fragment scanline gate.** `checkBudget` (`build.ts:101`) sums *total* rule
+>    cycles against *total* vertical blank. The invariant the frame driver actually depends
+>    on is per-fragment: `prefix + worstCase(fragment) <= 76`. Nothing checks it, and E704
+>    has never fired in any test — all three failure cases in `budget.test.ts` trip E705
+>    first, so by this project's own rule the cycle gate is unproven. While fixing it: rule
+>    cycles in overscan are charged against vertical blank's budget, and movement rules are
+>    charged twice (lines into `setupLines`, cycles into `spent`), so E704's number is not
+>    the real number.
+> 2. **Delete the silent fallbacks in `build.ts`.** `?? 'p0'` (`:233`, `:250`, `:444`),
+>    `?? 0` (`:450`), `sprites[0]` (`:438`), and a ledger row located by matching the
+>    human-readable note string `'the open field'` (`:427`). The runtime and lowering refuse
+>    rather than guess — E602, E701, E703, `cycleCost` throwing, VDEL throwing. This file
+>    does the opposite, and every one of the four broken scenes below goes through one of
+>    these lines.
+> 3. **Key the emitter by catalog entry.** `emitRowGroup` (`emit.ts:285`) switches on
+>    `ctx.kind` and uses its `entry` argument only in an error message, so the id the
+>    selector chose does not select code. A second `loop` kernel means a second switch.
+>    Half a day at three entries; worse at four.
 >
-> Two differences are excluded from the frame-0 comparison, both named in
-> `packages/emulator/test/static-build.test.ts`:
+> Then **measure `MISSILE_STROBE_DELAY` and the ball's** (`objects.ts:74-76`, both
+> UNMEASURED, and `strobe()` currently uses the missile's for the ball). Every phase-2 game
+> needs the ball, and a golden recorded from this emulator would bake an unmeasured constant
+> into the reference the compiler is then held to. `tests/fixtures/tia/collide-playfield.asm`
+> is the pattern to clone, and `scripts/stella-shot.ps1` is how the sweep gets read.
 >
-> 1. **`CXCLR`** — collision handling, which is exactly what plan 4 implements. Once
->    collisions are lowered, this exclusion should disappear and the comparison should
->    cover the whole frame.
-> 2. **Everything before the first visible line.** The reference reads two joysticks and
->    rebuilds two font pointers in vertical blank; a static build does neither, so it
->    reaches the positioning routine one scanline earlier. Once plan 4 emits the joystick
->    reads and the per-frame score-pointer arithmetic, this may close on its own — but do
->    **not** pad vertical blank to make it close. Padding is tuning a constant to make a
->    number come out, and the writes' values and beam clocks are already compared.
+> ### Then a second game — and not either of the two the spec names
 >
-> A filter that quietly grows is how a golden stops meaning anything. Every exclusion goes
-> in a comment naming what and why, and in the session log.
+> SPEC §12 phase 2 is *scenes/bands, collision model, 8 KiB F8, feasibility and cycle
+> reports, `paddle-duel` and `brick-breaker`*. That is a phase, not a plan.
 >
-> ### Constants that are still guesses — measure before spending
+> `paddle-duel` needs INPT capacitor timing the emulator does not model (`tia.ts:293`
+> returns 0) and which SPEC §3 already defers. `brick-breaker` needs per-line playfield
+> rewrites *and* ball-vs-playfield collision resting on the unmeasured ball delay.
 >
-> - **`DEFAULT_STACK_RESERVED = 16`**, labelled as a guess in `packages/compiler/src/ram.ts`.
->   The moment rule lowering exists, measure the deepest call chain and set it from evidence.
-> - **The 6532 timer's T.** `timing-fixtures.test.ts` still marks it PENDING a Stella
->   reading, which is why the frame driver counts WSYNCs instead. The reference kernel's own
->   two timer constants were **both** off by one until a measurement corrected them.
-> - **Mid-line `RESPx` multiplexing.** Separation, reload budget and exact-clock requirements
->   are all unmeasured; the selector refuses `copies: 'repositioned'` rather than assuming a
->   cost. An unknown cost the selector can refuse to spend is a fact; an omitted one becomes
->   an assumed zero it will happily spend.
-> - **The `within field` clamp asymmetry.** `within field` is parsed and resolved but not
->   interpreted. When plan 4 lowers it, it must reproduce the measured asymmetry: a lower
->   bound rests at `X_MIN - 1` while an upper rests exactly at `Y_MAX`, because `bcc` skips
->   only when *already* below while `bcs` skips at or above. A symmetric clamp puts the tank
->   one pixel off and every later `RESPx`/`HMPx` write in the golden diverges.
-> - **Our TIA model's systematic errors.** The emulator is a *timing* model and does not
->   render pixels, so no test in this repo can see a wrong playfield bit order, wrong REF
->   mirroring, or a sprite one column off. The golden cannot either — it was recorded from
->   this same emulator, so a shared error is inherited by both sides and compares equal.
->   Stella is the only check: `sh scripts/stella.sh`.
+> **Joystick-controlled pong** is the cheapest game that is not `tank-arena` in disguise:
+> two players plus a ball, no runs, no border — the exact shape `ball-and-paddles.asm`
+> already measured. It forces `ENABL`/`RESBL` emission, a vertical-only `moves`, ball
+> velocity and a bounce rule — which means signed state and a conditional, i.e. the
+> statement language beyond `move` and `+=`. That is the material a language reference
+> actually needs. Call it `paddle-duel` later, when paddles exist.
 >
-> ### One more thing plan 4 must unify
+> **`docs/language-reference.md` comes after that, and after coordinate semantics are
+> fixed** — see the gap below. Writing it today would mean documenting `x + 3` and a `y`
+> that counts upward from below the bottom wall.
 >
-> The static build allocates its **own** zero page — an actor's live position, the graphics
-> byte computed one line ahead — separately from `allocateRam`, which assigns the variables
-> the `.p1` declares. A rule that moves an actor writes the same byte the kernel reads, so
-> those two allocators have to become one.
+> **8 KiB F8**: nothing needs it. **Feasibility and cycle reports**: `p1 build` already
+> prints the ledger and the budget. What they should print, and what `TemplateEntry` should
+> carry, is the selected kernel's per-line free cycles and each fragment's worst case — the
+> two numbers that decide whether a missile or a third action fits.
+>
+> ### Standing cautions, all of them earned
+>
+> - **Derivation loses to measurement.** Across four plans, reasoning that looked sound was
+>   wrong more than a dozen times and only running the thing caught it. Don't tune a
+>   constant until a number appears — build a fixture that isolates the mechanism.
+> - **A measured value belongs in an assertion, not a comment.** This is 2026-09-07's
+>   lesson: a test asserted `30 < T < 45`, which could not tell 37 from 38, so its comment
+>   kept claiming a pending measurement for three weeks after the measurement landed, and
+>   four documents cited the comment. Where a value cannot be asserted in CI, make the
+>   assertion tight enough that the value moving breaks it.
+> - **Numbers in `src` comments are stale until checked.** The same review found five more:
+>   `emit.ts:68` and `:213` give glyph pixels as 1 and 1/10 where `trace.test.ts` pins 7 and
+>   16; `rules.ts:67` says 24 worst-case cycles where `rules.test.ts` pins 27;
+>   `trace.ts:159` calls object tracking a future increment; `testing.md:35` claims 116
+>   tests across 14 files above a 24-row table, against 39 files and 357 tests on disk. A
+>   number in a comment should name the test that pins it, or not be a number.
+> - **The emulator cannot see a picture.** It models timing and object presence, not pixels,
+>   and the golden was recorded from this same emulator — so a shared error (playfield bit
+>   order, REF mirroring, sprite column placement) is inherited by both sides and compares
+>   equal. `sh scripts/stella.sh` is the only check, and
+>   `scripts/stella-shot.ps1` captures the window without needing focus.
+> - **The three silent failures of 2026-09-04** — a frame whose length depended on the
+>   joystick, `SWCHA` emitted as `$0282` (SWCHB), and `cycleCost` under-charging exactly as
+>   its own comment predicted — all compiled, assembled and ran. Assume the next one will
+>   too.
 >
 > Working conventions: one session log per day at `docs/session-logs/YYYY-MM-DD.md`; a
 > branch per plan; push early, because CI runs on every branch push and not only on pull
-> requests; open a PR when ready and merge on green. **npm workspaces, not pnpm.** DASM and
+> requests — **and verify the push landed**, because `rtk git push` has failed silently
+> before. Open a PR when ready and merge on green. **npm workspaces, not pnpm.** DASM and
 > Stella are **dev-only** and never runtime or CI dependencies — CI needs nothing but Node.
 > Third-party ROMs, disassemblies and recovered commercial assets never enter the
 > repository.
->
-> One principle this project keeps re-earning: **derivation loses to measurement.** Across
-> four plans, reasoning that looked sound has been wrong more than a dozen times and only
-> running the thing caught it. Don't tune a constant until a number appears — build a
-> fixture that isolates the mechanism and measure it.
 
 ---
 
@@ -100,23 +136,24 @@ wants more detail than the prompt carries.
 | Thing | State |
 |---|---|
 | `examples/tank-arena/reference/` | Hand-written 4 KiB NTSC ROM: 3 / 37 / 192 / 30, two joystick tanks, BCD score, collisions |
-| `examples/tank-arena/tank-arena.p1` | The source the compiler must reproduce. States no scanline counts, timer values, or register names — asserted by a test |
-| `packages/emulator` | 6507 + TIA + RIOT. A **timing** model, not a renderer. Frame timing matches Stella. TIA write tracing, late-write detection, per-frame controller injection, and a comparator with three write timing classes |
+| `examples/tank-arena/tank-arena.p1` | The source the compiler reproduces. States no scanline counts, timer values, or register names — asserted by a test |
+| `packages/emulator` | 6507 + TIA + RIOT. A **timing** model, not a renderer. Object position tracking and all 15 collision latches; write tracing with late-write detection; per-frame controller injection; a region-aware comparator |
 | `packages/assembler` | Byte-identical to DASM on six ROMs. `assembleSource` assembles generated text without touching the filesystem |
 | `packages/parser` | Indentation-sensitive lexer, recursive-descent parser, span-carrying AST, `p1 fmt` with a byte-for-byte round-trip |
-| `packages/runtime` | **Everything measured.** Template catalog, selector, emitter, NTSC frame driver, digit font, register equates |
-| `packages/compiler` | Checker, game IR, RAM allocator, layout IR, line ledger and its hard gate, `buildStatic` |
-| `packages/cli` | `p1 check`, `p1 fmt`, `p1 build --static` |
+| `packages/runtime` | **Everything measured.** Template catalog, selector, emitter, NTSC frame driver, movement bounds, collision latch table, cycle table, digit font, register equates |
+| `packages/compiler` | Checker, game IR, one RAM allocator, layout IR, line ledger and its hard gate, rule lowering, the vertical-blank cycle budget, `build(game, { static })` |
+| `packages/cli` | `p1 check`, `p1 fmt`, `p1 build` (with and without `--static`) |
 | `tests/goldens/` | 90-frame TIA-write golden of the reference ROM, plus the input script that drives it |
 | `tests/fixtures/timing/` | Seven diagnostic ROMs, each isolating one mechanism |
 | `tests/fixtures/kernels/` | Three kernel-shape fixtures measured before the catalog vocabulary was committed |
+| `tests/fixtures/tia/` | Three fixtures for the object model: double HMOVE, HMCLR, playfield collision |
 
 ### The split that must hold
 
 **`runtime` owns anything measured; `compiler` owns anything derived.** `runtime` must never
-import from `compiler` — which is why `TiaObject`, `ObjectBinding`, `RowGroupKind` and the
-NTSC region constants live in the runtime. The compiler owns the binding *decision*; the
-runtime owns the vocabulary that decision is expressed in.
+import from `compiler` — which is why `TiaObject`, `ObjectBinding`, `RowGroupKind`, the
+movement bounds and the NTSC region constants live in the runtime. The compiler owns the
+binding *decision*; the runtime owns the vocabulary that decision is expressed in.
 
 If a scanline count appears in `packages/compiler`, it belongs in the runtime as template
 data.
@@ -130,10 +167,50 @@ reported our assembler disagreeing with DASM about bytes DASM never produced.
 
 ### Known gaps worth stating up front
 
-- The emulator does not render pixels, so nothing here can check a picture. See the Stella
-  note above.
-- Object position tracking (RESPx/HMOVE) is not modelled, so `GRP0`/`GRP1` write deadlines
-  use a conservative pixel-0 bound with known-benign false positives.
+**Four scenes one edit from `tank-arena.p1` that compile clean and render wrong.** Balanced
+ledger, passing budget, 262-line frame, no diagnostic in any of them. Verified 2026-09-07:
+
+| Scene | What happens |
+|---|---|
+| Field band only, no HUD | Vertical-blank setup positions both tanks with `lda #0` every frame (`build.ts:450` reads `firstScores[i]?.x`). After 30 frames of joystick-right, `tank0_x` is 71 in RAM and P0 sits at pixel 3. The tank never moves on screen. |
+| One score in the HUD, two actors in the field | `layout.ts:225` only repositions objects the *previous* band placed and `build.ts:450` only places the first band's, so P1 is never strobed — it lands wherever the reset clear-loop's `sta $00,x` hit `RESP1`. |
+| `within hud` instead of `within field` | Identical `cpx` constants. `rule.within` reaches only a comment (`rules.ts:123`); bounds come from the field row regardless. |
+| `tank1` uses a 16-row sprite | `movementBounds` is computed once from `sprites[0]` (`build.ts:438`), so tank1 gets the wrong lower bound and can be driven into the bottom wall. |
+
+**A frame whose length depends on the input, again.** Three `score p0 += 1` actions in the
+collision rule: the build passes the budget gate at 351 of 1900 cycles, and frame 35 — the
+contact frame — is 263 lines while every other frame is 262. This is the 2026-09-04 finding
+in a new disguise; ending each fragment on `sta WSYNC` makes its cost constant across
+*branches* but does not bound it within a *line*. `frame.ts`'s "every scanline below is one
+`sta WSYNC` that provably executed" is false the moment a fragment overruns 76 cycles.
+
+**Coordinate semantics are kernel internals wearing game-layer clothes.** An actor's `y` is
+the field loop's counter — larger is higher, origin at `fieldLastLine + 2` — a score's `y` is
+blank lines above the glyph, and `x` renders at `x + 3`. The checker accepts `y` in 0..191 for
+all four, while the counter's renderable range is 9..159, so `at (40, 185)` passes and draws
+nothing. The `.p1`'s claim to state game-layer intent only is untrue for `(x, y)`. Fix before
+documenting; every test pinning 120/9/159 changes with it.
+
+**`p1 check` and `p1 build` disagree about RAM.** `cli/src/index.ts:143` omits the score count
+that `build.ts:402` passes, so the map reports the digit-pointer bytes as free — the exact
+disagreement `allocateGameRam`'s own comment says one allocator exists to prevent. One-line
+fix, unfixed as of this handover.
+
+**The `deadline` timing class enforces almost nothing.** `golden.ts` carries deadlines for
+PF0/PF1/PF2 only; GRP0/GRP1 are opt-in via `includePlayers`, which the 90-frame comparison
+does not pass, and the COLU registers have none. A `GRP0` write at pixel 150 on a visible line
+compares equal to the same write in blank. Object positions have been tracked since increment
+5c, so exact GRP deadlines are computable now — and `trace.ts:159` still describes that
+tracking as "the natural next increment."
+
+- The emulator does not render pixels. See the Stella caution above.
+- No missiles in `tank-arena`: the field kernel has 5 free cycles per line and a missile
+  needs ~24. That needs a two-line kernel — a new catalog entry, not more compiler code.
+- Movement speed above 1 throws `E701` rather than guessing at a clamp that cannot
+  overshoot. `copies: 'repositioned'` throws `E602` for the same reason.
+- The compiler emits the **derived** movement bound (1/145/9/159), not the reference's
+  hand-chosen 8/144/12/155. Reproducing the latter would be transcription. This is why the
+  golden's input script never drives a tank to a bound.
 - Two RESPx strobes at different clocks *inside* horizontal blank compare equal — the golden
   format stores the pixel, and every blank write shares −1. Recording the colour clock is the
   fix and it changes the file format.
@@ -142,8 +219,6 @@ reported our assembler disagreeing with DASM about bytes DASM never produced.
   red the day that stops being true.
 - Trailing same-line comments are dropped by the parser; blank lines are not preserved by the
   formatter. Both are gaps rather than blockers — `tank-arena.p1` is canonical.
-- No missiles in `tank-arena`: the field kernel has 5 free cycles per line and a missile needs
-  ~24. That needs a two-line kernel — a new catalog entry, not more compiler code.
 - The review skill at `.agents/skills/reviewing-player1dsl-changes/` has still never been
   baseline-tested with subagents.
 
@@ -151,11 +226,8 @@ reported our assembler disagreeing with DASM about bytes DASM never produced.
 
 From `docs/spec-review-0.1.md`, to fold in as each feature forces the answer: §3.3
 positioning costs stated generally, §3.7 RNG, §3.8 `hz` for AUDF, §3.9 `resolution 2` /
-`spacing`, and the TypeScript integer-discipline conventions. The diagnostic code ranges are
-no longer debt — SPEC §13 now defines `E0xx` through `E6xx`.
-
-Review 0.2 §2.3's catalog fields were deliberately deferred to Task 9 of plan 3 and revised
-against measurements rather than against the genre survey's predictions. That is done.
+`spacing`, and the TypeScript integer-discipline conventions. Diagnostic code ranges are not
+debt — SPEC §13 defines `E0xx` through `E7xx`.
 
 ### Toolchain
 
@@ -167,4 +239,6 @@ with npm. Neither DASM nor Stella is on `PATH`; the scripts default to those pat
 
 - `sh scripts/stella.sh` — build `examples/tank-arena` from its `.p1` and open the result
 - `sh examples/tank-arena/reference/run.sh` — build the reference with DASM and open that
-- `docs/running-in-stella.md` — reading the frame-stats overlay
+- `scripts/stella-shot.ps1` — capture Stella's window without needing it in the foreground;
+  pass `-Extra @("-plr.stats","1")` for the frame-stats overlay
+- `docs/running-in-stella.md` — reading that overlay

@@ -46,19 +46,25 @@ describe('6532 timer write semantics (tests/fixtures/timing/timer-only.asm)', ()
    * The timed region has no WSYNCs, so this measures cycles-from-write-to-zero
    * and nothing else. Frame length is 225 + T, so T = total - 225.
    *
-   * PENDING a Stella reading. This emulator currently gives T = 38 for
-   * TIM64T #44. If Stella disagrees, the timer model is what is wrong -- and
-   * since wsync-only passes, it is the ONLY thing that can be wrong.
+   * VALIDATED against Stella 7.0c: **T = 37** for TIM64T #44. Read first on
+   * 2026-08-17, when it corrected the timer model in `riot.ts` from 38 to 37
+   * (commit be3fd27), and re-read on 2026-09-07 against three separate Stella
+   * launches, all reporting 262 scanlines.
    *
-   * The expected value is deliberately not asserted yet rather than being
-   * pinned to this emulator's own output, which would make the test tautological.
+   * 37 is STELLA'S number, not ours, which is the whole point of asserting it.
+   * This block used to refuse to pin a value on the grounds that doing so would
+   * be tautological -- true while the reading was outstanding, and inverted the
+   * moment it arrived. A range assertion cannot tell 37 from 38, so it went on
+   * passing after the model was corrected and its comment went on saying the
+   * measurement was pending. See docs/session-logs/2026-09-07.md.
+   *
+   * If a change makes this fail, the timer model is what is wrong -- since
+   * wsync-only passes, it is the ONLY thing that can be wrong.
    */
-  it('reaches zero in a measurable, stable number of scanlines', () => {
+  it('reaches zero after exactly the 37 scanlines Stella measures', () => {
     const first = frameOf('timer-only');
     const second = frameOf('timer-only');
     expect(first.scanlines).toBe(second.scanlines);
-    const t = first.scanlines - 225;
-    expect(t).toBeGreaterThan(30);
-    expect(t).toBeLessThan(45);
+    expect(first.scanlines - 225).toBe(37);
   });
 });

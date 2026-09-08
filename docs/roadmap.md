@@ -68,7 +68,7 @@ Step 3 runs as four plans, each producing working software on its own:
 | [1](superpowers/plans/2026-08-19-golden-trace-harness.md) | 1a, 1b | Golden trace harness and comparator | **done** |
 | [2](superpowers/plans/2026-08-20-parser-and-game-ir.md) | 2, 3 | Parser, AST, `p1 fmt`, checker, game IR, RAM allocator | **done** |
 | [3](superpowers/plans/2026-08-21-layout-ir-and-template-catalog.md) | 4, 4b, 5, **5b** | Layout IR, line ledger, kernel-shape fixtures, template catalog, still-frame ROM | **done** |
-| 4 | 6, 7 | Rule lowering, `p1 build` end to end | to write |
+| [4](superpowers/plans/2026-08-29-rule-lowering-and-end-to-end-build.md) | 6, **6b**, 7 | Rule lowering, the cycle budget gate, `p1 build` end to end | **done** |
 
 Plan 3's four increments, and what each left behind:
 
@@ -87,13 +87,39 @@ asserts that the compiler computes what the compiler computes, while a ROM built
 ledger and run in the emulator can actually be wrong.
 
 It earned its place. The ROM matches golden frame 0's visible region record for record, and
-the two exclusions from that comparison — `CXCLR`, and vertical-blank line placement — are
+the two exclusions from that comparison — `CXCLR`, and vertical-blank line placement — were
 written down in `docs/session-logs/2026-08-29.md` with the reason for each. Shrinking that
-list is the first thing plan 4 should do.
+list was the first thing plan 4 did: **both exclusions are gone.** The compiled ROM now
+matches all ninety frames with nothing filtered out.
 
-`docs/language-reference.md` is the next *document* but not the next *step*: writing the
-grammar before one ROM exists encodes assumptions the ROM will overturn. Step 3 produces the
-grammar for the tank-arena subset; the full reference follows it.
+### Step 3 is closed
+
+`p1 build examples/tank-arena` emits a 4096-byte ROM whose entire 90-frame TIA-write trace
+matches the hand-written reference kernel's, with zero mismatches — not a static scene, but a
+game that reads two joysticks, clamps four bounds, latches a collision and debounces it, from
+a `.p1` that names no scanline, register or cycle. That is the walking skeleton.
+
+**Proven for one program.** An independent review on 2026-09-07 compiled four scenes each one
+edit from `tank-arena.p1` and got a balanced ledger, a passing budget, a 262-line frame and a
+wrong picture from every one of them, with no diagnostic. The pipeline — parser, IR, layout,
+ledger, catalog, emitter — holds. The composition layer in `build.ts` is fitted to this
+example, and the step that follows is what tells the two apart. See
+[`docs/session-logs/2026-09-07.md`](session-logs/2026-09-07.md) and the Known gaps in
+[`docs/next-session.md`](next-session.md) before relying on any broader claim.
+
+The last constant increment 6b reserved is settled too: `TIM64T`'s T is **37**, validated
+against Stella. It had been settled since 2026-08-17 and recorded as pending for three weeks
+— see [`docs/session-logs/2026-09-07.md`](session-logs/2026-09-07.md), which is worth reading
+before trusting any other "still unmeasured" line in this repository.
+
+`docs/language-reference.md` stays deferred, and for a sharper reason than before. It is not
+that a grammar written from one example documents that example — a reference can honestly be
+titled "the phase-1 subset" and be short. It is that an actor's `y` is currently the field
+loop's *counter* (larger is higher, origin two lines below the bottom wall) and `x` renders at
+`x + 3`. A reference written today would have to document those, and they are things to fix
+rather than describe. Coordinate semantics first, then a second game, then the reference.
+
+Everything from here is widening the language.
 
 ## Toolchain
 

@@ -2,12 +2,19 @@
  * The frame driver: one NTSC frame, forever.
  *
  * Counted WSYNCs, not the RIOT timer. `tests/fixtures/timing/wsync-only.asm` is
- * the ROM Stella validated at 262 lines; `timer-only.asm`'s T is still marked
- * PENDING a Stella reading in `timing-fixtures.test.ts`, and the reference
- * kernel's own two timer constants were both off by one until a measurement
- * corrected them. Building the first compiler-emitted ROM on the unvalidated
- * mechanism would put an unmeasured number underneath everything increment 5b
- * claims to check. TIM64T arrives when its measurement does.
+ * the ROM Stella validated at 262 lines, and every scanline this driver emits
+ * is one `sta WSYNC` that provably executed -- a number the ledger can charge
+ * and the frame driver can count.
+ *
+ * NOT because the timer is unmeasured. `timer-only.asm`'s T is 37, validated
+ * against Stella and asserted in `timing-fixtures.test.ts`; this comment used
+ * to cite that measurement as pending, which it had not been since 2026-08-17.
+ *
+ * The reason that survives is the reference kernel's: its own two timer
+ * constants were BOTH off by one until a measurement corrected them, so a
+ * timer-bounded region hides an off-by-one that a counted one cannot. T being
+ * measured makes TIM64T available, not required, and moving to it is a change
+ * with no requirement forcing it -- see docs/session-logs/2026-09-07.md.
  */
 
 import { registerEquates } from './registers.ts';
