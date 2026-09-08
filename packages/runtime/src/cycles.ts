@@ -221,3 +221,73 @@ export function cycleCost(lines: readonly string[], options: CycleCostOptions = 
 
   return total;
 }
+
+/**
+ * One WSYNC-delimited fragment of emitted code, and what it really costs.
+ *
+ * `sta WSYNC` halts the CPU until the start of the next scanline, so a
+ * fragment ending on one costs a whole number of lines whichever branch the
+ * code took -- but the number is `ceil(cycles / 76)`, not 1. A fragment of 84
+ * cycles spends two lines, and code that charged it one produced a frame a
+ * line longer than the ledger said.
+ */
+export interface Fragment {
+  /** Worst-case cycles from the start of the line through this fragment's WSYNC. */
+  readonly cycles: number;
+  /** Whole scanlines consumed: `ceil(cycles / 76)`. */
+  readonly lines: number;
+}
+
+export interface FragmentCosts {
+  readonly fragments: readonly Fragment[];
+  /** Scanlines every WSYNC-terminated fragment consumes together. */
+  readonly lines: number;
+  /**
+   * Cycles of trailing code with no WSYNC after it.
+   *
+   * NOT a line, and deliberately not rounded into one: it spills onto whatever
+   * line the NEXT block begins, and this function cannot see that block. A
+   * caller with a non-zero remainder owns the question of where it lands; one
+   * that silently ignored it would be assuming a zero, which is the failure
+   * this whole module exists to make impossible.
+   */
+  readonly remainder: number;
+}
+
+/**
+ * Split emitted assembly on `sta WSYNC` and cost each fragment separately.
+ *
+ * THE INVARIANT THIS EXISTS FOR. Ending every rule fragment on a WSYNC makes
+ * its cost independent of which BRANCH the code took -- that was the
+ * 2026-09-04 fix. It does not make the cost one LINE, and the two were
+ * conflated: three `score += 1` actions in one collision rule cost 84 cycles,
+ * were charged a single line, and produced a 263-line frame on exactly the
+ * frames where the tanks touched.
+ *
+ * Reads the text, like `cycleCost`, and shares its worst-case discipline.
+ */
+export function fragmentCosts(
+  lines: readonly string[],
+  options: CycleCostOptions = {},
+): FragmentCosts {
+  const fragments: Fragment[] = [];
+  let current: string[] = [];
+
+  for (const raw of lines) {
+    current.push(raw);
+    // The comment is stripped before matching: `sta WSYNC ; one line per
+    // direction` is the form the lowerer emits, and matching the raw line
+    // would miss it and merge two fragments into one.
+    if ((raw.split(';')[0]?.trim() ?? '') === 'sta WSYNC') {
+      const cycles = cycleCost(current, options);
+      fragments.push({ cycles, lines: Math.ceil(cycles / CPU_CYCLES_PER_SCANLINE) });
+      current = [];
+    }
+  }
+
+  return {
+    fragments,
+    lines: fragments.reduce((total, f) => total + f.lines, 0),
+    remainder: cycleCost(current, options),
+  };
+}

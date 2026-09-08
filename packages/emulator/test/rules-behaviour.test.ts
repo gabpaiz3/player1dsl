@@ -172,6 +172,72 @@ describe('the compiled ROM against the reference kernel', () => {
 });
 
 /**
+ * THE test the per-fragment line accounting exists for.
+ *
+ * Ending each rule fragment on `sta WSYNC` makes its cost independent of which
+ * BRANCH the code took. It does not make that cost one LINE, and the two were
+ * conflated until 2026-09-08: three `score p0 += 1` actions in one collision
+ * rule cost 84 worst-case cycles, were charged a single scanline, and produced
+ * a 263-line frame on exactly the frames where the tanks touched -- while the
+ * cycle budget passed at 351 of 1900.
+ *
+ * A frame length that depends on the input is what the ledger exists to
+ * prevent, and it is the same defect 2026-09-04 recorded as fixed.
+ *
+ * Driven by the committed script rather than idle frames, because the overrun
+ * only appears on a frame where the collision rule's body actually runs.
+ */
+describe('a rule longer than one scanline still costs whole frames', () => {
+  const script = () =>
+    JSON.parse(readFileSync('tests/goldens/tank-arena.input.json', 'utf8')) as InputScript;
+
+  function frameLengths(actions: number): number[] {
+    const source = readFileSync(SOURCE, 'utf8').replace(
+      '  score p0 += 1',
+      Array.from({ length: actions }, () => '  score p0 += 1').join('\n'),
+    );
+    const machine = new Machine(build(check(parse(source, SOURCE))).rom);
+    machine.runFrame();
+    machine.runFrame();
+    return expandScript(script()).map((swcha) => machine.runFrame({ swcha }).scanlines);
+  }
+
+  // One and two actions fit inside a scanline, so the frame is constant.
+  it.each([1, 2])('holds every frame to 262 lines with %i scoring actions', (actions) => {
+    expect([...new Set(frameLengths(actions))]).toEqual([262]);
+  });
+
+  /**
+   * E706 firing, watched.
+   *
+   * Three actions is 84 worst-case cycles in one fragment. Charging it two
+   * lines was tried and refuted: the branch that skips the actions really does
+   * take one line, so the frame came out **261** on every frame without
+   * contact. A cost that depends on the input can only be refused.
+   *
+   * This is the first gate in the E70x range that anything has been seen to
+   * trip -- E704 still has not -- so it is asserted by code and by the number
+   * it reports, not merely by its existence.
+   */
+  it.each([3, 4])('refuses %i actions rather than emitting a variable-length frame', (actions) => {
+    expect(() => frameLengths(actions)).toThrow(/E706/);
+  });
+
+  it('says how long the rule ran and what a scanline holds', () => {
+    try {
+      frameLengths(3);
+      throw new Error('should have thrown');
+    } catch (error) {
+      const first = (error as { diagnostics?: { code: string; message: string }[] })
+        .diagnostics?.[0];
+      expect(first?.code).toBe('E706');
+      expect(first?.message).toMatch(/\d+ cycles between WSYNCs/);
+      expect(first?.message).toContain('76');
+    }
+  });
+});
+
+/**
  * The stack reservation, held to what the ROM actually uses.
  *
  * `DEFAULT_STACK_RESERVED` was a guess for three plans. It is eight now,

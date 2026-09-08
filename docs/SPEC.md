@@ -582,7 +582,7 @@ with an existing one.
 | `E4xx` | CLI | ambiguous project path |
 | `E5xx` | layout and ledger | `E501` too few movable objects, `E502` two remainder bands, `E503` frame does not sum to 192, `E504` no lines left for the remainder band, `E505` unaccounted exit lines, `E506` glyphs in one band disagree about their top line |
 | `E6xx` | catalog and selector | `E601` no template applies, `E602` unmeasured copy strategy, `E610`–`E613` catalog validation |
-| `E7xx` | rule lowering and the cycle budget | `E701` unlowered movement speed, `E702` a control that is not a joystick, `E703` a collision pair the TIA has no latch for, `E704` rules exceed vertical blank's cycles, `E705` rules exceed vertical blank's scanlines |
+| `E7xx` | rule lowering and the cycle budget | `E701` unlowered movement speed, `E702` a control that is not a joystick, `E703` a collision pair the TIA has no latch for, `E704` rules exceed vertical blank's cycles, `E705` rules exceed a region's scanlines, `E706` one rule runs longer than a scanline between WSYNCs |
 
 `E5xx` and `E6xx` are split because they fail for different reasons and send the reader to
 different places: an `E5xx` means the scene does not fit, and an `E6xx` means the catalog has

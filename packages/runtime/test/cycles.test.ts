@@ -4,7 +4,13 @@ import {
   CPU_CYCLES_PER_SCANLINE as EMULATOR_CYCLES_PER_SCANLINE,
 } from '@player1dsl/emulator';
 import { describe, expect, it } from 'vitest';
-import { BASE_CYCLES, baseCycles, CPU_CYCLES_PER_SCANLINE, cycleCost } from '../src/index.ts';
+import {
+  BASE_CYCLES,
+  baseCycles,
+  CPU_CYCLES_PER_SCANLINE,
+  cycleCost,
+  fragmentCosts,
+} from '../src/index.ts';
 
 describe('the cost model and the CPU agree', () => {
   // Only opcodes the assembler can emit are compared. The emulator's table has
@@ -111,5 +117,48 @@ describe('cycleCost', () => {
 
   it('refuses a mnemonic that has no form for the operand it was given', () => {
     expect(() => cycleCost(['    inx #$04'])).toThrow(/inx/i);
+  });
+});
+
+/**
+ * The primitive E706 is built on.
+ *
+ * Costs are worst case, like `cycleCost`'s, because the question is whether a
+ * fragment CAN overrun a line and not whether it usually does.
+ */
+describe('fragmentCosts', () => {
+  const WSYNC = '    sta WSYNC';
+
+  it('splits on WSYNC and costs each fragment on its own', () => {
+    const costs = fragmentCosts(['    lda #1', WSYNC, '    lda #2', '    lda #3', WSYNC]);
+    expect(costs.fragments.map((f) => f.cycles)).toEqual([2 + 3, 2 + 2 + 3]);
+    expect(costs.lines).toBe(2);
+  });
+
+  // The lowerer writes `sta WSYNC ; one line per direction`. Matching the raw
+  // text would miss it and merge two fragments into one, hiding an overrun.
+  it('sees a WSYNC that carries a trailing comment', () => {
+    expect(fragmentCosts([`${WSYNC}              ; ends the line`]).fragments).toHaveLength(1);
+  });
+
+  /**
+   * Trailing code with no WSYNC is reported, not rounded into a line.
+   *
+   * It spills onto whatever line the NEXT block begins, which this function
+   * cannot see. A caller that ignored it would be assuming a zero.
+   */
+  it('reports trailing cycles separately rather than charging them a line', () => {
+    const costs = fragmentCosts([WSYNC, '    lda #1', '    lda #2']);
+    expect([costs.fragments.length, costs.lines, costs.remainder]).toEqual([1, 1, 4]);
+  });
+
+  it('counts a fragment past one scanline as more than one line', () => {
+    const long = [...Array.from({ length: 40 }, () => '    lda #1'), WSYNC];
+    expect(fragmentCosts(long).fragments[0]).toEqual({ cycles: 83, lines: 2 });
+  });
+
+  it('is empty for code with no WSYNC at all', () => {
+    expect(fragmentCosts([]).lines).toBe(0);
+    expect(fragmentCosts(['    lda #1']).fragments).toEqual([]);
   });
 });

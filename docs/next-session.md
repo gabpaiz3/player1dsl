@@ -16,12 +16,13 @@ wants more detail than the prompt carries.
 > trace matches the hand-written reference kernel's, with zero mismatches and nothing
 > filtered out** — a game that reads two joysticks, clamps four bounds, latches a collision
 > and debounces it, compiled from a `.p1` that names no scanline, register or cycle.
-> 357 tests, `npm run check` green, DASM byte parity, and Stella confirms the picture.
+> 369 tests, `npm run check` green, DASM byte parity, and Stella confirms the picture.
 >
 > **Read the Known gaps below before believing that paragraph.** It is true of
 > `tank-arena` and only of `tank-arena`. An independent review on 2026-09-07 compiled four
 > scenes each one edit from the example and got a wrong picture from every one, with no
-> diagnostic — and reproduced a frame whose length depends on whether the tanks touched.
+> diagnostic. It also reproduced a frame whose length depended on whether the tanks
+> touched; that one is fixed and gated as `E706`, and the four scenes are not.
 > The pipeline holds; the composition layer is fitted to the example.
 >
 > Everything from here is **widening the language**, not proving the architecture. There is
@@ -38,19 +39,18 @@ wants more detail than the prompt carries.
 > - `docs/testing.md` — the testing disciplines, before writing any test
 > - `docs/session-logs/2026-09-04.md` — plan 4's findings, three of them silent failures
 >
-> ### What to do first: three repairs, before any new capability
+> ### What to do first: two repairs, before any new capability
 >
-> All three come from the 2026-09-07 review, all are verified, and each gets more expensive
-> with every catalog entry and example added on top of it.
+> Both come from the 2026-09-07 review, both are verified, and each gets more expensive with
+> every catalog entry and example added on top of it. The third is done, and item 1 is kept
+> rather than deleted because how it was fixed matters more than that it was.
 >
-> 1. **A per-fragment scanline gate.** `checkBudget` (`build.ts:101`) sums *total* rule
->    cycles against *total* vertical blank. The invariant the frame driver actually depends
->    on is per-fragment: `prefix + worstCase(fragment) <= 76`. Nothing checks it, and E704
->    has never fired in any test — all three failure cases in `budget.test.ts` trip E705
->    first, so by this project's own rule the cycle gate is unproven. While fixing it: rule
->    cycles in overscan are charged against vertical blank's budget, and movement rules are
->    charged twice (lines into `setupLines`, cycles into `spent`), so E704's number is not
->    the real number.
+> 1. ~~**A per-fragment scanline gate.**~~ DONE 2026-09-08, as `E706`. Worth reading the
+>    session log for it: charging a long fragment `ceil(cycles / 76)` lines was tried first
+>    and produced **261**-line frames, because the branch that skips the work really does
+>    take one line. A cost that depends on the input can only be refused, not charged. The
+>    double-charge and the overscan-against-vertical-blank misattribution went with it.
+>    **E704 still has never fired** — E705 reaches every over-large scene first.
 > 2. **Delete the silent fallbacks in `build.ts`.** `?? 'p0'` (`:233`, `:250`, `:444`),
 >    `?? 0` (`:450`), `sprites[0]` (`:438`), and a ledger row located by matching the
 >    human-readable note string `'the open field'` (`:427`). The runtime and lowering refuse
@@ -107,8 +107,9 @@ wants more detail than the prompt carries.
 >   `emit.ts:68` and `:213` give glyph pixels as 1 and 1/10 where `trace.test.ts` pins 7 and
 >   16; `rules.ts:67` says 24 worst-case cycles where `rules.test.ts` pins 27;
 >   `trace.ts:159` calls object tracking a future increment; `testing.md:35` claims 116
->   tests across 14 files above a 24-row table, against 39 files and 357 tests on disk. A
->   number in a comment should name the test that pins it, or not be a number.
+>   tests across 14 files above a 24-row table, against 39 files and 369 tests on disk. A
+>   number in a comment should name the test that pins it, or not be a number. (`rules.ts`
+>   is fixed; the rest are not.)
 > - **The emulator cannot see a picture.** It models timing and object presence, not pixels,
 >   and the golden was recorded from this same emulator — so a shared error (playfield bit
 >   order, REF mirroring, sprite column placement) is inherited by both sides and compares
@@ -177,12 +178,11 @@ ledger, passing budget, 262-line frame, no diagnostic in any of them. Verified 2
 | `within hud` instead of `within field` | Identical `cpx` constants. `rule.within` reaches only a comment (`rules.ts:123`); bounds come from the field row regardless. |
 | `tank1` uses a 16-row sprite | `movementBounds` is computed once from `sprites[0]` (`build.ts:438`), so tank1 gets the wrong lower bound and can be driven into the bottom wall. |
 
-**A frame whose length depends on the input, again.** Three `score p0 += 1` actions in the
-collision rule: the build passes the budget gate at 351 of 1900 cycles, and frame 35 — the
-contact frame — is 263 lines while every other frame is 262. This is the 2026-09-04 finding
-in a new disguise; ending each fragment on `sta WSYNC` makes its cost constant across
-*branches* but does not bound it within a *line*. `frame.ts`'s "every scanline below is one
-`sta WSYNC` that provably executed" is false the moment a fragment overruns 76 cycles.
+~~**A frame whose length depends on the input, again.**~~ FIXED 2026-09-08 as `E706`. Three
+`score p0 += 1` actions cost 84 cycles in one fragment and made frame 35 — the contact frame
+— 263 lines. Ending a fragment on `sta WSYNC` makes its cost constant across *branches* but
+does not bound it within a *line*, so `frame.ts`'s "every scanline below is one `sta WSYNC`
+that provably executed" was false until the compiler began refusing such a fragment.
 
 **Coordinate semantics are kernel internals wearing game-layer clothes.** An actor's `y` is
 the field loop's counter — larger is higher, origin at `fieldLastLine + 2` — a score's `y` is

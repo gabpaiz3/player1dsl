@@ -14,7 +14,7 @@
  */
 
 import { assembleSource } from '@player1dsl/assembler';
-import { P1Error } from '@player1dsl/parser';
+import { type Diagnostic, P1Error } from '@player1dsl/parser';
 import {
   CPU_CYCLES_PER_SCANLINE,
   collisionLatch,
@@ -27,8 +27,10 @@ import {
   emitTable,
   emitTransition,
   entryById,
+  fragmentCosts,
   type MovementBounds,
   movementBounds,
+  NTSC_OVERSCAN_LINES,
   NTSC_VBLANK_LINES,
   type ObjectBinding,
   type ObjectDraw,
@@ -44,13 +46,7 @@ import type { ActorIr, GameIr, SceneIr, ScoreIr, SpriteIr } from './ir.ts';
 import { type LayoutIr, layout, type RowGroup } from './layout.ts';
 import { buildLedger, type Ledger, type LedgerRow } from './ledger.ts';
 import { allocateRam, kernelScratch, type RamMap } from './ram.ts';
-import {
-  COLLISION_RULE_LINES,
-  lowerAdd,
-  lowerCollision,
-  lowerMove,
-  MOVE_RULE_LINES,
-} from './rules.ts';
+import { lowerAdd, lowerCollision, lowerMove } from './rules.ts';
 
 export interface BuildResult {
   /** Exactly 4096 bytes: a 4 KiB unbanked cartridge image. */
@@ -91,26 +87,98 @@ export interface CycleBudget {
 }
 
 /**
+ * Scanlines a block of emitted rule code spends -- and the gate that makes the
+ * question answerable at all.
+ *
+ * A WSYNC aligns the END of a fragment to a line boundary. It does NOT fix how
+ * many boundaries the code crossed getting there: a fragment whose worst path
+ * is 84 cycles and whose best is 30 spends two lines on one branch and one on
+ * the other. So "one fragment, one line" -- which the frame driver's whole
+ * WSYNC count rests on -- is true only while every fragment fits inside 76
+ * cycles, and E706 is what makes it true rather than hoped for.
+ *
+ * MEASURED, and the first attempt was wrong. Charging `ceil(worst / 76)` lines
+ * instead of refusing was tried first, on the theory that a long rule simply
+ * costs more lines. It produced 261-line frames: the short branch really did
+ * take one line, so the frame came out a line SHORT wherever contact did not
+ * happen. A cost that depends on the input cannot be charged, only refused.
+ *
+ * The remainder is asserted rather than ignored. Rule blocks end on a WSYNC by
+ * construction, so a non-zero remainder means the lowerer emitted a trailing
+ * fragment whose cycles land on a line this function cannot see -- and silently
+ * dropping them is the assumed zero the ledger exists to prevent.
+ */
+function ruleLines(rules: readonly string[], ram: RamMap, region: string): number {
+  const costs = fragmentCosts(rules, { zeroPage: new Set(ram.slots.keys()) });
+  if (costs.remainder !== 0) {
+    throw new Error(
+      `${region} rules end with ${costs.remainder} cycles after the last WSYNC. Every ` +
+        'rule fragment must end on one, or its cost lands on a line nothing charged.',
+    );
+  }
+
+  const over = costs.fragments.filter((f) => f.cycles > CPU_CYCLES_PER_SCANLINE);
+  if (over.length > 0) {
+    const worst = Math.max(...over.map((f) => f.cycles));
+    throw new P1Error([
+      {
+        code: 'E706',
+        message:
+          `a ${region} rule runs ${worst} cycles between WSYNCs, and a scanline is only ` +
+          `${CPU_CYCLES_PER_SCANLINE} -- so it spends two lines when its branch is taken ` +
+          'and one when it is not',
+        span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
+        hint:
+          'a frame whose length depends on the input is what the line ledger exists to ' +
+          'prevent. Split the rule: each `when` and each movement rule gets its own ' +
+          'scanline, so fewer actions in one of them is the fix.',
+      } satisfies Diagnostic,
+    ]);
+  }
+
+  // Provably the line count now: every fragment fits in one line, on every
+  // branch, so the count IS the number of WSYNCs the frame driver will see.
+  return costs.fragments.length;
+}
+
+/**
  * Hold the frame's rules to what vertical blank can actually run.
  *
  * Worst case, counted by READING the emitted assembly rather than by modelling
  * what the lowerer meant to produce. The zero-page set matters: without it
  * `cycleCost` charges every unindexed symbol as absolute, and the allocator is
  * the only thing that knows which are not.
+ *
+ * `setupLines` here is POSITIONING'S alone. The rules' own lines are counted by
+ * `ruleLines` and gated separately, so subtracting them from `available` too
+ * would charge the same code twice -- which it did until 2026-09-08, making
+ * E704's reported overrun smaller than the real one.
+ *
+ * REACHABILITY, stated rather than assumed: E705 fires first for every scene
+ * tried so far, because a fragment costs at least a line and lines run out
+ * before cycles do. E704 remains a true statement -- rules cannot spend more
+ * cycles than the region holds -- and covers the un-lined code the line count
+ * cannot see, but nothing has yet made it fire. That is recorded in
+ * docs/session-logs/2026-09-08.md rather than left to be discovered.
  */
-function checkBudget(rules: readonly string[], setupLines: number, ram: RamMap): CycleBudget {
-  if (setupLines >= NTSC_VBLANK_LINES) {
+function checkBudget(
+  rules: readonly string[],
+  setupLines: number,
+  ram: RamMap,
+  ruleScanlines: number,
+): CycleBudget {
+  if (setupLines + ruleScanlines >= NTSC_VBLANK_LINES) {
     throw new P1Error([
       {
         code: 'E705',
         message:
-          `the frame's rules need ${setupLines} scanlines of setup, and vertical blank ` +
-          `is only ${NTSC_VBLANK_LINES}`,
+          `the frame's rules need ${ruleScanlines} scanlines on top of positioning's ` +
+          `${setupLines}, and vertical blank is only ${NTSC_VBLANK_LINES}`,
         span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
         hint:
-          'each movement direction and each collision rule spends a scanline, so that its ' +
-          'cost does not depend on which branch the input took. Fewer rules, or a kernel ' +
-          'that gives vertical blank more lines.',
+          'each movement direction and each collision rule ends on a WSYNC and so spends ' +
+          'exactly one scanline -- E706 refuses any that would spend more. This is too ' +
+          'many of them: fewer rules, or a kernel that gives vertical blank more lines.',
       },
     ]);
   }
@@ -121,8 +189,9 @@ function checkBudget(rules: readonly string[], setupLines: number, ram: RamMap):
       {
         code: 'E704',
         message:
-          `the frame's rules need ${spent} cycles but vertical blank has ${available} ` +
-          `once positioning has taken its ${setupLines} lines -- ${spent - available} over`,
+          `the frame's vertical-blank rules need ${spent} cycles but the region has ` +
+          `${available} once positioning has taken its ${setupLines} lines -- ` +
+          `${spent - available} over`,
         span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
         hint:
           'worst case, counted by reading the emitted assembly. Rules that overrun push ' +
@@ -485,19 +554,35 @@ export function build(game: GameIr, options: BuildOptions = {}): BuildResult {
     ]),
   ];
 
-  // Movement rules spend one line per direction, and the frame driver counts
-  // WSYNCs -- so they are charged here beside positioning's. A setupLines that
-  // omitted them produced a 264-line frame with zero vertical-blank lines,
-  // which is what the gate in emitFrame is for.
-  const moveRules = game.everyFrame.actions.filter((a) => a.kind === 'move').length;
-  const setupLines =
-    positionLines(firstBindings.length) + (options.static ? 0 : moveRules * MOVE_RULE_LINES);
+  // Rule lines are MEASURED from the emitted text, not multiplied out from a
+  // per-rule constant. The frame driver counts WSYNCs, and a fragment spends
+  // ceil(cycles / 76) of them -- so `moveRules * 4` was right only while every
+  // fragment happened to fit inside one line, and a collision rule with three
+  // actions produced a 263-line frame the moment one did not.
+  const positioning = positionLines(firstBindings.length);
+  const blankRuleLines = ruleLines(rules.blank, ram, 'vertical-blank');
+  const overscanRuleLines = ruleLines(rules.overscan, ram, 'overscan');
+  const setupLines = positioning + blankRuleLines;
 
-  const budget = checkBudget(
-    [...rules.blank, ...glyphPointers, ...rules.overscan],
-    setupLines,
-    ram,
-  );
+  // Overscan's rules are NOT in this sum. They spend overscan's lines, and
+  // charging their cycles against vertical blank made E704 report a region's
+  // pressure using another region's code.
+  const budget = checkBudget([...rules.blank, ...glyphPointers], positioning, ram, blankRuleLines);
+
+  if (overscanRuleLines >= NTSC_OVERSCAN_LINES) {
+    throw new P1Error([
+      {
+        code: 'E705',
+        message:
+          `the frame's collision rules need ${overscanRuleLines} scanlines and overscan ` +
+          `is only ${NTSC_OVERSCAN_LINES}`,
+        span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
+        hint:
+          'collision rules run in overscan, because a latch read in vertical blank would ' +
+          "report the PREVIOUS frame's contact. A rule spends ceil(cycles / 76) lines.",
+      },
+    ]);
+  }
 
   const source = emitFrame({
     ram: ramEquates(ram),
@@ -505,7 +590,7 @@ export function build(game: GameIr, options: BuildOptions = {}): BuildResult {
     setup: [...rules.blank, ...glyphPointers, ...setup],
     setupLines,
     overscan: rules.overscan,
-    overscanLines: options.static ? 0 : game.collisions.length * COLLISION_RULE_LINES,
+    overscanLines: overscanRuleLines,
     kernel,
     data,
   }).join('\n');

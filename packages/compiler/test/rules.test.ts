@@ -1,12 +1,11 @@
-import { cycleCost, movementBounds } from '@player1dsl/runtime';
-import { describe, expect, it } from 'vitest';
 import {
-  lowerAdd,
-  lowerCollision,
-  lowerMove,
-  MOVE_RULE_LINES,
-  type MoveRule,
-} from '../src/index.ts';
+  CPU_CYCLES_PER_SCANLINE,
+  cycleCost,
+  fragmentCosts,
+  movementBounds,
+} from '@player1dsl/runtime';
+import { describe, expect, it } from 'vitest';
+import { lowerAdd, lowerCollision, lowerMove, type MoveRule } from '../src/index.ts';
 
 const ARENA = {
   wallPixels: 4,
@@ -123,9 +122,25 @@ describe('lowerMove', () => {
    * how this was found: the first wiring produced a 264-line frame with zero
    * vertical-blank lines.
    */
-  it('spends exactly one scanline per direction, whatever the branch', () => {
+  it('ends every direction on a WSYNC, whatever the branch', () => {
     const code = lowerMove(RULE, movementBounds(ARENA), '.m0');
-    expect(code.filter((l) => l.trim() === 'sta WSYNC')).toHaveLength(MOVE_RULE_LINES);
+    // Four, one per direction. Deliberately a literal and not a constant this
+    // module exports: how many LINES those four fragments cost is measured from
+    // the emitted text by `fragmentCosts`, and a `MOVE_RULE_LINES = 4` here
+    // would be a second answer that is right only while each fits in 76 cycles.
+    expect(code.filter((l) => l.trim() === 'sta WSYNC')).toHaveLength(4);
+  });
+
+  it('keeps each direction inside one scanline, so four fragments cost four lines', () => {
+    const code = lowerMove(RULE, movementBounds(ARENA), '.m0');
+    const costs = fragmentCosts(code, { zeroPage: new Set(['tank0_x', 'tank0_y']) });
+    expect(costs.fragments.map((f) => f.lines)).toEqual([1, 1, 1, 1]);
+    expect(costs.remainder).toBe(0);
+    // The headroom, so a direction that grew past a line is visible as a
+    // failure here rather than as a longer frame.
+    expect(Math.max(...costs.fragments.map((f) => f.cycles))).toBeLessThanOrEqual(
+      CPU_CYCLES_PER_SCANLINE,
+    );
   });
 });
 
