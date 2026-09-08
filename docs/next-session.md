@@ -191,10 +191,13 @@ all four, while the counter's renderable range is 9..159, so `at (40, 185)` pass
 nothing. The `.p1`'s claim to state game-layer intent only is untrue for `(x, y)`. Fix before
 documenting; every test pinning 120/9/159 changes with it.
 
-**`p1 check` and `p1 build` disagree about RAM.** `cli/src/index.ts:143` omits the score count
-that `build.ts:402` passes, so the map reports the digit-pointer bytes as free — the exact
-disagreement `allocateGameRam`'s own comment says one allocator exists to prevent. One-line
-fix, unfixed as of this handover.
+~~**`p1 check` and `p1 build` disagree about RAM.**~~ FIXED 2026-09-08. `p1 check` reported 10
+bytes used and 110 free where the build allocated 14, because `allocateGameRam`'s `scores`
+parameter defaulted to 0 and only `build` passed it. The parameter is required now, so a
+missing argument is a type error rather than an answer, and `cli.test.ts` holds `p1 check`'s
+printed totals to the build's own numbers rather than to literals — a literal would need
+updating whenever the kernel's scratch changes, and updating it is how the two drift apart
+again.
 
 **The `deadline` timing class enforces almost nothing.** `golden.ts` carries deadlines for
 PF0/PF1/PF2 only; GRP0/GRP1 are opt-in via `includePlayers`, which the 90-frame comparison

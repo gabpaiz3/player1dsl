@@ -185,8 +185,16 @@ const SCRATCH = 'lineTmp';
  *
  * Exported because `p1 check` prints a RAM map, and a map that omitted the
  * kernel's bytes would report free space the build has already spent.
+ *
+ * `scores` is REQUIRED rather than defaulted, and that is the whole guard. It
+ * defaulted to 0 until 2026-09-08, and `p1 check` called this with two
+ * arguments while `build` called it with three -- so the map omitted two bytes
+ * per score and reported four more free than the build had left. Neither
+ * caller was wrong on its face; the default made a missing argument look like
+ * an answer. This is the disagreement the comment above says one allocator
+ * exists to prevent, arriving through the parameter list instead.
  */
-export function allocateGameRam(game: GameIr, objects: number, scores = 0): RamMap {
+export function allocateGameRam(game: GameIr, objects: number, scores: number): RamMap {
   return allocateRam([...game.variables, ...kernelScratch(objects, scores)]);
 }
 

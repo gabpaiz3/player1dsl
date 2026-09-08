@@ -1,6 +1,8 @@
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { allocateGameRam, check, kernelObjects, layout } from '@player1dsl/compiler';
+import { parse } from '@player1dsl/parser';
 import { describe, expect, it, vi } from 'vitest';
 import { run } from '../src/index.ts';
 
@@ -30,6 +32,40 @@ describe('p1 check', () => {
     expect(output).toContain('RAM map');
     expect(output).toContain('reserved for the stack');
     expect(output).toContain('tank0_x');
+  });
+
+  /**
+   * THE reason `allocateGameRam` is exported at all.
+   *
+   * `p1 check` printed a map four bytes freer than `p1 build` actually left,
+   * because `allocateGameRam`'s `scores` parameter defaulted to 0 and only the
+   * build passed it -- so the two digit pointers per score were missing from
+   * the map and counted as free. The parameter is required now, which stops
+   * the argument being OMITTED; this stops it being wrong.
+   *
+   * Asserting against the build's own numbers rather than against 4 and 62:
+   * a literal here would have to be updated whenever the kernel's scratch
+   * changes, and updating it is how the two drift apart again.
+   */
+  it('reports the same RAM the build actually spends', async () => {
+    const ir = check(parse(readFileSync(example, 'utf8'), example));
+    const built = allocateGameRam(
+      ir,
+      kernelObjects(layout(ir.scene), ir.scene),
+      ir.scene.scores.length,
+    );
+
+    const io = capture();
+    await run(['check', example]);
+    const output = io.out();
+    io.restore();
+
+    expect(output).toContain(`${built.used} bytes used`);
+    expect(output).toContain(`${built.free} free`);
+    // Named, because "used" and "free" would still agree if BOTH were wrong.
+    for (let i = 0; i < ir.scene.scores.length; i += 1) {
+      expect(output).toContain(`digit${i}Ptr`);
+    }
   });
 
   it('accepts a directory containing exactly one .p1', async () => {
