@@ -157,3 +157,92 @@ describe('collide-playfield: where a RESP0 strobe puts P0', () => {
     expect([latchedAt(0), latchedAt(6)]).toEqual([true, false]);
   });
 });
+
+/**
+ * Does positioning a SECOND object displace the first?
+ *
+ * MEASURED IN STELLA, 2026-09-13, and our model is wrong about it.
+ *
+ * `collide-two-objects.asm` is `collide-playfield.asm` plus one more
+ * `jsr PosObjectX`, so the original is its control: same object, same block,
+ * same graphics, same unit. The verdict is a whole-screen colour, which is the
+ * lesson of the retraction in docs/kernel-measurements.md -- the previous
+ * attempt at this question read sprite columns off a screenshot and produced a
+ * number that did not survive its own method.
+ *
+ *   collide-playfield (one object)        x=0 RED,   x=1 black
+ *   collide-two-objects (P0 first)        x=0..5 ALL BLACK
+ *   collide-two-objects-reversed (P0 last) x=0 RED,  x=1 black
+ *
+ * The reversed ROM is the known-positive. Without it, black everywhere is
+ * equally what a broken latch or a mis-set GRP0 would paint, and the result
+ * would say nothing.
+ *
+ * So the object positioned FIRST is displaced by the call that follows it, and
+ * the object positioned LAST is not. The compiler emits exactly this shape --
+ * one call per object, back to back, in vertical blank -- for every scene whose
+ * first band holds more than one object.
+ *
+ * NOT the double-HMOVE mechanism. With `P1_X = 66`, whose fine adjustment is
+ * nibble 0, P0 is displaced just the same. The second call's HMOVE carries no
+ * motion in that case, so what disturbs P0 is the act of the call and not the
+ * value it moves by. How far, and in which direction, is unmeasured: the
+ * playfield repeats every 80 pixels, so a single block locates a landing only
+ * modulo 80 and a full sweep needs a second block position to disambiguate.
+ */
+describe('collide-two-objects: a second positioning call displaces the first object', () => {
+  function latchedIn(fixture: string, x: number): boolean {
+    const source = fixtureSource(fixture).replace('P0_X        = 0', `P0_X        = ${x}`);
+    const { rom } = assembleSource(source, `tests/fixtures/tia/${fixture}.asm`, {
+      includeDirs: ['kernels/include'],
+    });
+    const machine = new Machine(rom);
+    machine.runFrame();
+    machine.runFrame();
+    const frame = machine.runFrame({ trace: true });
+    return (frame.writes ?? []).filter((w) => w.register === COLUBK).at(-1)?.value === RED;
+  }
+
+  // Both fixtures are whole NTSC frames. Four positioning lines instead of two,
+  // so a `.blank` count left at 35 would show here rather than as a colour.
+  it('runs both fixtures as 262-line NTSC frames', () => {
+    for (const name of ['collide-two-objects', 'collide-two-objects-reversed']) {
+      const machine = new Machine(romFor(name));
+      machine.runFrame();
+      expect(machine.runFrame().scanlines).toBe(262);
+    }
+  });
+
+  /**
+   * The KNOWN-POSITIVE, and our model agrees with Stella here.
+   *
+   * P0 positioned last lands where one object alone lands, so the flip is at 1
+   * and an authored x renders at x + 3.
+   */
+  it('leaves the LAST-positioned object where a single call would put it', () => {
+    expect([0, 1, 2].map((x) => latchedIn('collide-two-objects-reversed', x))).toEqual([
+      true,
+      false,
+      false,
+    ]);
+  });
+
+  /**
+   * THE DISAGREEMENT, pinned deliberately.
+   *
+   * Stella paints black at every x from 0 to 5. Our emulator paints red at 0,
+   * because `Objects.strobe` has no notion of a later call disturbing an
+   * earlier one -- it places each object from the beam and nothing else moves
+   * it. This assertion pins the model's CURRENT behaviour so that correcting it
+   * is a deliberate act that turns this test red, rather than a silent drift
+   * that leaves the comment above describing a state the code has left. That is
+   * the 2026-09-07 lesson applied to a value we know to be wrong.
+   */
+  it('MODEL ONLY: treats the first-positioned object as undisturbed, which Stella denies', () => {
+    expect([0, 1, 2].map((x) => latchedIn('collide-two-objects', x))).toEqual([
+      true, // Stella: false. See the block comment above.
+      false,
+      false,
+    ]);
+  });
+});

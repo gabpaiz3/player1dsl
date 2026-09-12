@@ -679,15 +679,52 @@ them.
 **Not established, and specifically not by this:** anything about `PLAYER_HBLANK_POSITION`,
 about wrapping, or about the number 141.
 
-### The fixture this needs
+### The fixture was built, and it answered
 
-Two objects positioned back to back by `PosObjectX`, both collided against a fixed playfield
-block, with the verdict painted as a background colour -- `collide-playfield.asm` extended to a
-second object rather than a new technique. That isolates whether a second positioning call
-displaces the first object, which is the only claim the confusing data supports, and it reports
-in the one unit a screenshot can read without arithmetic.
+`collide-two-objects.asm` is `collide-playfield.asm` plus one more
+`jsr PosObjectX`, so the original is its control: same object, same block, same graphics, same
+unit. `collide-two-objects-reversed.asm` swaps the two calls and is the known-positive --
+without it, black everywhere is equally what a broken latch or a mis-set GRP0 would paint.
 
-Until then this stays on the unmeasured list rather than in a table.
+**Measured in Stella, 2026-09-13:**
+
+| ROM | authored x = 0 | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|---|
+| `collide-playfield` (one object) | **RED** | black | black | — | — | — |
+| `collide-two-objects` (P0 first) | black | black | black | black | black | black |
+| `collide-two-objects-reversed` (P0 last) | **RED** | black | black | — | — | — |
+
+**The object positioned FIRST is displaced by the call that follows it. The object positioned
+LAST is not.**
+
+The compiler emits exactly this shape -- one call per object, back to back, in vertical blank
+-- for every scene whose first band holds more than one object. `tank-arena` is unaffected
+because its first band is the HUD, whose two score glyphs are never repositioned afterwards and
+whose visible-region transition places the tanks from RAM instead.
+
+### It is not the double-HMOVE mechanism
+
+The obvious suspect was the finding one section above: one HMOVE moves every object whose HM is
+set, so a leftover fine adjustment on P0 would be re-applied by the second call's HMOVE. That
+is what the `sta HMCLR` at the top of `PosObjectX` exists to prevent, and it is not what is
+happening.
+
+With `P1_X = 66`, whose remainder gives a fine-adjust nibble of **0**, the second call's HMOVE
+carries no motion at all -- and P0 is displaced just the same. **What disturbs P0 is the act of
+the second call, not the value it moves by.**
+
+### Still unmeasured: how far, and in which direction
+
+The playfield repeats every 80 pixels, so one lit block locates a landing only modulo 80, and
+the six swept values were all black rather than bracketing a flip. Quantifying the
+displacement needs a sweep across the full 160 with a second block position to disambiguate the
+repeat, or a wider block to widen the red window enough for a coarse sweep to catch it.
+
+The qualitative result does not depend on that number, and neither does the conclusion that
+our emulator is wrong here: `Objects.strobe` places each object from the beam and has no notion
+of a later call disturbing an earlier one. `tia-fixtures.test.ts` pins the model's current
+behaviour with a comment naming Stella's answer, so correcting it turns a test red rather than
+leaving a comment describing a state the code has left.
 
 ## What is still unmeasured
 
@@ -709,11 +746,11 @@ Carried forward. Nothing in this list may be treated as zero.
   are pixel -1. Coarse positioning happens in the visible region, so nothing in this repo hits
   it, but whether an in-blank clock difference moves an object is untested. Recording the
   colour clock in the golden format is the fix, and it changes the file format.
-- **Whether a second positioning call displaces the first object.** A first band holding two
-  actors renders them in places the model does not predict, but the measurement that suggested
-  it was read off screenshots and does not survive its own method. See
-  [RETRACTED](#retracted-an-object-positioned-in-vertical-blank-wraps) for what is and is not
-  established, and for the fixture it needs.
+- **How far a second positioning call displaces the first object.** THAT it does is measured
+  (2026-09-13, whole-screen colour, with a known-positive); the distance and direction are not,
+  because one lit block locates a landing only modulo 80. Our emulator does not model the
+  effect at all. See
+  [RETRACTED](#retracted-an-object-positioned-in-vertical-blank-wraps).
 - **Per-object cost differences.** Ball, missile and player all cost 2 lines through
   `PosObjectX`; no fixture has tried to make them differ.
 - **Our TIA model's systematic errors.** Increment 5b's static build reproduces golden frame 0's
