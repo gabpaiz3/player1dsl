@@ -14,7 +14,7 @@
  */
 
 import { assembleSource } from '@player1dsl/assembler';
-import { P1Error } from '@player1dsl/parser';
+import { type Diagnostic, P1Error } from '@player1dsl/parser';
 import {
   CPU_CYCLES_PER_SCANLINE,
   collisionLatch,
@@ -27,8 +27,10 @@ import {
   emitTable,
   emitTransition,
   entryById,
+  fragmentCosts,
   type MovementBounds,
   movementBounds,
+  NTSC_OVERSCAN_LINES,
   NTSC_VBLANK_LINES,
   type ObjectBinding,
   type ObjectDraw,
@@ -40,17 +42,11 @@ import {
   stores,
   type TiaObject,
 } from '@player1dsl/runtime';
-import type { ActorIr, GameIr, SceneIr, ScoreIr, SpriteIr } from './ir.ts';
+import type { ActorIr, GameIr, PlayfieldIr, SceneIr, ScoreIr, SpriteIr } from './ir.ts';
 import { type LayoutIr, layout, type RowGroup } from './layout.ts';
 import { buildLedger, type Ledger, type LedgerRow } from './ledger.ts';
 import { allocateRam, kernelScratch, type RamMap } from './ram.ts';
-import {
-  COLLISION_RULE_LINES,
-  lowerAdd,
-  lowerCollision,
-  lowerMove,
-  MOVE_RULE_LINES,
-} from './rules.ts';
+import { lowerAdd, lowerCollision, lowerMove } from './rules.ts';
 
 export interface BuildResult {
   /** Exactly 4096 bytes: a 4 KiB unbanked cartridge image. */
@@ -91,26 +87,98 @@ export interface CycleBudget {
 }
 
 /**
+ * Scanlines a block of emitted rule code spends -- and the gate that makes the
+ * question answerable at all.
+ *
+ * A WSYNC aligns the END of a fragment to a line boundary. It does NOT fix how
+ * many boundaries the code crossed getting there: a fragment whose worst path
+ * is 84 cycles and whose best is 30 spends two lines on one branch and one on
+ * the other. So "one fragment, one line" -- which the frame driver's whole
+ * WSYNC count rests on -- is true only while every fragment fits inside 76
+ * cycles, and E706 is what makes it true rather than hoped for.
+ *
+ * MEASURED, and the first attempt was wrong. Charging `ceil(worst / 76)` lines
+ * instead of refusing was tried first, on the theory that a long rule simply
+ * costs more lines. It produced 261-line frames: the short branch really did
+ * take one line, so the frame came out a line SHORT wherever contact did not
+ * happen. A cost that depends on the input cannot be charged, only refused.
+ *
+ * The remainder is asserted rather than ignored. Rule blocks end on a WSYNC by
+ * construction, so a non-zero remainder means the lowerer emitted a trailing
+ * fragment whose cycles land on a line this function cannot see -- and silently
+ * dropping them is the assumed zero the ledger exists to prevent.
+ */
+function ruleLines(rules: readonly string[], ram: RamMap, region: string): number {
+  const costs = fragmentCosts(rules, { zeroPage: new Set(ram.slots.keys()) });
+  if (costs.remainder !== 0) {
+    throw new Error(
+      `${region} rules end with ${costs.remainder} cycles after the last WSYNC. Every ` +
+        'rule fragment must end on one, or its cost lands on a line nothing charged.',
+    );
+  }
+
+  const over = costs.fragments.filter((f) => f.cycles > CPU_CYCLES_PER_SCANLINE);
+  if (over.length > 0) {
+    const worst = Math.max(...over.map((f) => f.cycles));
+    throw new P1Error([
+      {
+        code: 'E706',
+        message:
+          `a ${region} rule runs ${worst} cycles between WSYNCs, and a scanline is only ` +
+          `${CPU_CYCLES_PER_SCANLINE} -- so it spends two lines when its branch is taken ` +
+          'and one when it is not',
+        span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
+        hint:
+          'a frame whose length depends on the input is what the line ledger exists to ' +
+          'prevent. Split the rule: each `when` and each movement rule gets its own ' +
+          'scanline, so fewer actions in one of them is the fix.',
+      } satisfies Diagnostic,
+    ]);
+  }
+
+  // Provably the line count now: every fragment fits in one line, on every
+  // branch, so the count IS the number of WSYNCs the frame driver will see.
+  return costs.fragments.length;
+}
+
+/**
  * Hold the frame's rules to what vertical blank can actually run.
  *
  * Worst case, counted by READING the emitted assembly rather than by modelling
  * what the lowerer meant to produce. The zero-page set matters: without it
  * `cycleCost` charges every unindexed symbol as absolute, and the allocator is
  * the only thing that knows which are not.
+ *
+ * `setupLines` here is POSITIONING'S alone. The rules' own lines are counted by
+ * `ruleLines` and gated separately, so subtracting them from `available` too
+ * would charge the same code twice -- which it did until 2026-09-08, making
+ * E704's reported overrun smaller than the real one.
+ *
+ * REACHABILITY, stated rather than assumed: E705 fires first for every scene
+ * tried so far, because a fragment costs at least a line and lines run out
+ * before cycles do. E704 remains a true statement -- rules cannot spend more
+ * cycles than the region holds -- and covers the un-lined code the line count
+ * cannot see, but nothing has yet made it fire. That is recorded in
+ * docs/session-logs/2026-09-08.md rather than left to be discovered.
  */
-function checkBudget(rules: readonly string[], setupLines: number, ram: RamMap): CycleBudget {
-  if (setupLines >= NTSC_VBLANK_LINES) {
+function checkBudget(
+  rules: readonly string[],
+  setupLines: number,
+  ram: RamMap,
+  ruleScanlines: number,
+): CycleBudget {
+  if (setupLines + ruleScanlines >= NTSC_VBLANK_LINES) {
     throw new P1Error([
       {
         code: 'E705',
         message:
-          `the frame's rules need ${setupLines} scanlines of setup, and vertical blank ` +
-          `is only ${NTSC_VBLANK_LINES}`,
+          `the frame's rules need ${ruleScanlines} scanlines on top of positioning's ` +
+          `${setupLines}, and vertical blank is only ${NTSC_VBLANK_LINES}`,
         span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
         hint:
-          'each movement direction and each collision rule spends a scanline, so that its ' +
-          'cost does not depend on which branch the input took. Fewer rules, or a kernel ' +
-          'that gives vertical blank more lines.',
+          'each movement direction and each collision rule ends on a WSYNC and so spends ' +
+          'exactly one scanline -- E706 refuses any that would spend more. This is too ' +
+          'many of them: fewer rules, or a kernel that gives vertical blank more lines.',
       },
     ]);
   }
@@ -121,8 +189,9 @@ function checkBudget(rules: readonly string[], setupLines: number, ram: RamMap):
       {
         code: 'E704',
         message:
-          `the frame's rules need ${spent} cycles but vertical blank has ${available} ` +
-          `once positioning has taken its ${setupLines} lines -- ${spent - available} over`,
+          `the frame's vertical-blank rules need ${spent} cycles but the region has ` +
+          `${available} once positioning has taken its ${setupLines} lines -- ` +
+          `${spent - available} over`,
         span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
         hint:
           'worst case, counted by reading the emitted assembly. Rules that overrun push ' +
@@ -132,6 +201,9 @@ function checkBudget(rules: readonly string[], setupLines: number, ram: RamMap):
   }
   return { available, spent, free: available - spent };
 }
+
+/** No source span: the composer's own refusals are not about one token. */
+const NO_SPAN = { file: '<build>', offset: 0, length: 0, line: 1, column: 1 };
 
 /** 4 KiB unbanked, which is the only cartridge shape the language accepts. */
 const CARTRIDGE_BYTES = 4096;
@@ -151,7 +223,16 @@ const SOLID_ROW: readonly [number, number, number] = [0xf0, 0xff, 0xff];
 const SIDE_ROW: readonly [number, number, number] = [0x10, 0x00, 0x00];
 
 /** D0 of CTRLPF is REF: the right half mirrors the left. */
-const CTRLPF_MODE: Readonly<Record<string, number>> = {
+/**
+ * Keyed by the IR's OWN union, not by `string`.
+ *
+ * A `Record<string, number>` needs a `?? 0` at the call site for a key the type
+ * system cannot rule out -- and 0 is `repeat`, so a mode this table forgot
+ * would silently render un-mirrored rather than fail. Typing the key makes the
+ * lookup total, and the day a fourth mode is parsed this stops compiling
+ * instead of quietly picking one.
+ */
+const CTRLPF_MODE: Readonly<Record<PlayfieldIr['mode'], number>> = {
   reflect: 0x01,
   repeat: 0x00,
   asymmetric: 0x00,
@@ -185,8 +266,16 @@ const SCRATCH = 'lineTmp';
  *
  * Exported because `p1 check` prints a RAM map, and a map that omitted the
  * kernel's bytes would report free space the build has already spent.
+ *
+ * `scores` is REQUIRED rather than defaulted, and that is the whole guard. It
+ * defaulted to 0 until 2026-09-08, and `p1 check` called this with two
+ * arguments while `build` called it with three -- so the map omitted two bytes
+ * per score and reported four more free than the build had left. Neither
+ * caller was wrong on its face; the default made a missing argument look like
+ * an answer. This is the disagreement the comment above says one allocator
+ * exists to prevent, arriving through the parameter list instead.
  */
-export function allocateGameRam(game: GameIr, objects: number, scores = 0): RamMap {
+export function allocateGameRam(game: GameIr, objects: number, scores: number): RamMap {
   return allocateRam([...game.variables, ...kernelScratch(objects, scores)]);
 }
 
@@ -224,13 +313,63 @@ function initialState(game: GameIr): Store[] {
     .map((variable): Store => [variable.name, variable.initial]);
 }
 
+/**
+ * The TIA object bound to one holder, BY NAME.
+ *
+ * `bindObjects` binds a band's scores before its actors, so an index into that
+ * list means "the nth holder of this band" and not "the nth actor" -- and every
+ * site here used to index it with an actor's or a score's own position in its
+ * own list. The two coincide exactly when a band holds only one kind, which is
+ * every band in the one example that existed.
+ *
+ * Throws rather than falling back to 'p0'. A fallback here draws two holders
+ * with one object: the picture is wrong, the ledger balances, the frame is 262
+ * lines and nothing reports anything.
+ */
+function objectFor(bindings: readonly ObjectBinding[], holder: string): TiaObject {
+  const binding = bindings.find((b) => b.holder === holder);
+  if (!binding) {
+    throw new Error(
+      `"${holder}" has no TIA object bound to it. Every holder the layout draws is bound ` +
+        'by bindObjects, so this is a composer that built its list from somewhere else.',
+    );
+  }
+  return binding.object;
+}
+
+/**
+ * Where a holder starts the frame, from the holder ITSELF.
+ *
+ * Vertical-blank setup used to position the first band's objects at the first
+ * band's SCORES' x, paired by index: `firstScores[i]?.x ?? 0`. That is right
+ * only for a first band made entirely of scores, which is the one band the one
+ * example had. Two scenes broke on it and broke differently -- a field-only
+ * scene positioned every tank with `lda #0`, and a scene with one score and two
+ * actors ran out of scores and never strobed the second object at all, leaving
+ * it wherever the reset clear-loop's `sta $00,x` had put RESP1.
+ */
+function holderX(holder: string, scene: SceneIr): number {
+  const score = holder.startsWith('score ')
+    ? scene.scores.find((s) => `score ${s.name}` === holder)
+    : undefined;
+  if (score) return score.x;
+
+  const actor = scene.actors.find((a) => a.name === holder);
+  if (actor) return actor.x;
+
+  throw new Error(
+    `"${holder}" is bound to a TIA object but is neither a score nor an actor of this ` +
+      'scene, so nothing knows where to position it.',
+  );
+}
+
 /** The objects one glyph row group draws: one digit per score in the band. */
 function glyphObjects(
   scores: readonly ScoreIr[],
   bindings: readonly ObjectBinding[],
 ): ObjectDraw[] {
   return scores.map((score, i) => ({
-    object: bindings[i]?.object ?? 'p0',
+    object: objectFor(bindings, `score ${score.name}`),
     color: score.color,
     table: `digit${i}Ptr`,
     height: DIGIT_HEIGHT,
@@ -247,7 +386,7 @@ function fieldObjects(
     const sprite = sprites.find((s) => s.name === actor.sprite);
     if (!sprite) throw new Error(`actor ${actor.name} uses sprite ${actor.sprite}, which is gone`);
     return {
-      object: bindings[i]?.object ?? 'p0',
+      object: objectFor(bindings, actor.name),
       color: actor.color,
       table: spriteLabel(sprite.name),
       height: sprite.height,
@@ -352,11 +491,11 @@ function codeFor(
  */
 function lowerRules(
   game: GameIr,
-  bounds: MovementBounds,
+  boundsFor: (actor: string) => MovementBounds,
   bindingFor: (actor: string) => TiaObject,
 ): { readonly blank: string[]; readonly overscan: string[] } {
   const blank = game.everyFrame.actions.flatMap((action, i) =>
-    action.kind === 'move' ? lowerMove(action, bounds, `.mv${i}`) : [],
+    action.kind === 'move' ? lowerMove(action, boundsFor(action.actor), `.mv${i}`) : [],
   );
 
   const overscan = game.collisions.flatMap((rule, i) => {
@@ -424,34 +563,82 @@ export function build(game: GameIr, options: BuildOptions = {}): BuildResult {
   // The first band positions its objects in vertical blank, where the HMOVE
   // comb falls on a line nothing draws. That is why `positionLines` is charged
   // here and `repositionLines` -- one line more -- at the visible boundary.
-  const fieldRow = ledger.rows.find((row) => row.note === 'the open field');
   const firstBand = scene.bands[0];
   const firstBindings = ir.bindings.filter((b) => b.band === firstBand?.name);
-  const firstScores = scene.scores.filter((s) => s.band === firstBand?.name);
   const glyphPointers = digitPointers(
     scene.scores.map((score, i) => ({ variable: `${score.name}_score`, pointer: `digit${i}Ptr` })),
     'DigitFont',
   );
 
-  const bounds = movementBounds({
-    wallPixels: PLAYFIELD_BIT_PIXELS,
-    spriteWidth: game.sprites[0]?.width ?? 8,
-    spriteHeight: game.sprites[0]?.height ?? 8,
-    fieldFirstLine: fieldRow?.firstLine ?? 0,
-    fieldLastLine: fieldRow?.lastLine ?? 0,
-    counterOrigin: (fieldRow?.lastLine ?? 0) + 2,
-  });
-  const bindingFor = (actor: string) => ir.bindings.find((b) => b.holder === actor)?.object ?? 'p0';
-  const rules = options.static ? { blank: [], overscan: [] } : lowerRules(game, bounds, bindingFor);
+  /**
+   * One actor's movement bounds, from ITS sprite and ITS band.
+   *
+   * Both halves were global until 2026-09-12. The sprite came from
+   * `game.sprites[0]`, so an actor drawn from a taller one was clamped by a
+   * shorter one's geometry and could be driven that many rows into the wall;
+   * the band came from whichever ledger row carried the note 'the open field',
+   * a human-readable string that the note changing would have quietly broken
+   * and that no second band could ever match.
+   *
+   * The band is the ACTOR'S, not the rule's: E219 makes those the same thing.
+   */
+  const boundsFor = (actorName: string): MovementBounds => {
+    const actor = scene.actors.find((a) => a.name === actorName);
+    if (!actor) throw new Error(`no actor named "${actorName}" to bound`);
+    const sprite = game.sprites.find((s) => s.name === actor.sprite);
+    if (!sprite)
+      throw new Error(`actor "${actorName}" uses sprite "${actor.sprite}", which is gone`);
+    const row = ledger.rows.find((r) => r.band === actor.band && r.kind === 'loop');
+    if (!row) {
+      throw new Error(
+        `band "${actor.band}" draws actor "${actorName}" but has no loop row, so nothing ` +
+          'knows which scanlines the actor may move between.',
+      );
+    }
+    return movementBounds({
+      wallPixels: PLAYFIELD_BIT_PIXELS,
+      spriteWidth: sprite.width,
+      spriteHeight: sprite.height,
+      fieldFirstLine: row.firstLine,
+      fieldLastLine: row.lastLine,
+      counterOrigin: row.lastLine + 2,
+    });
+  };
+
+  const bindingFor = (actor: string) => objectFor(ir.bindings, actor);
+  const rules = options.static
+    ? { blank: [], overscan: [] }
+    : lowerRules(game, boundsFor, bindingFor);
 
   const setup = emitTransition({
-    moves: firstBindings.map((binding, i) => ({
+    moves: firstBindings.map((binding) => ({
       object: binding.object,
-      x: `#${firstScores[i]?.x ?? 0}`,
+      x: `#${holderX(binding.holder, scene)}`,
     })),
     visible: false,
   });
 
+  // ONE playfield, because `COLUPF` is written once in one-time setup below.
+  // Layout already gives each band its own playfield and decomposes them
+  // independently, so a second one in another colour would draw in the first
+  // one's -- balanced ledger, no diagnostic, wrong picture. Drawing it properly
+  // needs a per-band COLUPF write, whose line cost nothing has measured, and
+  // inventing that cost is the assumed zero the ledger exists to prevent.
+  if (scene.playfields.length > 1) {
+    const extra = scene.playfields[1];
+    throw new P1Error([
+      {
+        code: 'E507',
+        message:
+          `this scene has ${scene.playfields.length} playfields, and the kernel writes ` +
+          'COLUPF once for all of them',
+        span: extra?.span ?? scene.playfields[0]?.span ?? NO_SPAN,
+        hint:
+          'every playfield in the scene would render in the colour of the first. One ' +
+          'playfield per scene until a kernel measures what a per-band COLUPF write costs.',
+      } satisfies Diagnostic,
+    ]);
+  }
   const playfield = scene.playfields[0];
   const init = emitInit(
     scene,
@@ -477,19 +664,35 @@ export function build(game: GameIr, options: BuildOptions = {}): BuildResult {
     ]),
   ];
 
-  // Movement rules spend one line per direction, and the frame driver counts
-  // WSYNCs -- so they are charged here beside positioning's. A setupLines that
-  // omitted them produced a 264-line frame with zero vertical-blank lines,
-  // which is what the gate in emitFrame is for.
-  const moveRules = game.everyFrame.actions.filter((a) => a.kind === 'move').length;
-  const setupLines =
-    positionLines(firstBindings.length) + (options.static ? 0 : moveRules * MOVE_RULE_LINES);
+  // Rule lines are MEASURED from the emitted text, not multiplied out from a
+  // per-rule constant. The frame driver counts WSYNCs, and a fragment spends
+  // ceil(cycles / 76) of them -- so `moveRules * 4` was right only while every
+  // fragment happened to fit inside one line, and a collision rule with three
+  // actions produced a 263-line frame the moment one did not.
+  const positioning = positionLines(firstBindings.length);
+  const blankRuleLines = ruleLines(rules.blank, ram, 'vertical-blank');
+  const overscanRuleLines = ruleLines(rules.overscan, ram, 'overscan');
+  const setupLines = positioning + blankRuleLines;
 
-  const budget = checkBudget(
-    [...rules.blank, ...glyphPointers, ...rules.overscan],
-    setupLines,
-    ram,
-  );
+  // Overscan's rules are NOT in this sum. They spend overscan's lines, and
+  // charging their cycles against vertical blank made E704 report a region's
+  // pressure using another region's code.
+  const budget = checkBudget([...rules.blank, ...glyphPointers], positioning, ram, blankRuleLines);
+
+  if (overscanRuleLines >= NTSC_OVERSCAN_LINES) {
+    throw new P1Error([
+      {
+        code: 'E705',
+        message:
+          `the frame's collision rules need ${overscanRuleLines} scanlines and overscan ` +
+          `is only ${NTSC_OVERSCAN_LINES}`,
+        span: { file: '<budget>', offset: 0, length: 0, line: 1, column: 1 },
+        hint:
+          'collision rules run in overscan, because a latch read in vertical blank would ' +
+          "report the PREVIOUS frame's contact. A rule spends ceil(cycles / 76) lines.",
+      },
+    ]);
+  }
 
   const source = emitFrame({
     ram: ramEquates(ram),
@@ -497,7 +700,7 @@ export function build(game: GameIr, options: BuildOptions = {}): BuildResult {
     setup: [...rules.blank, ...glyphPointers, ...setup],
     setupLines,
     overscan: rules.overscan,
-    overscanLines: options.static ? 0 : game.collisions.length * COLLISION_RULE_LINES,
+    overscanLines: overscanRuleLines,
     kernel,
     data,
   }).join('\n');
@@ -527,7 +730,7 @@ export function buildStatic(game: GameIr): BuildResult {
 function emitInit(
   scene: SceneIr,
   wallColor: number,
-  mode: string,
+  mode: PlayfieldIr['mode'],
   positions: readonly Store[],
 ): string[] {
   return [
@@ -535,7 +738,7 @@ function emitInit(
     ...stores([
       ['COLUBK', scene.background],
       ['COLUPF', wallColor],
-      ['CTRLPF', CTRLPF_MODE[mode] ?? 0],
+      ['CTRLPF', CTRLPF_MODE[mode]],
       ...positions,
     ]),
   ];

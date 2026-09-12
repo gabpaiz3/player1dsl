@@ -140,7 +140,7 @@ export async function run(argv: readonly string[]): Promise<number> {
     // listed only the declared variables would report free bytes `p1 build` has
     // already spent, which is the disagreement one allocator exists to prevent.
     const ir_layout = layout(ir.scene);
-    const ram = allocateGameRam(ir, kernelObjects(ir_layout, ir.scene));
+    const ram = allocateGameRam(ir, kernelObjects(ir_layout, ir.scene), ir.scene.scores.length);
 
     console.log(`${ir.title} -- ${ir.target} ${ir.cartridge}`);
     console.log('');

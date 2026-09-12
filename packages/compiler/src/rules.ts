@@ -64,7 +64,11 @@ function direction(
     // regardless of the branch, which the ledger can charge and the frame
     // driver can count.
     //
-    // A direction is 24 worst-case cycles, comfortably inside a line's 76.
+    // A direction is 27 worst-case cycles, comfortably inside a line's 76 --
+    // pinned by `rules.test.ts` at 108 for the rule, and gated by E706, which
+    // is what makes "one WSYNC, one line" true rather than hoped for. This
+    // comment said 24 until 2026-09-08, having been written before `lda SWCHA`
+    // was correctly charged as absolute.
     '    sta WSYNC',
   ];
 }
@@ -84,13 +88,16 @@ function direction(
  * up the screen and joystick up INCREMENTS it.
  */
 /**
- * Scanlines one movement rule spends: one per direction.
+ * A movement rule emits four WSYNCs, one per direction -- and that is a
+ * FRAGMENT count, not a line count.
  *
- * Charged by the caller into `setupLines`, because the frame driver counts
- * WSYNCs and these are four of them.
+ * There was a `MOVE_RULE_LINES = 4` here until 2026-09-08, and the caller
+ * multiplied it out. The two are equal only while every fragment fits inside
+ * one line, which is not a property this file can promise: a fragment spends
+ * `ceil(cycles / 76)` lines. `build.ts` measures them from the emitted text
+ * with `fragmentCosts` instead, so there is one answer rather than a constant
+ * and a computation that can disagree.
  */
-export const MOVE_RULE_LINES = 4;
-
 export function lowerMove(rule: MoveRule, bounds: MovementBounds, label: string): string[] {
   if (rule.speed !== 1) {
     throw new P1Error([
@@ -192,12 +199,15 @@ export function lowerCollision(
 }
 
 /**
- * Scanlines one collision rule spends, in overscan.
+ * The WSYNC is NOT emitted by `lowerCollision`.
  *
- * The WSYNC is NOT emitted by `lowerCollision`: `CXCLR` has to be strobed
- * before it, so the caller composes body, then CXCLR after the last rule, then
- * the WSYNC. Emitting the WSYNC here put CXCLR a scanline later than the
- * reference kernel strobes it, which was the only divergence in all 90 golden
- * frames.
+ * `CXCLR` has to be strobed before it, so the caller composes body, then CXCLR
+ * after the last rule, then the WSYNC. Emitting the WSYNC here put CXCLR a
+ * scanline later than the reference kernel strobes it, which was the only
+ * divergence in all 90 golden frames.
+ *
+ * A `COLLISION_RULE_LINES = 1` lived here until 2026-09-08. One rule is one
+ * fragment, but not necessarily one line: three `score += 1` actions cost 84
+ * cycles, and charging them a single line produced a 263-line frame on the
+ * frames where contact happened. `build.ts` measures the lines instead.
  */
-export const COLLISION_RULE_LINES = 1;

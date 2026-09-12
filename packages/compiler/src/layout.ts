@@ -214,15 +214,22 @@ function decompose(band: BandIr, playfield: PlayfieldIr | undefined, objects: nu
 export function layout(scene: SceneIr): LayoutIr {
   const bindings = bindObjects(scene);
   const rowGroups: RowGroup[] = [];
-  let previous: readonly ObjectBinding[] = [];
 
-  for (const band of scene.bands) {
+  for (const [index, band] of scene.bands.entries()) {
     const mine = bindings.filter((b) => b.band === band.name);
 
-    // A boundary costs scanlines only for objects that were already placed
-    // somewhere else. The first band positions everything in VBLANK, where it
-    // is free -- which is why no transition is charged before it.
-    const moved = mine.filter((b) => previous.some((p) => p.object === b.object));
+    // EVERY object this band draws is placed at its boundary, not only the ones
+    // the PREVIOUS band happened to place. The first band is the exception: it
+    // positions everything in vertical blank, where the HMOVE comb falls on a
+    // line nothing draws, so no transition is charged before it.
+    //
+    // Filtering against `previous` was the same index-shaped assumption as the
+    // one in `build.ts`: with one score in the HUD and two actors in the field,
+    // P1 belongs to the field and to no band before it, so it was never
+    // positioned ANYWHERE -- and came to rest wherever the reset clear-loop's
+    // `sta $00,x` happened to hit RESP1. An object this band draws and nothing
+    // has placed is not free, it is unplaced.
+    const moved = index === 0 ? [] : mine;
     const lines = repositionLines(moved.length);
     if (lines > 0) {
       rowGroups.push({
@@ -239,7 +246,6 @@ export function layout(scene: SceneIr): LayoutIr {
 
     const playfield = scene.playfields.find((p) => p.band === band.name);
     rowGroups.push(...decompose(band, playfield, mine.length));
-    previous = mine;
   }
 
   return { bands: scene.bands, rowGroups, bindings };

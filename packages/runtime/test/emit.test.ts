@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { EmitContext, ObjectDraw, RowGroupCode } from '../src/index.ts';
 import {
   digitPointers,
+  ENTRIES,
   emitRowGroup,
   emitTransition,
   entryById,
@@ -38,6 +39,14 @@ const TANK: ObjectDraw = {
 const TANK1: ObjectDraw = { ...TANK, object: 'p1', color: 0x86, y: 'tank1Y', gfx: 'gfx1' };
 const DIGIT: ObjectDraw = { object: 'p0', color: 0x0e, table: 'Score0Glyph', height: 8 };
 const DIGIT1: ObjectDraw = { ...DIGIT, object: 'p1', table: 'Score1Glyph' };
+
+/** Enough content for any kind to emit: each draws what it needs and ignores the rest. */
+const EMPTY = {
+  playfield: [0x10, 0x00, 0x00] as [number, number, number],
+  objects: [TANK, TANK1],
+  scratch: 'lineTmp',
+  leading: 2,
+};
 
 function context(overrides: Partial<EmitContext> = {}): EmitContext {
   return {
@@ -251,5 +260,59 @@ describe('digitPointers', () => {
       'DigitFont',
     );
     expect(code.join(BREAK)).toContain('sta digit1Ptr');
+  });
+});
+
+/**
+ * THE selector's decision has to reach the emitter.
+ *
+ * `emitRowGroup` switched on `ctx.kind` alone and used its `entry` argument
+ * only inside an error message -- so the template id the selector chose did not
+ * select any code. Three entries hid it: each kind had exactly one entry, so
+ * dispatching on the kind and dispatching on the id were the same function.
+ *
+ * A second `loop` kernel is what breaks that, and it is exactly what the next
+ * game needs. It would have been drawn by `emitLoop` -- the tank kernel --
+ * silently, producing a ROM whose ledger, budget and frame length all agree
+ * with a kernel it is not running.
+ */
+describe('the template the selector chose is the template that draws', () => {
+  it('refuses an entry it has no emitter for, rather than drawing by kind', () => {
+    const unknown = { ...template('two-sprite-static-field'), id: 'some-other-field-kernel' };
+    expect(() => emitRowGroup(unknown, loopContext('loop', 158))).toThrow(
+      /some-other-field-kernel/,
+    );
+  });
+
+  // The kind alone is not enough, and neither is the id alone: one entry draws
+  // both the 'entry' and 'loop' row groups of its band, and no entry draws
+  // every kind.
+  it('refuses a kind its entry does not draw, naming both', () => {
+    expect(() => emitRowGroup(template('solid-run'), loopContext('loop', 158))).toThrow(
+      /solid-run/,
+    );
+  });
+
+  /**
+   * The catalog and the emitter table, held to each other.
+   *
+   * Two lists naming the same entries is exactly the shape that drifts. An
+   * entry the selector can CHOOSE but nothing can DRAW is a build that fails
+   * late with a confusing message, and this is the assertion that turns it into
+   * a failure at the moment the catalog grows.
+   *
+   * Checked against `applies.kinds`, which is what the selector matches on. An
+   * entry may draw MORE kinds than it applies to -- a field kernel whose
+   * `entryLines` is non-zero also draws the priming line -- so this is a
+   * subset check and not an equality.
+   */
+  it('draws every kind the catalog says each entry applies to', () => {
+    for (const entry of ENTRIES) {
+      for (const kind of entry.applies.kinds) {
+        expect(() => emitRowGroup(entry, context({ kind, content: EMPTY }))).not.toThrow(
+          /does not draw|no emitter/,
+        );
+      }
+    }
   });
 });

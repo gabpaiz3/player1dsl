@@ -16,13 +16,15 @@ wants more detail than the prompt carries.
 > trace matches the hand-written reference kernel's, with zero mismatches and nothing
 > filtered out** — a game that reads two joysticks, clamps four bounds, latches a collision
 > and debounces it, compiled from a `.p1` that names no scanline, register or cycle.
-> 357 tests, `npm run check` green, DASM byte parity, and Stella confirms the picture.
+> 378 tests, `npm run check` green, DASM byte parity, and Stella confirms the picture.
 >
-> **Read the Known gaps below before believing that paragraph.** It is true of
-> `tank-arena` and only of `tank-arena`. An independent review on 2026-09-07 compiled four
-> scenes each one edit from the example and got a wrong picture from every one, with no
-> diagnostic — and reproduced a frame whose length depends on whether the tanks touched.
-> The pipeline holds; the composition layer is fitted to the example.
+> **Read the Known gaps below before believing that paragraph.** An independent review on
+> 2026-09-07 compiled four scenes each one edit from the example and got a wrong picture
+> from every one, with no diagnostic, and reproduced a frame whose length depended on
+> whether the tanks touched. **All of those are now fixed or refused** — `E706`, `E219`,
+> `E507`, and a name-based object lookup — but the lesson stands: every one of them
+> compiled, assembled, ran, balanced the ledger and produced a 262-line frame. The next
+> one will not announce itself either, and the example still cannot tell you about it.
 >
 > Everything from here is **widening the language**, not proving the architecture. There is
 > no plan for it yet, and choosing what to widen first is the job.
@@ -38,29 +40,30 @@ wants more detail than the prompt carries.
 > - `docs/testing.md` — the testing disciplines, before writing any test
 > - `docs/session-logs/2026-09-04.md` — plan 4's findings, three of them silent failures
 >
-> ### What to do first: three repairs, before any new capability
+> ### The three repairs are done; start with the measurement
 >
-> All three come from the 2026-09-07 review, all are verified, and each gets more expensive
-> with every catalog entry and example added on top of it.
+> All three are kept rather than deleted because how they were fixed matters more than that
+> they were: one was refuted by the ROM before it was right, one turned out to be a single
+> mistake wearing four disguises, and one was a claim the catalog made that only three
+> entries made true.
 >
-> 1. **A per-fragment scanline gate.** `checkBudget` (`build.ts:101`) sums *total* rule
->    cycles against *total* vertical blank. The invariant the frame driver actually depends
->    on is per-fragment: `prefix + worstCase(fragment) <= 76`. Nothing checks it, and E704
->    has never fired in any test — all three failure cases in `budget.test.ts` trip E705
->    first, so by this project's own rule the cycle gate is unproven. While fixing it: rule
->    cycles in overscan are charged against vertical blank's budget, and movement rules are
->    charged twice (lines into `setupLines`, cycles into `spent`), so E704's number is not
->    the real number.
-> 2. **Delete the silent fallbacks in `build.ts`.** `?? 'p0'` (`:233`, `:250`, `:444`),
->    `?? 0` (`:450`), `sprites[0]` (`:438`), and a ledger row located by matching the
->    human-readable note string `'the open field'` (`:427`). The runtime and lowering refuse
->    rather than guess — E602, E701, E703, `cycleCost` throwing, VDEL throwing. This file
->    does the opposite, and every one of the four broken scenes below goes through one of
->    these lines.
-> 3. **Key the emitter by catalog entry.** `emitRowGroup` (`emit.ts:285`) switches on
->    `ctx.kind` and uses its `entry` argument only in an error message, so the id the
->    selector chose does not select code. A second `loop` kernel means a second switch.
->    Half a day at three entries; worse at four.
+> 1. ~~**A per-fragment scanline gate.**~~ DONE 2026-09-08, as `E706`. Worth reading the
+>    session log for it: charging a long fragment `ceil(cycles / 76)` lines was tried first
+>    and produced **261**-line frames, because the branch that skips the work really does
+>    take one line. A cost that depends on the input can only be refused, not charged. The
+>    double-charge and the overscan-against-vertical-blank misattribution went with it.
+>    **E704 still has never fired** — E705 reaches every over-large scene first.
+> 2. ~~**Delete the silent fallbacks in `build.ts`.**~~ DONE 2026-09-12. Three of the four
+>    broken scenes were one mistake: **pairing by array index** where a band binds scores
+>    before actors, so an index meant "the nth holder" and was used as "the nth actor".
+>    `objectFor(bindings, holder)` looks them up by name and throws. `within` now means
+>    something (**E219**), and the ledger row comes from the actor's band rather than from
+>    a note string. Two more of the same class were found by reading: **E507** for a second
+>    playfield, and `CTRLPF_MODE` keyed by the IR's union so its `?? 0` is gone.
+> 3. ~~**Key the emitter by catalog entry.**~~ DONE 2026-09-12. `EMITTERS` maps entry id to
+>    the emitters it provides per kind, and a test holds every entry's `applies.kinds` to
+>    that table — so adding a catalog entry and forgetting the emitter is a red test rather
+>    than a ROM drawn by the wrong kernel.
 >
 > Then **measure `MISSILE_STROBE_DELAY` and the ball's** (`objects.ts:74-76`, both
 > UNMEASURED, and `strobe()` currently uses the missile's for the ball). Every phase-2 game
@@ -107,8 +110,9 @@ wants more detail than the prompt carries.
 >   `emit.ts:68` and `:213` give glyph pixels as 1 and 1/10 where `trace.test.ts` pins 7 and
 >   16; `rules.ts:67` says 24 worst-case cycles where `rules.test.ts` pins 27;
 >   `trace.ts:159` calls object tracking a future increment; `testing.md:35` claims 116
->   tests across 14 files above a 24-row table, against 39 files and 357 tests on disk. A
->   number in a comment should name the test that pins it, or not be a number.
+>   tests across 14 files above a 24-row table, against 40 files and 378 tests on disk. A
+>   number in a comment should name the test that pins it, or not be a number. (`rules.ts`
+>   is fixed; the rest are not.)
 > - **The emulator cannot see a picture.** It models timing and object presence, not pixels,
 >   and the golden was recorded from this same emulator — so a shared error (playfield bit
 >   order, REF mirroring, sprite column placement) is inherited by both sides and compares
@@ -167,8 +171,10 @@ reported our assembler disagreeing with DASM about bytes DASM never produced.
 
 ### Known gaps worth stating up front
 
-**Four scenes one edit from `tank-arena.p1` that compile clean and render wrong.** Balanced
-ledger, passing budget, 262-line frame, no diagnostic in any of them. Verified 2026-09-07:
+~~**Four scenes one edit from `tank-arena.p1` that compile clean and render wrong.**~~ FIXED
+2026-09-12 — two now render correctly, two are refused (**E219**, and E507 for a case found
+alongside them). The table below is kept because it is the clearest statement of what a
+composer fitted to one example does, and the next one will not announce itself either:
 
 | Scene | What happens |
 |---|---|
@@ -177,12 +183,11 @@ ledger, passing budget, 262-line frame, no diagnostic in any of them. Verified 2
 | `within hud` instead of `within field` | Identical `cpx` constants. `rule.within` reaches only a comment (`rules.ts:123`); bounds come from the field row regardless. |
 | `tank1` uses a 16-row sprite | `movementBounds` is computed once from `sprites[0]` (`build.ts:438`), so tank1 gets the wrong lower bound and can be driven into the bottom wall. |
 
-**A frame whose length depends on the input, again.** Three `score p0 += 1` actions in the
-collision rule: the build passes the budget gate at 351 of 1900 cycles, and frame 35 — the
-contact frame — is 263 lines while every other frame is 262. This is the 2026-09-04 finding
-in a new disguise; ending each fragment on `sta WSYNC` makes its cost constant across
-*branches* but does not bound it within a *line*. `frame.ts`'s "every scanline below is one
-`sta WSYNC` that provably executed" is false the moment a fragment overruns 76 cycles.
+~~**A frame whose length depends on the input, again.**~~ FIXED 2026-09-08 as `E706`. Three
+`score p0 += 1` actions cost 84 cycles in one fragment and made frame 35 — the contact frame
+— 263 lines. Ending a fragment on `sta WSYNC` makes its cost constant across *branches* but
+does not bound it within a *line*, so `frame.ts`'s "every scanline below is one `sta WSYNC`
+that provably executed" was false until the compiler began refusing such a fragment.
 
 **Coordinate semantics are kernel internals wearing game-layer clothes.** An actor's `y` is
 the field loop's counter — larger is higher, origin at `fieldLastLine + 2` — a score's `y` is
@@ -191,10 +196,13 @@ all four, while the counter's renderable range is 9..159, so `at (40, 185)` pass
 nothing. The `.p1`'s claim to state game-layer intent only is untrue for `(x, y)`. Fix before
 documenting; every test pinning 120/9/159 changes with it.
 
-**`p1 check` and `p1 build` disagree about RAM.** `cli/src/index.ts:143` omits the score count
-that `build.ts:402` passes, so the map reports the digit-pointer bytes as free — the exact
-disagreement `allocateGameRam`'s own comment says one allocator exists to prevent. One-line
-fix, unfixed as of this handover.
+~~**`p1 check` and `p1 build` disagree about RAM.**~~ FIXED 2026-09-08. `p1 check` reported 10
+bytes used and 110 free where the build allocated 14, because `allocateGameRam`'s `scores`
+parameter defaulted to 0 and only `build` passed it. The parameter is required now, so a
+missing argument is a type error rather than an answer, and `cli.test.ts` holds `p1 check`'s
+printed totals to the build's own numbers rather than to literals — a literal would need
+updating whenever the kernel's scratch changes, and updating it is how the two drift apart
+again.
 
 **The `deadline` timing class enforces almost nothing.** `golden.ts` carries deadlines for
 PF0/PF1/PF2 only; GRP0/GRP1 are opt-in via `includePlayers`, which the 90-frame comparison

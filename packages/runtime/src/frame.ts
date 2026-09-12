@@ -6,6 +6,13 @@
  * is one `sta WSYNC` that provably executed -- a number the ledger can charge
  * and the frame driver can count.
  *
+ * "Provably" rests on the compiler's E706, not on the WSYNC. A WSYNC aligns the
+ * END of a fragment to a line boundary and says nothing about how many
+ * boundaries the code crossed reaching it, so a fragment whose worst path
+ * exceeds 76 cycles costs two lines on one branch and one on the other. This
+ * sentence was false in exactly that way until 2026-09-08, when the compiler
+ * began refusing such a fragment.
+ *
  * NOT because the timer is unmeasured. `timer-only.asm`'s T is 37, validated
  * against Stella and asserted in `timing-fixtures.test.ts`; this comment used
  * to cite that measurement as pending, which it had not been since 2026-08-17.

@@ -282,22 +282,52 @@ function emitLoop(ctx: EmitContext): RowGroupCode {
   };
 }
 
+/**
+ * Which code draws each catalog entry, BY ID.
+ *
+ * The selector's whole job is choosing a template id, and until 2026-09-12 that
+ * id reached `emitRowGroup` and was used only inside an error message: the
+ * dispatch was on `ctx.kind`. Three entries hid it, because each kind had
+ * exactly one entry -- so switching on the kind and switching on the id were
+ * the same function, and the catalog's central claim that the entry decides the
+ * code was true by coincidence.
+ *
+ * A second `loop` kernel is what breaks the coincidence, and it is exactly what
+ * the next game needs. It would have been drawn by `emitLoop` -- the tank
+ * kernel -- with a ledger, a budget and a frame length that all agree with a
+ * kernel it is not running.
+ *
+ * An entry maps to SEVERAL kinds, because one field kernel draws both the
+ * priming line and the loop that follows it. Adding an entry means adding a row
+ * here, and forgetting to is a build that fails by name rather than a ROM that
+ * draws the wrong thing.
+ */
+const EMITTERS: Readonly<
+  Record<string, Partial<Record<RowGroupKind, (ctx: EmitContext) => RowGroupCode>>>
+> = {
+  'two-sprite-static-field': { entry: emitEntry, loop: emitLoop },
+  'solid-run': { run: emitRun },
+  'bcd-score-band': { glyphs: emitGlyphs },
+};
+
 export function emitRowGroup(entry: TemplateEntry, ctx: EmitContext): RowGroupCode {
-  switch (ctx.kind) {
-    case 'glyphs':
-      return emitGlyphs(ctx);
-    case 'run':
-      return emitRun(ctx);
-    case 'entry':
-      return emitEntry(ctx);
-    case 'loop':
-      return emitLoop(ctx);
-    default:
-      throw new Error(
-        `template "${entry.id}" was asked to draw a "${ctx.kind}" row group, which no ` +
-          'template draws: transitions are compiler-derived and emitted by emitTransition',
-      );
+  const byKind = EMITTERS[entry.id];
+  if (!byKind) {
+    throw new Error(
+      `no emitter draws template "${entry.id}". The selector may choose it and the ledger ` +
+        'may charge for it, but nothing here renders it -- add it to EMITTERS.',
+    );
   }
+
+  const emit = byKind[ctx.kind];
+  if (!emit) {
+    throw new Error(
+      `template "${entry.id}" does not draw a "${ctx.kind}" row group; it draws ` +
+        `${Object.keys(byKind).join(' and ')}. Transitions are compiler-derived and ` +
+        'emitted by emitTransition.',
+    );
+  }
+  return emit(ctx);
 }
 
 /** The TIA object index PosObjectX takes: 0 = P0, 1 = P1, 2..4 = M0, M1, ball. */
