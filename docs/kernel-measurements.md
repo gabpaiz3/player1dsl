@@ -627,6 +627,71 @@ counted one cannot, and the reference kernel's own two timer constants were both
 until a measurement caught them. **T being measured makes the timer available, not
 required.**
 
+## An object positioned in vertical blank wraps; it does not rest at a minimum
+
+**Measured against Stella 7.0c on 2026-09-12**, while showing the compiler's output rather
+than while looking for anything.
+
+### The claim that was wrong
+
+`objects.ts` carries `PLAYER_HBLANK_POSITION = 3`, labelled UNMEASURED, with this reasoning:
+
+> *Inside horizontal blank the counter has not started, so the object comes to rest at its
+> minimum position rather than somewhere off the left edge.*
+
+It rests somewhere off the left edge.
+
+### Method
+
+Scenes whose FIRST band holds the actors, so positioning happens in vertical blank. Each ROM
+declares two actors at known x, is built by `p1 build`, and is read off a Stella capture by
+measuring the sprite's leftmost lit column. The window maps 6.0 pixels to one TIA pixel with
+the picture's left edge at window x = 8, calibrated from the two positions our model and
+Stella already agree on.
+
+### Measured
+
+| authored x | our emulator | Stella |
+|---|---|---|
+| 0 | 3 | **141** |
+| 1 | 4 | **141** |
+| 2 | 5 | 5 |
+| 3 | 6 | 6 |
+| 4 | 7 | 7 |
+| 5 | 8 | 8 |
+| 40 | 43 | 43 |
+| 110 | 113 | 113 |
+
+Exact agreement at `x + 3` for every authored x from 2 upward, and disagreement at 0 and 1,
+where the object wraps to 141 rather than clamping. 141 is 19 pixels left of 160: the coarse
+position lands inside blank and the fine HMOVE pushes it past the left edge, which wraps.
+
+### What it does NOT affect
+
+**The visible-region transition, which is the path every moving actor uses.** A full
+`tank-arena` with `tank0` declared at x = 1 -- the same value the derived lower bound clamps to
+-- renders at pixel 4 in Stella, exactly as the model predicts. Checked deliberately, because
+`movementBounds` gives `xMin = 1` and a disagreement there would mean the shipped example
+teleports a tank to the right edge when it is driven fully left. It does not.
+
+So the error is confined to objects placed in VERTICAL BLANK at an authored x of 0 or 1, which
+is a first band holding actors. That scene shape only began compiling correctly on 2026-09-12;
+before then it positioned everything at 0 regardless.
+
+### Why our own tests cannot see this
+
+The emulator models object positions and the golden was recorded from it, so both sides carry
+the same `PLAYER_HBLANK_POSITION` and compare equal. This is the class of defect
+`docs/testing.md` calls a compatibility check rather than a formality, and it was found the
+first time a human looked at a scene the example does not contain.
+
+### Not fixed here
+
+Changing `PLAYER_HBLANK_POSITION` to a wrap needs the wrap's exact arithmetic, and two
+data points at 0 and 1 both landing on 141 do not determine it -- a fixture that sweeps the
+coarse position through the blank boundary does. Recorded as a measurement that contradicts a
+labelled assumption, which is what the label was for.
+
 ## What is still unmeasured
 
 Carried forward. Nothing in this list may be treated as zero.
@@ -647,6 +712,10 @@ Carried forward. Nothing in this list may be treated as zero.
   are pixel -1. Coarse positioning happens in the visible region, so nothing in this repo hits
   it, but whether an in-blank clock difference moves an object is untested. Recording the
   colour clock in the golden format is the fix, and it changes the file format.
+- **How an object positioned in vertical blank wraps.** Stella contradicted
+  `PLAYER_HBLANK_POSITION = 3` on 2026-09-12 for authored x of 0 and 1; see
+  [An object positioned in vertical blank wraps](#an-object-positioned-in-vertical-blank-wraps-it-does-not-rest-at-a-minimum).
+  The wrap's arithmetic is undetermined by two data points.
 - **Per-object cost differences.** Ball, missile and player all cost 2 lines through
   `PosObjectX`; no fixture has tried to make them differ.
 - **Our TIA model's systematic errors.** Increment 5b's static build reproduces golden frame 0's
