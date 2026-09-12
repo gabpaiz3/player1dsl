@@ -16,14 +16,15 @@ wants more detail than the prompt carries.
 > trace matches the hand-written reference kernel's, with zero mismatches and nothing
 > filtered out** — a game that reads two joysticks, clamps four bounds, latches a collision
 > and debounces it, compiled from a `.p1` that names no scanline, register or cycle.
-> 369 tests, `npm run check` green, DASM byte parity, and Stella confirms the picture.
+> 375 tests, `npm run check` green, DASM byte parity, and Stella confirms the picture.
 >
-> **Read the Known gaps below before believing that paragraph.** It is true of
-> `tank-arena` and only of `tank-arena`. An independent review on 2026-09-07 compiled four
-> scenes each one edit from the example and got a wrong picture from every one, with no
-> diagnostic. It also reproduced a frame whose length depended on whether the tanks
-> touched; that one is fixed and gated as `E706`, and the four scenes are not.
-> The pipeline holds; the composition layer is fitted to the example.
+> **Read the Known gaps below before believing that paragraph.** An independent review on
+> 2026-09-07 compiled four scenes each one edit from the example and got a wrong picture
+> from every one, with no diagnostic, and reproduced a frame whose length depended on
+> whether the tanks touched. **All of those are now fixed or refused** — `E706`, `E219`,
+> `E507`, and a name-based object lookup — but the lesson stands: every one of them
+> compiled, assembled, ran, balanced the ledger and produced a 262-line frame. The next
+> one will not announce itself either, and the example still cannot tell you about it.
 >
 > Everything from here is **widening the language**, not proving the architecture. There is
 > no plan for it yet, and choosing what to widen first is the job.
@@ -39,11 +40,11 @@ wants more detail than the prompt carries.
 > - `docs/testing.md` — the testing disciplines, before writing any test
 > - `docs/session-logs/2026-09-04.md` — plan 4's findings, three of them silent failures
 >
-> ### What to do first: two repairs, before any new capability
+> ### What to do first: one repair, before any new capability
 >
-> Both come from the 2026-09-07 review, both are verified, and each gets more expensive with
-> every catalog entry and example added on top of it. The third is done, and item 1 is kept
-> rather than deleted because how it was fixed matters more than that it was.
+> Item 3 is the only one left. Items 1 and 2 are kept rather than deleted because how they
+> were fixed matters more than that they were — one was refuted by the ROM before it was
+> right, and the other turned out to be a single mistake wearing four disguises.
 >
 > 1. ~~**A per-fragment scanline gate.**~~ DONE 2026-09-08, as `E706`. Worth reading the
 >    session log for it: charging a long fragment `ceil(cycles / 76)` lines was tried first
@@ -51,12 +52,13 @@ wants more detail than the prompt carries.
 >    take one line. A cost that depends on the input can only be refused, not charged. The
 >    double-charge and the overscan-against-vertical-blank misattribution went with it.
 >    **E704 still has never fired** — E705 reaches every over-large scene first.
-> 2. **Delete the silent fallbacks in `build.ts`.** `?? 'p0'` (`:233`, `:250`, `:444`),
->    `?? 0` (`:450`), `sprites[0]` (`:438`), and a ledger row located by matching the
->    human-readable note string `'the open field'` (`:427`). The runtime and lowering refuse
->    rather than guess — E602, E701, E703, `cycleCost` throwing, VDEL throwing. This file
->    does the opposite, and every one of the four broken scenes below goes through one of
->    these lines.
+> 2. ~~**Delete the silent fallbacks in `build.ts`.**~~ DONE 2026-09-12. Three of the four
+>    broken scenes were one mistake: **pairing by array index** where a band binds scores
+>    before actors, so an index meant "the nth holder" and was used as "the nth actor".
+>    `objectFor(bindings, holder)` looks them up by name and throws. `within` now means
+>    something (**E219**), and the ledger row comes from the actor's band rather than from
+>    a note string. Two more of the same class were found by reading: **E507** for a second
+>    playfield, and `CTRLPF_MODE` keyed by the IR's union so its `?? 0` is gone.
 > 3. **Key the emitter by catalog entry.** `emitRowGroup` (`emit.ts:285`) switches on
 >    `ctx.kind` and uses its `entry` argument only in an error message, so the id the
 >    selector chose does not select code. A second `loop` kernel means a second switch.
@@ -107,7 +109,7 @@ wants more detail than the prompt carries.
 >   `emit.ts:68` and `:213` give glyph pixels as 1 and 1/10 where `trace.test.ts` pins 7 and
 >   16; `rules.ts:67` says 24 worst-case cycles where `rules.test.ts` pins 27;
 >   `trace.ts:159` calls object tracking a future increment; `testing.md:35` claims 116
->   tests across 14 files above a 24-row table, against 39 files and 369 tests on disk. A
+>   tests across 14 files above a 24-row table, against 40 files and 375 tests on disk. A
 >   number in a comment should name the test that pins it, or not be a number. (`rules.ts`
 >   is fixed; the rest are not.)
 > - **The emulator cannot see a picture.** It models timing and object presence, not pixels,
@@ -168,8 +170,10 @@ reported our assembler disagreeing with DASM about bytes DASM never produced.
 
 ### Known gaps worth stating up front
 
-**Four scenes one edit from `tank-arena.p1` that compile clean and render wrong.** Balanced
-ledger, passing budget, 262-line frame, no diagnostic in any of them. Verified 2026-09-07:
+~~**Four scenes one edit from `tank-arena.p1` that compile clean and render wrong.**~~ FIXED
+2026-09-12 — two now render correctly, two are refused (**E219**, and E507 for a case found
+alongside them). The table below is kept because it is the clearest statement of what a
+composer fitted to one example does, and the next one will not announce itself either:
 
 | Scene | What happens |
 |---|---|

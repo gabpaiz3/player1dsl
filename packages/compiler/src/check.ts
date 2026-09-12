@@ -115,7 +115,7 @@ class Checker {
     const sceneIr = this.collectScene(scene, palette, spriteNames);
     const variables = this.collectVariables(sceneIr);
     const known = new Set(variables.map((v) => v.name));
-    const actorNames = new Set(sceneIr.actors.map((a) => a.name));
+    const actorNames = new Map(sceneIr.actors.map((a) => [a.name, a.band]));
     const bandNames = new Set(sceneIr.bands.map((b) => b.name));
 
     const everyFrame = {
@@ -326,7 +326,8 @@ class Checker {
 
   private lowerStmt(
     stmt: Stmt,
-    actors: Set<string>,
+    /** Actor name to the band it lives in: `within` is checked against it. */
+    actors: ReadonlyMap<string, string>,
     bands: Set<string>,
     variables: Set<string>,
   ): RuleAction[] {
@@ -337,6 +338,23 @@ class Checker {
         }
         if (!bands.has(stmt.within)) {
           this.report('E206', `no band named "${stmt.within}" to bound movement`, stmt.span);
+        } else if (actors.get(stmt.actor) !== undefined && actors.get(stmt.actor) !== stmt.within) {
+          // A band is a horizontal strip drawn by its own kernel, and an actor
+          // is drawn by the kernel of the band it lives in. Clamping it to
+          // another band's scanlines confines it to lines nothing draws it on,
+          // so there is no picture to emit and the compiler refuses rather than
+          // choosing one.
+          //
+          // `within` was accepted and then IGNORED until 2026-09-12: the bounds
+          // came from whichever ledger row carried the note 'the open field',
+          // so `within hud` and `within field` compiled to identical clamps.
+          this.report(
+            'E219',
+            `"${stmt.actor}" lives in band "${actors.get(stmt.actor)}" but is bounded by ` +
+              `"${stmt.within}"`,
+            stmt.span,
+            `movement is bounded by the band that draws the actor: use "within ${actors.get(stmt.actor)}"`,
+          );
         }
         const speed = stmt.speed.kind === 'number' ? stmt.speed.value : 0;
         if (stmt.speed.kind !== 'number') {

@@ -42,7 +42,7 @@ import {
   stores,
   type TiaObject,
 } from '@player1dsl/runtime';
-import type { ActorIr, GameIr, SceneIr, ScoreIr, SpriteIr } from './ir.ts';
+import type { ActorIr, GameIr, PlayfieldIr, SceneIr, ScoreIr, SpriteIr } from './ir.ts';
 import { type LayoutIr, layout, type RowGroup } from './layout.ts';
 import { buildLedger, type Ledger, type LedgerRow } from './ledger.ts';
 import { allocateRam, kernelScratch, type RamMap } from './ram.ts';
@@ -202,6 +202,9 @@ function checkBudget(
   return { available, spent, free: available - spent };
 }
 
+/** No source span: the composer's own refusals are not about one token. */
+const NO_SPAN = { file: '<build>', offset: 0, length: 0, line: 1, column: 1 };
+
 /** 4 KiB unbanked, which is the only cartridge shape the language accepts. */
 const CARTRIDGE_BYTES = 4096;
 
@@ -220,7 +223,16 @@ const SOLID_ROW: readonly [number, number, number] = [0xf0, 0xff, 0xff];
 const SIDE_ROW: readonly [number, number, number] = [0x10, 0x00, 0x00];
 
 /** D0 of CTRLPF is REF: the right half mirrors the left. */
-const CTRLPF_MODE: Readonly<Record<string, number>> = {
+/**
+ * Keyed by the IR's OWN union, not by `string`.
+ *
+ * A `Record<string, number>` needs a `?? 0` at the call site for a key the type
+ * system cannot rule out -- and 0 is `repeat`, so a mode this table forgot
+ * would silently render un-mirrored rather than fail. Typing the key makes the
+ * lookup total, and the day a fourth mode is parsed this stops compiling
+ * instead of quietly picking one.
+ */
+const CTRLPF_MODE: Readonly<Record<PlayfieldIr['mode'], number>> = {
   reflect: 0x01,
   repeat: 0x00,
   asymmetric: 0x00,
@@ -301,13 +313,63 @@ function initialState(game: GameIr): Store[] {
     .map((variable): Store => [variable.name, variable.initial]);
 }
 
+/**
+ * The TIA object bound to one holder, BY NAME.
+ *
+ * `bindObjects` binds a band's scores before its actors, so an index into that
+ * list means "the nth holder of this band" and not "the nth actor" -- and every
+ * site here used to index it with an actor's or a score's own position in its
+ * own list. The two coincide exactly when a band holds only one kind, which is
+ * every band in the one example that existed.
+ *
+ * Throws rather than falling back to 'p0'. A fallback here draws two holders
+ * with one object: the picture is wrong, the ledger balances, the frame is 262
+ * lines and nothing reports anything.
+ */
+function objectFor(bindings: readonly ObjectBinding[], holder: string): TiaObject {
+  const binding = bindings.find((b) => b.holder === holder);
+  if (!binding) {
+    throw new Error(
+      `"${holder}" has no TIA object bound to it. Every holder the layout draws is bound ` +
+        'by bindObjects, so this is a composer that built its list from somewhere else.',
+    );
+  }
+  return binding.object;
+}
+
+/**
+ * Where a holder starts the frame, from the holder ITSELF.
+ *
+ * Vertical-blank setup used to position the first band's objects at the first
+ * band's SCORES' x, paired by index: `firstScores[i]?.x ?? 0`. That is right
+ * only for a first band made entirely of scores, which is the one band the one
+ * example had. Two scenes broke on it and broke differently -- a field-only
+ * scene positioned every tank with `lda #0`, and a scene with one score and two
+ * actors ran out of scores and never strobed the second object at all, leaving
+ * it wherever the reset clear-loop's `sta $00,x` had put RESP1.
+ */
+function holderX(holder: string, scene: SceneIr): number {
+  const score = holder.startsWith('score ')
+    ? scene.scores.find((s) => `score ${s.name}` === holder)
+    : undefined;
+  if (score) return score.x;
+
+  const actor = scene.actors.find((a) => a.name === holder);
+  if (actor) return actor.x;
+
+  throw new Error(
+    `"${holder}" is bound to a TIA object but is neither a score nor an actor of this ` +
+      'scene, so nothing knows where to position it.',
+  );
+}
+
 /** The objects one glyph row group draws: one digit per score in the band. */
 function glyphObjects(
   scores: readonly ScoreIr[],
   bindings: readonly ObjectBinding[],
 ): ObjectDraw[] {
   return scores.map((score, i) => ({
-    object: bindings[i]?.object ?? 'p0',
+    object: objectFor(bindings, `score ${score.name}`),
     color: score.color,
     table: `digit${i}Ptr`,
     height: DIGIT_HEIGHT,
@@ -324,7 +386,7 @@ function fieldObjects(
     const sprite = sprites.find((s) => s.name === actor.sprite);
     if (!sprite) throw new Error(`actor ${actor.name} uses sprite ${actor.sprite}, which is gone`);
     return {
-      object: bindings[i]?.object ?? 'p0',
+      object: objectFor(bindings, actor.name),
       color: actor.color,
       table: spriteLabel(sprite.name),
       height: sprite.height,
@@ -429,11 +491,11 @@ function codeFor(
  */
 function lowerRules(
   game: GameIr,
-  bounds: MovementBounds,
+  boundsFor: (actor: string) => MovementBounds,
   bindingFor: (actor: string) => TiaObject,
 ): { readonly blank: string[]; readonly overscan: string[] } {
   const blank = game.everyFrame.actions.flatMap((action, i) =>
-    action.kind === 'move' ? lowerMove(action, bounds, `.mv${i}`) : [],
+    action.kind === 'move' ? lowerMove(action, boundsFor(action.actor), `.mv${i}`) : [],
   );
 
   const overscan = game.collisions.flatMap((rule, i) => {
@@ -501,34 +563,82 @@ export function build(game: GameIr, options: BuildOptions = {}): BuildResult {
   // The first band positions its objects in vertical blank, where the HMOVE
   // comb falls on a line nothing draws. That is why `positionLines` is charged
   // here and `repositionLines` -- one line more -- at the visible boundary.
-  const fieldRow = ledger.rows.find((row) => row.note === 'the open field');
   const firstBand = scene.bands[0];
   const firstBindings = ir.bindings.filter((b) => b.band === firstBand?.name);
-  const firstScores = scene.scores.filter((s) => s.band === firstBand?.name);
   const glyphPointers = digitPointers(
     scene.scores.map((score, i) => ({ variable: `${score.name}_score`, pointer: `digit${i}Ptr` })),
     'DigitFont',
   );
 
-  const bounds = movementBounds({
-    wallPixels: PLAYFIELD_BIT_PIXELS,
-    spriteWidth: game.sprites[0]?.width ?? 8,
-    spriteHeight: game.sprites[0]?.height ?? 8,
-    fieldFirstLine: fieldRow?.firstLine ?? 0,
-    fieldLastLine: fieldRow?.lastLine ?? 0,
-    counterOrigin: (fieldRow?.lastLine ?? 0) + 2,
-  });
-  const bindingFor = (actor: string) => ir.bindings.find((b) => b.holder === actor)?.object ?? 'p0';
-  const rules = options.static ? { blank: [], overscan: [] } : lowerRules(game, bounds, bindingFor);
+  /**
+   * One actor's movement bounds, from ITS sprite and ITS band.
+   *
+   * Both halves were global until 2026-09-12. The sprite came from
+   * `game.sprites[0]`, so an actor drawn from a taller one was clamped by a
+   * shorter one's geometry and could be driven that many rows into the wall;
+   * the band came from whichever ledger row carried the note 'the open field',
+   * a human-readable string that the note changing would have quietly broken
+   * and that no second band could ever match.
+   *
+   * The band is the ACTOR'S, not the rule's: E219 makes those the same thing.
+   */
+  const boundsFor = (actorName: string): MovementBounds => {
+    const actor = scene.actors.find((a) => a.name === actorName);
+    if (!actor) throw new Error(`no actor named "${actorName}" to bound`);
+    const sprite = game.sprites.find((s) => s.name === actor.sprite);
+    if (!sprite)
+      throw new Error(`actor "${actorName}" uses sprite "${actor.sprite}", which is gone`);
+    const row = ledger.rows.find((r) => r.band === actor.band && r.kind === 'loop');
+    if (!row) {
+      throw new Error(
+        `band "${actor.band}" draws actor "${actorName}" but has no loop row, so nothing ` +
+          'knows which scanlines the actor may move between.',
+      );
+    }
+    return movementBounds({
+      wallPixels: PLAYFIELD_BIT_PIXELS,
+      spriteWidth: sprite.width,
+      spriteHeight: sprite.height,
+      fieldFirstLine: row.firstLine,
+      fieldLastLine: row.lastLine,
+      counterOrigin: row.lastLine + 2,
+    });
+  };
+
+  const bindingFor = (actor: string) => objectFor(ir.bindings, actor);
+  const rules = options.static
+    ? { blank: [], overscan: [] }
+    : lowerRules(game, boundsFor, bindingFor);
 
   const setup = emitTransition({
-    moves: firstBindings.map((binding, i) => ({
+    moves: firstBindings.map((binding) => ({
       object: binding.object,
-      x: `#${firstScores[i]?.x ?? 0}`,
+      x: `#${holderX(binding.holder, scene)}`,
     })),
     visible: false,
   });
 
+  // ONE playfield, because `COLUPF` is written once in one-time setup below.
+  // Layout already gives each band its own playfield and decomposes them
+  // independently, so a second one in another colour would draw in the first
+  // one's -- balanced ledger, no diagnostic, wrong picture. Drawing it properly
+  // needs a per-band COLUPF write, whose line cost nothing has measured, and
+  // inventing that cost is the assumed zero the ledger exists to prevent.
+  if (scene.playfields.length > 1) {
+    const extra = scene.playfields[1];
+    throw new P1Error([
+      {
+        code: 'E507',
+        message:
+          `this scene has ${scene.playfields.length} playfields, and the kernel writes ` +
+          'COLUPF once for all of them',
+        span: extra?.span ?? scene.playfields[0]?.span ?? NO_SPAN,
+        hint:
+          'every playfield in the scene would render in the colour of the first. One ' +
+          'playfield per scene until a kernel measures what a per-band COLUPF write costs.',
+      } satisfies Diagnostic,
+    ]);
+  }
   const playfield = scene.playfields[0];
   const init = emitInit(
     scene,
@@ -620,7 +730,7 @@ export function buildStatic(game: GameIr): BuildResult {
 function emitInit(
   scene: SceneIr,
   wallColor: number,
-  mode: string,
+  mode: PlayfieldIr['mode'],
   positions: readonly Store[],
 ): string[] {
   return [
@@ -628,7 +738,7 @@ function emitInit(
     ...stores([
       ['COLUBK', scene.background],
       ['COLUPF', wallColor],
-      ['CTRLPF', CTRLPF_MODE[mode] ?? 0],
+      ['CTRLPF', CTRLPF_MODE[mode]],
       ...positions,
     ]),
   ];
