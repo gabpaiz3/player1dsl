@@ -16,7 +16,7 @@ wants more detail than the prompt carries.
 > trace matches the hand-written reference kernel's, with zero mismatches and nothing
 > filtered out** — a game that reads two joysticks, clamps four bounds, latches a collision
 > and debounces it, compiled from a `.p1` that names no scanline, register or cycle.
-> 375 tests, `npm run check` green, DASM byte parity, and Stella confirms the picture.
+> 378 tests, `npm run check` green, DASM byte parity, and Stella confirms the picture.
 >
 > **Read the Known gaps below before believing that paragraph.** An independent review on
 > 2026-09-07 compiled four scenes each one edit from the example and got a wrong picture
@@ -40,11 +40,12 @@ wants more detail than the prompt carries.
 > - `docs/testing.md` — the testing disciplines, before writing any test
 > - `docs/session-logs/2026-09-04.md` — plan 4's findings, three of them silent failures
 >
-> ### What to do first: one repair, before any new capability
+> ### The three repairs are done; start with the measurement
 >
-> Item 3 is the only one left. Items 1 and 2 are kept rather than deleted because how they
-> were fixed matters more than that they were — one was refuted by the ROM before it was
-> right, and the other turned out to be a single mistake wearing four disguises.
+> All three are kept rather than deleted because how they were fixed matters more than that
+> they were: one was refuted by the ROM before it was right, one turned out to be a single
+> mistake wearing four disguises, and one was a claim the catalog made that only three
+> entries made true.
 >
 > 1. ~~**A per-fragment scanline gate.**~~ DONE 2026-09-08, as `E706`. Worth reading the
 >    session log for it: charging a long fragment `ceil(cycles / 76)` lines was tried first
@@ -59,10 +60,10 @@ wants more detail than the prompt carries.
 >    something (**E219**), and the ledger row comes from the actor's band rather than from
 >    a note string. Two more of the same class were found by reading: **E507** for a second
 >    playfield, and `CTRLPF_MODE` keyed by the IR's union so its `?? 0` is gone.
-> 3. **Key the emitter by catalog entry.** `emitRowGroup` (`emit.ts:285`) switches on
->    `ctx.kind` and uses its `entry` argument only in an error message, so the id the
->    selector chose does not select code. A second `loop` kernel means a second switch.
->    Half a day at three entries; worse at four.
+> 3. ~~**Key the emitter by catalog entry.**~~ DONE 2026-09-12. `EMITTERS` maps entry id to
+>    the emitters it provides per kind, and a test holds every entry's `applies.kinds` to
+>    that table — so adding a catalog entry and forgetting the emitter is a red test rather
+>    than a ROM drawn by the wrong kernel.
 >
 > Then **measure `MISSILE_STROBE_DELAY` and the ball's** (`objects.ts:74-76`, both
 > UNMEASURED, and `strobe()` currently uses the missile's for the ball). Every phase-2 game
@@ -109,7 +110,7 @@ wants more detail than the prompt carries.
 >   `emit.ts:68` and `:213` give glyph pixels as 1 and 1/10 where `trace.test.ts` pins 7 and
 >   16; `rules.ts:67` says 24 worst-case cycles where `rules.test.ts` pins 27;
 >   `trace.ts:159` calls object tracking a future increment; `testing.md:35` claims 116
->   tests across 14 files above a 24-row table, against 40 files and 375 tests on disk. A
+>   tests across 14 files above a 24-row table, against 40 files and 378 tests on disk. A
 >   number in a comment should name the test that pins it, or not be a number. (`rules.ts`
 >   is fixed; the rest are not.)
 > - **The emulator cannot see a picture.** It models timing and object presence, not pixels,
