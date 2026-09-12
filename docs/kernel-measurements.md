@@ -627,70 +627,67 @@ counted one cannot, and the reference kernel's own two timer constants were both
 until a measurement caught them. **T being measured makes the timer available, not
 required.**
 
-## An object positioned in vertical blank wraps; it does not rest at a minimum
+## RETRACTED: "an object positioned in vertical blank wraps"
 
-**Measured against Stella 7.0c on 2026-09-12**, while showing the compiler's output rather
-than while looking for anything.
+**Recorded 2026-09-12. Retracted the same week, 2026-09-13, by the fixture that should have
+been used in the first place.**
 
-### The claim that was wrong
+### What was claimed
 
-`objects.ts` carries `PLAYER_HBLANK_POSITION = 3`, labelled UNMEASURED, with this reasoning:
+That `PLAYER_HBLANK_POSITION = 3` is wrong, and that an object positioned in vertical blank at
+an authored x of 0 or 1 wraps to pixel 141 instead of resting near the left edge.
 
-> *Inside horizontal blank the counter has not started, so the object comes to rest at its
-> minimum position rather than somewhere off the left edge.*
+### Why it is retracted
 
-It rests somewhere off the left edge.
+`collide-playfield.asm` positions exactly ONE object in vertical blank and reports its verdict
+as a whole-screen colour. Re-run in Stella on 2026-09-13:
 
-### Method
+| authored x | screen |
+|---|---|
+| 0 | **RED** -- P0 is inside the block at pixels 0-3 |
+| 1 | black |
 
-Scenes whose FIRST band holds the actors, so positioning happens in vertical blank. Each ROM
-declares two actors at known x, is built by `p1 build`, and is read off a Stella capture by
-measuring the sprite's leftmost lit column. The window maps 6.0 pixels to one TIA pixel with
-the picture's left edge at window x = 8, calibrated from the two positions our model and
-Stella already agree on.
+That reproduces the 2026-08-30 sweep exactly and puts an authored 0 at pixel **3**, which is
+what `PLAYER_HBLANK_POSITION = 3` predicts. The constant is not contradicted by anything
+measured here.
 
-### Measured
+### The method was the defect
 
-| authored x | our emulator | Stella |
-|---|---|---|
-| 0 | 3 | **141** |
-| 1 | 4 | **141** |
-| 2 | 5 | 5 |
-| 3 | 6 | 6 |
-| 4 | 7 | 7 |
-| 5 | 8 | 8 |
-| 40 | 43 | 43 |
-| 110 | 113 | 113 |
+The retracted claim came from measuring a sprite's leftmost lit column off a Stella screenshot
+and converting window pixels to TIA pixels with a scale calibrated from two other sprites.
+`collide-playfield.asm`'s own header warns against exactly this:
 
-Exact agreement at `x + 3` for every authored x from 2 upward, and disagreement at 0 and 1,
-where the object wraps to 141 rather than clamping. 141 is 19 pixels left of 160: the coarse
-position lands inside blank and the fine HMOVE pushes it past the left edge, which wraps.
+> *The answer is a whole-screen colour. Measuring a sprite's left edge off a screenshot is a
+> measurement whose error bars come from window management.*
 
-### What it does NOT affect
+The warning was written for this measurement and ignored by it. Worse, the numbers do not
+survive their own method: a scene with an actor authored at 60 reads back as pixel 41 by the
+same conversion that reads an actor authored at 40 as 43. One of those is wrong and the
+conversion cannot say which.
 
-**The visible-region transition, which is the path every moving actor uses.** A full
-`tank-arena` with `tank0` declared at x = 1 -- the same value the derived lower bound clamps to
--- renders at pixel 4 in Stella, exactly as the model predicts. Checked deliberately, because
-`movementBounds` gives `xMin = 1` and a disagreement there would mean the shipped example
-teleports a tank to the right edge when it is driven fully left. It does not.
+### What IS established, and what is not
 
-So the error is confined to objects placed in VERTICAL BLANK at an authored x of 0 or 1, which
-is a first band holding actors. That scene shape only began compiling correctly on 2026-09-12;
-before then it positioned everything at 0 regardless.
+**Established**, by colour verdict, twice, three weeks apart: one object positioned in vertical
+blank lands at authored x + 3, for x = 0 and upward.
 
-### Why our own tests cannot see this
+**Established**, by the compiled ROMs this was found with: a scene whose first band holds two
+actors renders them in visibly different places depending on which authored positions they
+have, in a way the model does not predict. Something is there. Its size, its direction and
+which object it affects are all UNMEASURED, because screenshot column-reading cannot settle
+them.
 
-The emulator models object positions and the golden was recorded from it, so both sides carry
-the same `PLAYER_HBLANK_POSITION` and compare equal. This is the class of defect
-`docs/testing.md` calls a compatibility check rather than a formality, and it was found the
-first time a human looked at a scene the example does not contain.
+**Not established, and specifically not by this:** anything about `PLAYER_HBLANK_POSITION`,
+about wrapping, or about the number 141.
 
-### Not fixed here
+### The fixture this needs
 
-Changing `PLAYER_HBLANK_POSITION` to a wrap needs the wrap's exact arithmetic, and two
-data points at 0 and 1 both landing on 141 do not determine it -- a fixture that sweeps the
-coarse position through the blank boundary does. Recorded as a measurement that contradicts a
-labelled assumption, which is what the label was for.
+Two objects positioned back to back by `PosObjectX`, both collided against a fixed playfield
+block, with the verdict painted as a background colour -- `collide-playfield.asm` extended to a
+second object rather than a new technique. That isolates whether a second positioning call
+displaces the first object, which is the only claim the confusing data supports, and it reports
+in the one unit a screenshot can read without arithmetic.
+
+Until then this stays on the unmeasured list rather than in a table.
 
 ## What is still unmeasured
 
@@ -712,10 +709,11 @@ Carried forward. Nothing in this list may be treated as zero.
   are pixel -1. Coarse positioning happens in the visible region, so nothing in this repo hits
   it, but whether an in-blank clock difference moves an object is untested. Recording the
   colour clock in the golden format is the fix, and it changes the file format.
-- **How an object positioned in vertical blank wraps.** Stella contradicted
-  `PLAYER_HBLANK_POSITION = 3` on 2026-09-12 for authored x of 0 and 1; see
-  [An object positioned in vertical blank wraps](#an-object-positioned-in-vertical-blank-wraps-it-does-not-rest-at-a-minimum).
-  The wrap's arithmetic is undetermined by two data points.
+- **Whether a second positioning call displaces the first object.** A first band holding two
+  actors renders them in places the model does not predict, but the measurement that suggested
+  it was read off screenshots and does not survive its own method. See
+  [RETRACTED](#retracted-an-object-positioned-in-vertical-blank-wraps) for what is and is not
+  established, and for the fixture it needs.
 - **Per-object cost differences.** Ball, missile and player all cost 2 lines through
   `PosObjectX`; no fixture has tried to make them differ.
 - **Our TIA model's systematic errors.** Increment 5b's static build reproduces golden frame 0's
