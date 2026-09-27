@@ -629,7 +629,7 @@ required.**
 
 ## RETRACTED: "an object positioned in vertical blank wraps"
 
-**Recorded 2026-09-12. Retracted the same week, 2026-09-13, by the fixture that should have
+**Recorded 2026-09-12. Retracted the same day, by the fixture that should have
 been used in the first place.**
 
 ### What was claimed
@@ -640,7 +640,7 @@ an authored x of 0 or 1 wraps to pixel 141 instead of resting near the left edge
 ### Why it is retracted
 
 `collide-playfield.asm` positions exactly ONE object in vertical blank and reports its verdict
-as a whole-screen colour. Re-run in Stella on 2026-09-13:
+as a whole-screen colour. Re-run in Stella the same day:
 
 | authored x | screen |
 |---|---|
@@ -686,7 +686,7 @@ about wrapping, or about the number 141.
 unit. `collide-two-objects-reversed.asm` swaps the two calls and is the known-positive --
 without it, black everywhere is equally what a broken latch or a mis-set GRP0 would paint.
 
-**Measured in Stella, 2026-09-13:**
+**Measured in Stella, 2026-09-12:**
 
 | ROM | authored x = 0 | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|---|
@@ -806,7 +806,7 @@ Carried forward. Nothing in this list may be treated as zero.
   it, but whether an in-blank clock difference moves an object is untested. Recording the
   colour clock in the golden format is the fix, and it changes the file format.
 - **How far a second positioning call displaces the first object.** THAT it does is measured
-  (2026-09-13, whole-screen colour, with a known-positive); the distance and direction are not,
+  (2026-09-12, whole-screen colour, with a known-positive); the distance and direction are not,
   because one lit block locates a landing only modulo 80. Our emulator does not model the
   effect at all. See
   [RETRACTED](#retracted-an-object-positioned-in-vertical-blank-wraps).

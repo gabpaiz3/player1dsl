@@ -66,7 +66,7 @@ wants more detail than the prompt carries.
 >    than a ROM drawn by the wrong kernel.
 >
 > **First, settle the retraction.** A claim that Stella contradicted
-> `PLAYER_HBLANK_POSITION` was recorded on 2026-09-12 and retracted on 2026-09-13: it was read
+> `PLAYER_HBLANK_POSITION` was recorded on 2026-09-12 and retracted the same day: it was read
 > off screenshots by column-counting, which `collide-playfield.asm`'s header explicitly warns
 > against, and the one-object colour verdict disagrees with it. What survives is narrower and
 > still real — a first band holding TWO actors renders them where the model does not predict.

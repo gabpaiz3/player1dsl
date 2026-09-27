@@ -161,7 +161,7 @@ describe('collide-playfield: where a RESP0 strobe puts P0', () => {
 /**
  * Does positioning a SECOND object displace the first?
  *
- * MEASURED IN STELLA, 2026-09-13, and our model is wrong about it.
+ * MEASURED IN STELLA, 2026-09-12, and our model is wrong about it.
  *
  * `collide-two-objects.asm` is `collide-playfield.asm` plus one more
  * `jsr PosObjectX`, so the original is its control: same object, same block,
