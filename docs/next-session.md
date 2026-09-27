@@ -65,6 +65,15 @@ wants more detail than the prompt carries.
 >    that table — so adding a catalog entry and forgetting the emitter is a red test rather
 >    than a ROM drawn by the wrong kernel.
 >
+> **First, settle the retraction.** A claim that Stella contradicted
+> `PLAYER_HBLANK_POSITION` was recorded on 2026-09-12 and retracted on 2026-09-13: it was read
+> off screenshots by column-counting, which `collide-playfield.asm`'s header explicitly warns
+> against, and the one-object colour verdict disagrees with it. What survives is narrower and
+> still real — a first band holding TWO actors renders them where the model does not predict.
+> The fixture is `collide-playfield.asm` extended to position a second object before the
+> verdict, so the answer stays a whole-screen colour. See
+> [RETRACTED](kernel-measurements.md) for what is and is not established.
+>
 > Then **measure `MISSILE_STROBE_DELAY` and the ball's** (`objects.ts:74-76`, both
 > UNMEASURED, and `strobe()` currently uses the missile's for the ball). Every phase-2 game
 > needs the ball, and a golden recorded from this emulator would bake an unmeasured constant

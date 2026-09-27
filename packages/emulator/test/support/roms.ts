@@ -20,6 +20,8 @@ export const ROM_SOURCES: Readonly<Record<string, string>> = {
   'double-hmove': 'tests/fixtures/tia/double-hmove.asm',
   'double-hmove-cleared': 'tests/fixtures/tia/double-hmove-cleared.asm',
   'collide-playfield': 'tests/fixtures/tia/collide-playfield.asm',
+  'collide-two-objects': 'tests/fixtures/tia/collide-two-objects.asm',
+  'collide-two-objects-reversed': 'tests/fixtures/tia/collide-two-objects-reversed.asm',
 };
 
 /**
