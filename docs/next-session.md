@@ -74,11 +74,16 @@ wants more detail than the prompt carries.
 > verdict, so the answer stays a whole-screen colour. See
 > [RETRACTED](kernel-measurements.md) for what is and is not established.
 >
-> Then **measure `MISSILE_STROBE_DELAY` and the ball's** (`objects.ts:74-76`, both
-> UNMEASURED, and `strobe()` currently uses the missile's for the ball). Every phase-2 game
-> needs the ball, and a golden recorded from this emulator would bake an unmeasured constant
-> into the reference the compiler is then held to. `tests/fixtures/tia/collide-playfield.asm`
-> is the pattern to clone, and `scripts/stella-shot.ps1` is how the sweep gets read.
+> ~~Then **measure `MISSILE_STROBE_DELAY` and the ball's**~~ DONE 2026-09-27, and the model
+> was right: both land at authored x + 2, so the missile's delay is 7 and the ball shares it.
+> The player is the odd one at 8. `collide-missile.asm` and `collide-ball.asm` are
+> `collide-playfield.asm` with one object swapped in, so the three flips are comparable. The
+> hblank positions are still unmeasured, and that is now checked rather than assumed --
+> setting `MISSILE_HBLANK_POSITION` to 99 changes none of those verdicts.
+>
+> **Still open from the same area:** how far a second positioning call displaces the first
+> object. THAT it does is measured; the distance is not, because one lit block locates a
+> landing only modulo 80. It affects any scene whose first band holds more than one object.
 >
 > ### Then a second game — and not either of the two the spec names
 >
