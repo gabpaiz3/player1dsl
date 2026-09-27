@@ -1,6 +1,6 @@
 import { assembleSource } from '@player1dsl/assembler';
 import { describe, expect, it } from 'vitest';
-import { Machine } from '../src/index.ts';
+import { Machine, Objects } from '../src/index.ts';
 import { fixtureSource, romFor } from './support/roms.ts';
 
 const COLUBK = 0x09;
@@ -161,7 +161,7 @@ describe('collide-playfield: where a RESP0 strobe puts P0', () => {
 /**
  * Does positioning a SECOND object displace the first?
  *
- * MEASURED IN STELLA, 2026-09-13, and our model is wrong about it.
+ * MEASURED IN STELLA, 2026-09-12, and our model is wrong about it.
  *
  * `collide-two-objects.asm` is `collide-playfield.asm` plus one more
  * `jsr PosObjectX`, so the original is its control: same object, same block,
@@ -244,5 +244,81 @@ describe('collide-two-objects: a second positioning call displaces the first obj
       false,
       false,
     ]);
+  });
+});
+
+/**
+ * Where a RESM0 and a RESBL strobe put a missile and the ball.
+ *
+ * MEASURED IN STELLA, 2026-09-27, and this time the model was right.
+ *
+ * `MISSILE_STROBE_DELAY = 7` was set by shifting the player's measured 8 by
+ * one, on the assumption that the two share a mechanism -- and the ball had no
+ * constant at all, being routed through the missile's on the assumption that
+ * one-pixel objects behave alike. Two assumptions stacked, both now tested.
+ *
+ * Each fixture is `collide-playfield.asm` with one object swapped in: same
+ * block at pixels 0-3, same sweep, same whole-screen verdict, object index 2
+ * or 4 instead of 0. Nothing else differs, which is what makes the flips
+ * comparable with the player's.
+ *
+ *   collide-playfield (P0)   x=0 RED,  x=1 black          -> lands at x + 3
+ *   collide-missile (M0)     x=0 RED,  x=1 RED,  x=2 black -> lands at x + 2
+ *   collide-ball (BL)        x=0 RED,  x=1 RED,  x=2 black -> lands at x + 2
+ *
+ * So the missile's delay is 7, the ball's is the missile's, and the player
+ * really is the odd one at 8. Each fixture paints both colours across its own
+ * sweep, so neither verdict rests on a ROM that can only say one thing -- the
+ * failure mode that made `collide-two-objects.asm` need a separate control.
+ *
+ * WHAT THIS DOES NOT MEASURE: the hblank positions. Setting
+ * `MISSILE_HBLANK_POSITION` to 99 leaves every verdict here unchanged, so these
+ * strobes provably land in the visible region and the constant is untouched by
+ * them. It stays UNMEASURED, and that is now a checked statement rather than an
+ * assumption.
+ */
+describe('collide-missile and collide-ball: where a one-pixel object lands', () => {
+  function flipOf(fixture: string, knob: string): number {
+    for (const x of [0, 1, 2, 3, 4]) {
+      const source = fixtureSource(fixture).replace(`${knob}        = 0`, `${knob}        = ${x}`);
+      const { rom } = assembleSource(source, `tests/fixtures/tia/${fixture}.asm`, {
+        includeDirs: ['kernels/include'],
+      });
+      const machine = new Machine(rom);
+      machine.runFrame();
+      machine.runFrame();
+      const frame = machine.runFrame({ trace: true });
+      const painted = (frame.writes ?? []).filter((w) => w.register === COLUBK).at(-1)?.value;
+      if (painted !== RED) return x;
+    }
+    throw new Error(`${fixture} never stopped painting red; the sweep cannot locate a flip`);
+  }
+
+  it('runs both fixtures as 262-line NTSC frames', () => {
+    for (const name of ['collide-missile', 'collide-ball']) {
+      const machine = new Machine(romFor(name));
+      machine.runFrame();
+      expect(machine.runFrame().scanlines).toBe(262);
+    }
+  });
+
+  // A flip at 2 puts the landing pixel at x + 2, which is a delay of 7. A flip
+  // at 1 would have meant the missile shares the player's 8.
+  it('puts a missile two pixels right of its authored x, so its delay is 7', () => {
+    expect(flipOf('collide-missile', 'M0_X')).toBe(2);
+    expect(Objects.MISSILE_STROBE_DELAY).toBe(7);
+  });
+
+  // The ball takes its width from CTRLPF and has no copies, so it is the object
+  // the TIA treats least like the others. It lands where the missile lands.
+  it('puts the ball where the missile lands, which is why they share a constant', () => {
+    expect(flipOf('collide-ball', 'BL_X')).toBe(flipOf('collide-missile', 'M0_X'));
+  });
+
+  // The player is the odd one. Asserted here rather than only in the section
+  // above, because "the missile differs from the player by one" is the claim
+  // these three fixtures together establish.
+  it('leaves the player one pixel further right than either', () => {
+    expect(Objects.PLAYER_STROBE_DELAY - Objects.MISSILE_STROBE_DELAY).toBe(1);
   });
 });

@@ -629,7 +629,7 @@ required.**
 
 ## RETRACTED: "an object positioned in vertical blank wraps"
 
-**Recorded 2026-09-12. Retracted the same week, 2026-09-13, by the fixture that should have
+**Recorded 2026-09-12. Retracted the same day, by the fixture that should have
 been used in the first place.**
 
 ### What was claimed
@@ -640,7 +640,7 @@ an authored x of 0 or 1 wraps to pixel 141 instead of resting near the left edge
 ### Why it is retracted
 
 `collide-playfield.asm` positions exactly ONE object in vertical blank and reports its verdict
-as a whole-screen colour. Re-run in Stella on 2026-09-13:
+as a whole-screen colour. Re-run in Stella the same day:
 
 | authored x | screen |
 |---|---|
@@ -686,7 +686,7 @@ about wrapping, or about the number 141.
 unit. `collide-two-objects-reversed.asm` swaps the two calls and is the known-positive --
 without it, black everywhere is equally what a broken latch or a mis-set GRP0 would paint.
 
-**Measured in Stella, 2026-09-13:**
+**Measured in Stella, 2026-09-12:**
 
 | ROM | authored x = 0 | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|---|
@@ -726,6 +726,65 @@ of a later call disturbing an earlier one. `tia-fixtures.test.ts` pins the model
 behaviour with a comment naming Stella's answer, so correcting it turns a test red rather than
 leaving a comment describing a state the code has left.
 
+## A missile and the ball land two pixels right of their authored x
+
+**Measured against Stella 7.0c on 2026-09-27.** The model was right, which is worth recording
+as plainly as the times it was not.
+
+### The claim being tested
+
+`Objects.MISSILE_STROBE_DELAY` was **7 by assumption**: the player's measured 8, shifted by
+one, on the untested belief that the two objects share a mechanism. The ball had no constant at
+all -- `strobe()` routed it through the missile's, on the further assumption that one-pixel
+objects behave alike. Two assumptions stacked, and every phase-2 game needs one of these
+objects, so a golden recorded from our own emulator would have baked them into the reference
+the compiler is then held to.
+
+### Method
+
+`collide-missile.asm` and `collide-ball.asm` are `collide-playfield.asm` with one object
+swapped in: the same lit block at pixels 0-3, the same authored-x sweep, the same
+`PosObjectX`, and object index 2 or 4 instead of 0. Nothing else differs, which is what makes
+the three flips comparable rather than three separate numbers.
+
+The verdict is a whole-screen colour. A missile with `NUSIZ0 = 0` and the ball with CTRLPF's
+size bits clear are each one pixel wide, so they are the natural counterparts to the player's
+`GRP0 = $80` -- a single lit column whose collision reports its exact landing pixel.
+
+### Predicted, from the two hypotheses
+
+| | flip at | landing |
+|---|---|---|
+| the missile shares the player's delay of 8 | 1 | x + 3 |
+| the delay really is 7, as the model carried | 2 | x + 2 |
+
+### Measured
+
+| ROM | x=0 | 1 | 2 | landing | delay |
+|---|---|---|---|---|---|
+| `collide-playfield` (P0) | **RED** | black | — | x + 3 | 8 |
+| `collide-missile` (M0) | **RED** | **RED** | black | **x + 2** | **7** |
+| `collide-ball` (BL) | **RED** | **RED** | black | **x + 2** | **7** |
+
+**The assumption held.** The missile's delay is 7, the ball's is the missile's, and the player
+is the odd one at 8.
+
+Each fixture paints both colours across its own sweep, so neither verdict rests on a ROM that
+can only say one thing -- the failure mode that made `collide-two-objects.asm` need a separate
+known-positive ROM beside it.
+
+### What it does NOT measure, checked rather than assumed
+
+**The hblank positions.** Setting `MISSILE_HBLANK_POSITION` to 99 leaves every verdict above
+unchanged, so these strobes land in the visible region and the constant is untouched by them.
+It stays on the unmeasured list, and that is now a checked statement instead of a hope. A
+fixture that reached it would have to strobe inside horizontal blank, which `PosObjectX` never
+does for any authored x.
+
+**Whether the three pixels belong to the strobe or to the HMOVE that follows it.** Unchanged
+from the player's measurement: `PosObjectX` always does both, so all three fixtures measure the
+same composite.
+
 ## What is still unmeasured
 
 Carried forward. Nothing in this list may be treated as zero.
@@ -747,12 +806,14 @@ Carried forward. Nothing in this list may be treated as zero.
   it, but whether an in-blank clock difference moves an object is untested. Recording the
   colour clock in the golden format is the fix, and it changes the file format.
 - **How far a second positioning call displaces the first object.** THAT it does is measured
-  (2026-09-13, whole-screen colour, with a known-positive); the distance and direction are not,
+  (2026-09-12, whole-screen colour, with a known-positive); the distance and direction are not,
   because one lit block locates a landing only modulo 80. Our emulator does not model the
   effect at all. See
   [RETRACTED](#retracted-an-object-positioned-in-vertical-blank-wraps).
-- **Per-object cost differences.** Ball, missile and player all cost 2 lines through
-  `PosObjectX`; no fixture has tried to make them differ.
+- **Per-object LINE cost differences.** Ball, missile and player all cost 2 lines through
+  `PosObjectX`; no fixture has tried to make them differ. Their landing PIXELS were measured on
+  2026-09-27 and do differ -- the player by one -- see
+  [A missile and the ball land two pixels right](#a-missile-and-the-ball-land-two-pixels-right-of-their-authored-x).
 - **Our TIA model's systematic errors.** Increment 5b's static build reproduces golden frame 0's
   visible region record for record -- but the golden was recorded from *this* emulator, so an
   error shared by the model and the golden (playfield bit order, REF mirroring, sprite column

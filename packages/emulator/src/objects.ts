@@ -70,11 +70,40 @@ export class Objects {
    * mechanism is shared, and that assumption is untested.
    */
   static readonly PLAYER_STROBE_DELAY = 8;
-  /** UNMEASURED. Shifted with the player's, on an untested assumption. */
+  /**
+   * MEASURED against Stella 7.0c, 2026-09-27, and the ball shares it.
+   *
+   * This was 7 by assumption -- the player's measured 8 shifted by one, on the
+   * untested belief that the two objects share a mechanism. They do.
+   * `tests/fixtures/tia/collide-missile.asm` and `collide-ball.asm` are
+   * `collide-playfield.asm` with one object swapped in, so the three sweeps are
+   * comparable, and each reports a whole-screen colour rather than a sprite
+   * position:
+   *
+   *   P0   x=0 RED, x=1 black                -> lands at x + 3, delay 8
+   *   M0   x=0 RED, x=1 RED, x=2 black       -> lands at x + 2, delay 7
+   *   BL   x=0 RED, x=1 RED, x=2 black       -> lands at x + 2, delay 7
+   *
+   * The ball keeps routing through this constant, now because it was measured
+   * equal rather than assumed so. A second constant holding the same number
+   * would be a second answer to one question -- the mistake `MOVE_RULE_LINES`
+   * was deleted for.
+   */
   static readonly MISSILE_STROBE_DELAY = 7;
-  /** UNMEASURED. */
+  /**
+   * UNMEASURED, and the sweeps above provably do not reach it.
+   *
+   * Setting `MISSILE_HBLANK_POSITION` to 99 leaves every verdict in
+   * `collide-missile.asm` and `collide-ball.asm` unchanged, so those strobes
+   * land in the visible region and say nothing about the blank. That is a
+   * checked statement rather than an assumption, which is the difference
+   * between this label and the one MISSILE_STROBE_DELAY used to carry.
+   *
+   * A fixture that reached them would have to strobe inside horizontal blank,
+   * which `PosObjectX` never does for any authored x.
+   */
   static readonly PLAYER_HBLANK_POSITION = 3;
-  /** UNMEASURED. */
+  /** UNMEASURED. See PLAYER_HBLANK_POSITION. */
   static readonly MISSILE_HBLANK_POSITION = 2;
 
   // Positions, in visible pixels, of each object's first copy.
