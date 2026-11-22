@@ -322,3 +322,117 @@ describe('collide-missile and collide-ball: where a one-pixel object lands', () 
     expect(Objects.PLAYER_STROBE_DELAY - Objects.MISSILE_STROBE_DELAY).toBe(1);
   });
 });
+
+/**
+ * WHERE does an object land? The instrument, and its known-positive.
+ *
+ * `landing-sweep.asm` inverts `collide-playfield.asm`: it fixes the object and
+ * sweeps the PROBE across all twenty playfield bits, one trial per frame,
+ * keeping each verdict in RAM so that a single Stella capture reports the
+ * landing bin instead of a single bit. Trials 20-39 repeat the sweep with
+ * CTRLPF REF set, which is what lifts the answer out of modulo 80: for a
+ * landing at or past pixel 80 the repeat index (L - 80) and the mirror index
+ * (159 - L) sum to 79, and no two numbers summing to 79 share a four-pixel bin.
+ *
+ * `landing-sweep-second.asm` is the same ROM plus one `jsr PosObjectX`, which
+ * is the configuration `collide-two-objects.asm` showed to displace the first
+ * object. These two are to each other what `collide-playfield` and
+ * `collide-two-objects` are, and for the same reason: the control differs by
+ * exactly one call.
+ *
+ * The answer is a FOUR-PIXEL BIN. A playfield bit is four pixels wide and
+ * nothing here subdivides it.
+ */
+describe('landing-sweep: reading an object landing pixel in one capture', () => {
+  /** `Results` lives at $80, and the RIOT mirrors RAM at `address & 0x7f`. */
+  const RESULTS = 0x80 & 0x7f;
+
+  /**
+   * The red bins of both halves, as the forty bands would show them.
+   *
+   * Read from RAM rather than from the COLUBK trace: the trace reports the
+   * same forty values in the same order, but RAM is what the ROM actually
+   * decided, and a band loop that drew the wrong entry would still produce a
+   * plausible trace.
+   */
+  function bins(fixture: string, x: number, mutate?: (source: string) => string) {
+    let source = fixtureSource(fixture).replace('P0_X        = 0', `P0_X        = ${x}`);
+    if (mutate) source = mutate(source);
+    const { rom } = assembleSource(source, `tests/fixtures/tia/${fixture}.asm`, {
+      includeDirs: ['kernels/include'],
+    });
+    const machine = new Machine(rom);
+    // Forty trials, plus two frames of slack: the first frame is short, and a
+    // sweep read before it completes reports NOTRUN rather than a verdict.
+    for (let i = 0; i < 42; i++) machine.runFrame();
+    const results = Array.from(machine.riot.ram.slice(RESULTS, RESULTS + 40));
+    const red = (half: number[]) => half.flatMap((v, i) => (v === RED ? [i] : []));
+    return { repeat: red(results.slice(0, 20)), mirror: red(results.slice(20)) };
+  }
+
+  it('runs both fixtures as 262-line NTSC frames', () => {
+    for (const name of ['landing-sweep', 'landing-sweep-second']) {
+      const machine = new Machine(romFor(name));
+      machine.runFrame();
+      expect(machine.runFrame().scanlines).toBe(262);
+    }
+  });
+
+  /**
+   * THE KNOWN-POSITIVE, and the reason it is four points rather than one.
+   *
+   * A single call lands an authored x at x + 3, measured 2026-08-30 by a
+   * different fixture, so every bin below is predicted before the run. The four
+   * values are chosen to reach different parts of the instrument, because
+   * "exactly one band is red" is true of a mis-ordered probe table too:
+   *
+   *   x =   0  ->  lands at   3, bin  0      PF0
+   *   x =  40  ->  lands at  43, bin 10      PF1
+   *   x =  60  ->  lands at  63, bin 15      PF2
+   *   x = 100  ->  lands at 103, bins 5/14   the right half, and the REF decode
+   *
+   * The last one is the one that matters most: 5 and 14 DIFFER, and that
+   * difference is the whole reason for the second twenty trials. A landing at
+   * pixel 23 would report bin 5 in both halves.
+   */
+  it('reports the landing bin a single call is already known to produce', () => {
+    expect(bins('landing-sweep', 0)).toEqual({ repeat: [0], mirror: [0] });
+    expect(bins('landing-sweep', 40)).toEqual({ repeat: [10], mirror: [10] });
+    expect(bins('landing-sweep', 60)).toEqual({ repeat: [15], mirror: [15] });
+    expect(bins('landing-sweep', 100)).toEqual({ repeat: [5], mirror: [14] });
+  });
+
+  /**
+   * The detector can fail, shown rather than assumed.
+   *
+   * PF2 runs D0 up to D7 while PF1 runs D7 down to D0, so a table written from
+   * the wrong half of that sentence is the likeliest mistake in the fixture --
+   * and it would still light exactly one band. Reversing PF2 moves the authored
+   * 60 from bin 15 to bin 16, so the assertion above is load-bearing.
+   */
+  it('would notice a reversed probe table', () => {
+    const reversed = bins('landing-sweep', 60, (source) =>
+      source.replace(
+        '    .byte $00, $00, $01, $02, $04, $08, $10, $20, $40, $80',
+        '    .byte $00, $00, $80, $40, $20, $10, $08, $04, $02, $01',
+      ),
+    );
+    expect(reversed).toEqual({ repeat: [16], mirror: [16] });
+  });
+
+  /**
+   * MODEL ONLY: our emulator puts the first-positioned object where one call
+   * alone would put it, so the subject reads identically to its control.
+   *
+   * Stella does not: `collide-two-objects.asm` is black at every authored x
+   * from 0 to 5 where its control is red at 0. This assertion pins the model's
+   * CURRENT behaviour so that correcting it turns this test red deliberately,
+   * rather than drifting away from a comment that still describes the old
+   * state -- the same 2026-09-07 lesson `collide-two-objects` applies.
+   *
+   * The Stella bins go in docs/kernel-measurements.md when they are measured.
+   */
+  it('MODEL ONLY: shows no displacement from the second call, which Stella denies', () => {
+    expect(bins('landing-sweep-second', 0)).toEqual({ repeat: [0], mirror: [0] });
+  });
+});
