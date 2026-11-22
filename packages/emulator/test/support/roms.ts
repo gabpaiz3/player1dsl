@@ -24,6 +24,8 @@ export const ROM_SOURCES: Readonly<Record<string, string>> = {
   'collide-ball': 'tests/fixtures/tia/collide-ball.asm',
   'collide-two-objects': 'tests/fixtures/tia/collide-two-objects.asm',
   'collide-two-objects-reversed': 'tests/fixtures/tia/collide-two-objects-reversed.asm',
+  'landing-sweep': 'tests/fixtures/tia/landing-sweep.asm',
+  'landing-sweep-second': 'tests/fixtures/tia/landing-sweep-second.asm',
 };
 
 /**
